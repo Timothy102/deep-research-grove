@@ -50,11 +50,11 @@ const LandingPage = () => {
           </ul>
           
           <p className="text-base">
-            People think information moves the world. We have an abundance of information. It's really knowledge that gets executed. If we can intelligently capture personalized knowledge, we can enable faster research.
+            Information alone does not move the world. We have an abundance of information. It's really information networks that converge fast. If we can intelligently capture such nexuses, we can enable faster research.
           </p>
           
           <p className="text-base">
-            This might be AGI then — an agent that can navigate any service graph or even self-optimize against any objective. Humans are graph traversal engines, but we don't maximize our behavior against research objectives. An agent could converge to an optimal context graph faster.
+            This might be AGI then — an intelligence capable of both identifying optimal research objectives and self-optimizing to build the most effective context graphs to navigate. Humans think like graph traversal engines too, but we don't maximize our behavior against research objectives. An agent should converge to an optimal context graph faster. That's what we're trying to achieve with this project. 
           </p>
           
           <p className="text-base">
