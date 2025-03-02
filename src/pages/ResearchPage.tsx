@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -7,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Search, User, FileText, LogOut } from "lucide-react";
+import { Loader2, Search, User, LogOut } from "lucide-react";
 import { saveResearchHistory, getResearchHistory } from "@/services/researchService";
 import { useToast } from "@/components/ui/use-toast";
 
@@ -33,6 +32,7 @@ const ResearchPage = () => {
   const [activeTab, setActiveTab] = useState("output");
   const [history, setHistory] = useState<ResearchHistory[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const researchIdRef = useRef<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -77,65 +77,20 @@ const ResearchPage = () => {
     setReasoningPath([]);
     
     try {
-      // For demo purposes, we'll use a simulated stream
-      // In production, replace with your actual API endpoint
-      await saveResearchHistory({
+      // Save research history and get ID
+      const savedData = await saveResearchHistory({
         query,
         user_model: userModel,
         use_case: useCase,
         model,
       });
       
-      // Simulate stream with mock data (replace with real streaming endpoint)
-      const mockStreamUrl = `${window.location.origin}/api/stream_research`;
-      console.log("Would connect to:", mockStreamUrl);
-      
-      // Commented out for now - replace with actual stream endpoint when ready
-      /*
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
+      if (savedData && savedData[0] && savedData[0].id) {
+        researchIdRef.current = savedData[0].id;
       }
       
-      eventSourceRef.current = new EventSource(mockStreamUrl);
-      
-      eventSourceRef.current.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        if (data.event === "start") {
-          console.log("Research started");
-        } else if (data.event === "update") {
-          setResearchOutput(prev => prev + data.data.message + "\n");
-        } else if (data.event === "source") {
-          setSources(prev => [...prev, data.data.source]);
-        } else if (data.event === "reasoning") {
-          setReasoningPath(prev => [...prev, data.data.step]);
-        } else if (data.event === "complete") {
-          setResearchOutput(data.data.answer);
-          setSources(data.data.sources);
-          setReasoningPath(data.data.reasoning_path);
-          eventSourceRef.current?.close();
-        } else if (data.event === "error") {
-          toast({
-            title: "Research Error",
-            description: data.data.error,
-            variant: "destructive",
-          });
-          eventSourceRef.current?.close();
-        }
-      };
-      
-      eventSourceRef.current.onerror = () => {
-        toast({
-          title: "Connection Error",
-          description: "Failed to connect to research service",
-          variant: "destructive",
-        });
-        eventSourceRef.current?.close();
-      };
-      */
-      
-      // For demo purposes, simulate a research response
-      simulateResearchResponse();
+      // Start streaming research with Modal endpoint
+      startResearchStream();
       
       // Refresh history after submission
       const historyData = await getResearchHistory();
@@ -148,48 +103,105 @@ const ResearchPage = () => {
         description: "There was an error processing your request",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };
 
-  const simulateResearchResponse = () => {
-    // This is just for demo purposes - replace with real implementation
-    setTimeout(() => {
-      setResearchOutput("Analyzing query: " + query);
-    }, 1000);
+  const startResearchStream = () => {
+    // Close any existing connection
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
     
-    setTimeout(() => {
-      setResearchOutput(prev => prev + "\n\nSearching for relevant information...");
-      setReasoningPath(["Understanding query", "Planning research approach"]);
-    }, 2000);
+    // Connect to Modal endpoint
+    const streamUrl = `https://timothy102--vertical-deep-research-stream-research.modal.run?query=${encodeURIComponent(query)}&model=${encodeURIComponent(model)}`;
     
-    setTimeout(() => {
-      setSources(["https://example.com/source1", "https://example.com/source2"]);
-      setReasoningPath(prev => [...prev, "Gathering initial data"]);
-    }, 3000);
+    eventSourceRef.current = new EventSource(streamUrl);
     
-    setTimeout(() => {
-      setResearchOutput(prev => prev + "\n\nSynthesizing information from multiple sources...");
-      setReasoningPath(prev => [...prev, "Analyzing findings", "Synthesizing results"]);
-    }, 4000);
+    eventSourceRef.current.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.event === "start") {
+          console.log("Research started");
+        } else if (data.event === "update") {
+          setResearchOutput(prev => prev + data.data.message + "\n");
+        } else if (data.event === "source") {
+          setSources(prev => [...prev, data.data.source]);
+        } else if (data.event === "reasoning") {
+          setReasoningPath(prev => [...prev, data.data.step]);
+        } else if (data.event === "complete") {
+          setResearchOutput(data.data.answer);
+          setSources(data.data.sources || []);
+          setReasoningPath(data.data.reasoning_path || []);
+          setIsLoading(false);
+          eventSourceRef.current?.close();
+        } else if (data.event === "error") {
+          toast({
+            title: "Research Error",
+            description: data.data.error,
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          eventSourceRef.current?.close();
+        }
+      } catch (error) {
+        console.error("Error parsing event data:", error);
+      }
+    };
     
-    setTimeout(() => {
-      const finalAnswer = `# Research Results for: "${query}"\n\n` +
-        "Based on comprehensive analysis, here are the key findings:\n\n" +
-        "1. First major finding with supporting evidence\n" +
-        "2. Second important conclusion drawn from multiple sources\n" +
-        "3. Additional insights relevant to your query\n\n" +
-        "This research provides a thorough examination of the topic, drawing from credible sources and comprehensive analysis.";
-      
-      setResearchOutput(finalAnswer);
-      setSources([
-        "https://example.com/source1",
-        "https://example.com/source2",
-        "https://example.com/source3"
-      ]);
+    eventSourceRef.current.onerror = (error) => {
+      console.error("EventSource error:", error);
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to research service",
+        variant: "destructive",
+      });
       setIsLoading(false);
-    }, 5000);
+      eventSourceRef.current?.close();
+      
+      // If streaming fails, try polling for research state
+      if (researchIdRef.current) {
+        pollResearchState(researchIdRef.current);
+      }
+    };
+  };
+  
+  const pollResearchState = async (researchId: string) => {
+    try {
+      const response = await fetch(`https://timothy102--vertical-deep-research-get-research-state.modal.run?research_id=${researchId}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.status === "completed") {
+        setResearchOutput(data.answer || "");
+        setSources(data.sources || []);
+        setReasoningPath(data.reasoning_path || []);
+        setIsLoading(false);
+      } else if (data.status === "in_progress") {
+        // Keep polling if still in progress
+        setTimeout(() => pollResearchState(researchId), 3000);
+      } else if (data.status === "error") {
+        toast({
+          title: "Research Error",
+          description: data.error || "An error occurred during research",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error("Polling error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to retrieve research results",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+    }
   };
 
   const handleLogout = async () => {

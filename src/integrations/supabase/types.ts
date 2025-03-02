@@ -9,13 +9,75 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email: string
+          id: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      research_history: {
+        Row: {
+          created_at: string | null
+          id: string
+          model: string | null
+          query: string
+          use_case: string | null
+          user_id: string
+          user_model: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          model?: string | null
+          query: string
+          use_case?: string | null
+          user_id: string
+          user_model?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          model?: string | null
+          query?: string
+          use_case?: string | null
+          user_id?: string
+          user_model?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_current_user_profile: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          avatar_url: string | null
+          created_at: string | null
+          email: string
+          id: string
+          updated_at: string | null
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
