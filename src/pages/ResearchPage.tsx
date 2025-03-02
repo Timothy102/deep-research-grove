@@ -273,7 +273,9 @@ const ResearchPage = () => {
       <header className="py-4 px-6 border-b flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600"></div>
-          <span className="font-display font-semibold text-xl">DeepResearch</span>
+          <a href="/" className="no-underline">
+            <span className="font-display font-semibold text-xl">DeepResearch</span>
+          </a>
         </div>
         <div className="flex items-center space-x-4">
           <Button 
