@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -6,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Search, User, LogOut } from "lucide-react";
+import { Loader2, Search, User, LogOut, FileText } from "lucide-react";
 import { saveResearchHistory, getResearchHistory } from "@/services/researchService";
 import { useToast } from "@/components/ui/use-toast";
 

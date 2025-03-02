@@ -1,6 +1,5 @@
-
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
 import { SignInForm, SignUpForm } from "@/components/auth/AuthForms";
 import { Button } from "@/components/ui/button";
@@ -11,13 +10,19 @@ import { Loader2 } from "lucide-react";
 const AuthPage = () => {
   const [authTab, setAuthTab] = useState("signin");
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, loading, signInWithGoogle } = useAuth();
 
   useEffect(() => {
-    if (user) {
+    const hashParams = new URLSearchParams(location.hash.substring(1));
+    const accessToken = hashParams.get('access_token');
+    
+    if (accessToken && user) {
+      navigate("/research");
+    } else if (user) {
       navigate("/research");
     }
-  }, [user, navigate]);
+  }, [user, navigate, location]);
 
   const handleGoogleSignIn = async () => {
     try {
