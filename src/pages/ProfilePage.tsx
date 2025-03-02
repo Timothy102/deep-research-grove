@@ -34,7 +34,7 @@ const ProfilePage = () => {
 
   return (
     <div className="container max-w-4xl py-10">
-      <h1 className="text-3xl font-display font-bold mb-6">Your Profile</h1>
+      <h3 className="text-3xl font-display font-bold mb-6">Your Profile</h3>
       
       <Card className="mb-8">
         <CardHeader>

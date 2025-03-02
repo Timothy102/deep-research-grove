@@ -71,7 +71,7 @@ const ResearchPage = () => {
       });
       return;
     }
-
+  
     setIsLoading(true);
     setResearchOutput("");
     setSources([]);
@@ -90,7 +90,7 @@ const ResearchPage = () => {
         researchIdRef.current = savedData[0].id;
       }
       
-      // Start streaming research with Modal endpoint
+      // Start research with POST request instead of EventSource
       startResearchStream();
       
       // Refresh history after submission
@@ -114,63 +114,111 @@ const ResearchPage = () => {
       eventSourceRef.current.close();
     }
     
-    // Connect to Modal endpoint
-    const streamUrl = `https://timothy102--vertical-deep-research-stream-research.modal.run?query=${encodeURIComponent(query)}&model=${encodeURIComponent(model)}`;
+    // Create a POST request to the stream_research endpoint
+    const streamUrl = `https://timothy102--vertical-deep-research-stream-research.modal.run`;
     
-    eventSourceRef.current = new EventSource(streamUrl);
-    
-    eventSourceRef.current.onmessage = (event) => {
+    // Set up EventSource with POST using a lightweight fetch polyfill
+    const fetchEventSource = async () => {
       try {
-        const data = JSON.parse(event.data);
+        const response = await fetch(streamUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: query,
+            user_model: userModel,
+            use_case: useCase,
+            model: model
+          })
+        });
         
-        if (data.event === "start") {
-          console.log("Research started");
-        } else if (data.event === "update") {
-          setResearchOutput(prev => prev + data.data.message + "\n");
-        } else if (data.event === "source") {
-          setSources(prev => [...prev, data.data.source]);
-        } else if (data.event === "reasoning") {
-          setReasoningPath(prev => [...prev, data.data.step]);
-        } else if (data.event === "complete") {
-          setResearchOutput(data.data.answer);
-          setSources(data.data.sources || []);
-          setReasoningPath(data.data.reasoning_path || []);
-          setIsLoading(false);
-          eventSourceRef.current?.close();
-        } else if (data.event === "error") {
-          toast({
-            title: "Research Error",
-            description: data.data.error,
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          eventSourceRef.current?.close();
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        // Read the response as a stream
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error("Unable to get reader from response");
+        }
+        
+        const decoder = new TextDecoder();
+        let buffer = "";
+        
+        // Process the stream
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+          
+          // Decode the chunk and add it to the buffer
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Process complete events in the buffer
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() || ""; // Keep the last incomplete chunk in the buffer
+          
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.substring(6));
+                
+                // Process the event based on its type
+                if (data.event === "start") {
+                  console.log("Research started");
+                } else if (data.event === "update") {
+                  setResearchOutput(prev => prev + data.data.message + "\n");
+                } else if (data.event === "source") {
+                  setSources(prev => [...prev, data.data.source]);
+                } else if (data.event === "reasoning") {
+                  setReasoningPath(prev => [...prev, data.data.step]);
+                } else if (data.event === "complete") {
+                  setResearchOutput(data.data.answer);
+                  setSources(data.data.sources || []);
+                  setReasoningPath(data.data.reasoning_path || []);
+                  setIsLoading(false);
+                } else if (data.event === "error") {
+                  toast({
+                    title: "Research Error",
+                    description: data.data.error,
+                    variant: "destructive",
+                  });
+                  setIsLoading(false);
+                }
+              } catch (error) {
+                console.error("Error parsing event data:", error);
+              }
+            }
+          }
         }
       } catch (error) {
-        console.error("Error parsing event data:", error);
+        console.error("Fetch error:", error);
+        toast({
+          title: "Connection Error",
+          description: "Failed to connect to research service",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        
+        // If streaming fails, try polling for research state
+        if (researchIdRef.current) {
+          pollResearchState(researchIdRef.current);
+        }
       }
     };
     
-    eventSourceRef.current.onerror = (error) => {
-      console.error("EventSource error:", error);
-      toast({
-        title: "Connection Error",
-        description: "Failed to connect to research service",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      eventSourceRef.current?.close();
-      
-      // If streaming fails, try polling for research state
-      if (researchIdRef.current) {
-        pollResearchState(researchIdRef.current);
-      }
-    };
+    // Start the fetch process
+    fetchEventSource();
   };
   
   const pollResearchState = async (researchId: string) => {
     try {
-      const response = await fetch(`https://timothy102--vertical-deep-research-get-research-state.modal.run?research_id=${researchId}`);
+      // Use GET method for research state
+      const response = await fetch(`https://timothy102--vertical-deep-research-get-research-state.modal.run?research_id=${researchId}`, {
+        method: 'GET'
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
