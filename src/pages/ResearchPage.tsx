@@ -145,7 +145,7 @@ const ResearchPage = () => {
     setSources([]);
     setReasoningPath([]);
     
-    // Switch to reasoning path tab when research starts
+    // Always switch to reasoning path tab when research starts
     setActiveTab("reasoning");
     
     try {
@@ -199,7 +199,7 @@ const ResearchPage = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            research_objective: researchObjective, // Changed from query to research_objective
+            research_objective: researchObjective,
             user_model: userModelData,
             model: model
           })
@@ -251,6 +251,8 @@ const ResearchPage = () => {
                   setSources(data.data.sources || []);
                   setReasoningPath(data.data.reasoning_path || []);
                   setIsLoading(false);
+                  // Switch to output tab when research is complete
+                  setActiveTab("output");
                 } else if (data.event === "error") {
                   toast({
                     title: "research error",
@@ -303,6 +305,8 @@ const ResearchPage = () => {
         setSources(data.sources || []);
         setReasoningPath(data.reasoning_path || []);
         setIsLoading(false);
+        // Switch to output tab when polling returns complete status
+        setActiveTab("output");
       } else if (data.status === "in_progress") {
         // Keep polling if still in progress
         setTimeout(() => pollResearchState(researchId), 3000);
@@ -591,24 +595,10 @@ const ResearchPage = () => {
               <div className="mt-8 border rounded-lg overflow-hidden">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="w-full grid grid-cols-3">
-                    <TabsTrigger value="output">research output</TabsTrigger>
-                    <TabsTrigger value="sources">sources ({sources.length})</TabsTrigger>
                     <TabsTrigger value="reasoning">reasoning path</TabsTrigger>
+                    <TabsTrigger value="sources">sources ({sources.length})</TabsTrigger>
+                    <TabsTrigger value="output">research output</TabsTrigger>
                   </TabsList>
-                  
-                  <TabsContent value="output" className="p-4">
-                    {isLoading ? (
-                      <div className="h-64 flex items-center justify-center">
-                        <Loader2 className="h-8 w-8 animate-spin opacity-70" />
-                      </div>
-                    ) : (
-                      <ResearchOutput output={researchOutput} />
-                    )}
-                  </TabsContent>
-                  
-                  <TabsContent value="sources" className="p-4">
-                    <SourcesList sources={sources} />
-                  </TabsContent>
                   
                   <TabsContent value="reasoning" className="p-4">
                     {isLoading && reasoningPath.length === 0 ? (
@@ -617,6 +607,20 @@ const ResearchPage = () => {
                       </div>
                     ) : (
                       <ReasoningPath reasoningPath={reasoningPath} sources={sources} />
+                    )}
+                  </TabsContent>
+                  
+                  <TabsContent value="sources" className="p-4">
+                    <SourcesList sources={sources} />
+                  </TabsContent>
+                  
+                  <TabsContent value="output" className="p-4">
+                    {isLoading ? (
+                      <div className="h-64 flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin opacity-70" />
+                      </div>
+                    ) : (
+                      <ResearchOutput output={researchOutput} />
                     )}
                   </TabsContent>
                 </Tabs>

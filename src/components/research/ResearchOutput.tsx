@@ -19,7 +19,7 @@ const ResearchOutput = ({ output }: { output: string }) => {
   if (!output) {
     return (
       <div className="text-center py-12 text-muted-foreground">
-        <p>Research output will appear here...</p>
+        <p>Research output will appear here after reasoning is complete...</p>
       </div>
     );
   }

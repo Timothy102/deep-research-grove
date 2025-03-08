@@ -9,6 +9,7 @@ interface ReasoningStepProps {
   step: string;
   index: number;
   sources?: string[];
+  defaultExpanded?: boolean;
 }
 
 const getStepType = (step: string): { type: string; color: string } => {
@@ -45,8 +46,8 @@ const getSourceNumber = (source: string, step: string): number | null => {
   return parseInt(firstMatch, 10);
 };
 
-const ReasoningStep = ({ step, index, sources = [] }: ReasoningStepProps) => {
-  const [expanded, setExpanded] = useState(index === 0);
+const ReasoningStep = ({ step, index, sources = [], defaultExpanded = false }: ReasoningStepProps) => {
+  const [expanded, setExpanded] = useState(defaultExpanded || index === 0);
   const { type, color } = getStepType(step);
   const stepIcon = getStepIcon(step);
   
@@ -67,7 +68,7 @@ const ReasoningStep = ({ step, index, sources = [] }: ReasoningStepProps) => {
   }
 
   return (
-    <div className="mb-3 animate-in">
+    <div className="mb-3 animate-fade-in">
       <div 
         className={cn(
           "flex items-start space-x-2 p-3 rounded-md border transition-all duration-200",
@@ -76,27 +77,29 @@ const ReasoningStep = ({ step, index, sources = [] }: ReasoningStepProps) => {
         role="button"
         onClick={() => setExpanded(!expanded)}
       >
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="h-6 w-6 shrink-0 mt-0.5"
-          onClick={(e) => {
-            e.stopPropagation();
-            setExpanded(!expanded);
-          }}
-        >
-          {expanded ? 
-            <ChevronDown className="h-4 w-4" /> : 
-            <ChevronRight className="h-4 w-4" />
-          }
-        </Button>
+        <div className="flex items-center mt-0.5">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="h-6 w-6 shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(!expanded);
+            }}
+          >
+            {expanded ? 
+              <ChevronDown className="h-4 w-4" /> : 
+              <ChevronRight className="h-4 w-4" />
+            }
+          </Button>
+          
+          <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
+            <span className="text-xs font-medium">{index + 1}</span>
+          </div>
+        </div>
         
         <div className="flex flex-col flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
-              <span className="text-xs font-medium">{index + 1}</span>
-            </div>
-            
             <Badge className={cn("font-normal", color)}>
               {type}
             </Badge>
@@ -113,26 +116,35 @@ const ReasoningStep = ({ step, index, sources = [] }: ReasoningStepProps) => {
         </div>
       </div>
       
-      {expanded && relevantSources.length > 0 && (
+      {expanded && (
         <div className="ml-11 mt-2 space-y-2 border-l-2 pl-4 border-gray-200 dark:border-gray-800">
-          <h4 className="text-xs font-medium text-muted-foreground">Related Sources:</h4>
-          {relevantSources.map((source, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs">
-              <span className="inline-block w-4 h-4 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 flex items-center justify-center text-[10px]">
-                {getSourceNumber(source, step) || i+1}
-              </span>
-              <a 
-                href={source} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="flex-1 text-blue-600 dark:text-blue-400 hover:underline truncate"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {source}
-              </a>
-              <ExternalLink className="h-3 w-3 text-muted-foreground" />
-            </div>
-          ))}
+          {/* Detailed information would go here */}
+          <div className="text-sm text-muted-foreground">
+            <p className="mb-2">{formattedStep}</p>
+          </div>
+          
+          {relevantSources.length > 0 && (
+            <>
+              <h4 className="text-xs font-medium text-muted-foreground mt-3">Related Sources:</h4>
+              {relevantSources.map((source, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <span className="inline-block w-4 h-4 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 flex items-center justify-center text-[10px]">
+                    {getSourceNumber(source, step) || i+1}
+                  </span>
+                  <a 
+                    href={source} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex-1 text-blue-600 dark:text-blue-400 hover:underline truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {source}
+                  </a>
+                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -155,7 +167,8 @@ const ReasoningPath = ({ reasoningPath, sources = [] }: { reasoningPath: string[
           key={index} 
           step={step} 
           index={index} 
-          sources={sources} 
+          sources={sources}
+          defaultExpanded={index === 0} // First item is expanded by default
         />
       ))}
     </div>
