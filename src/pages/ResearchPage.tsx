@@ -466,11 +466,10 @@ const ResearchPage = () => {
               {/* User Current Understanding */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium">current understanding</label>
-                <p className="text-sm text-muted-foreground">Explain in your own words what you already know about this topic. Use 2-5 sentences.</p>
                 <Textarea
                   value={userContext}
                   onChange={(e) => setUserContext(e.target.value)}
-                  placeholder="share what you already know about this research topic..."
+                  placeholder="Explain in your own words what you already know about this topic. Use 2-5 sentences."
                   className="min-h-[80px]"
                 />
               </div>
