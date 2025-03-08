@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -17,6 +16,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import ReasoningPath from "@/components/research/ReasoningPath";
+import SourcesList from "@/components/research/SourcesList";
+import ResearchOutput from "@/components/research/ResearchOutput";
 
 interface ResearchHistory {
   id: string;
@@ -63,7 +65,7 @@ const ResearchPage = () => {
   const [researchOutput, setResearchOutput] = useState("");
   const [sources, setSources] = useState<string[]>([]);
   const [reasoningPath, setReasoningPath] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("output");
+  const [activeTab, setActiveTab] = useState("output"); // Adjust initial active tab
   const [history, setHistory] = useState<ResearchHistory[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
@@ -142,6 +144,9 @@ const ResearchPage = () => {
     setResearchOutput("");
     setSources([]);
     setReasoningPath([]);
+    
+    // Switch to reasoning path tab when research starts
+    setActiveTab("reasoning");
     
     try {
       // Generate user model payload
@@ -582,9 +587,9 @@ const ResearchPage = () => {
             </div>
             
             {/* Research Results */}
-            {(researchOutput || sources.length > 0 || reasoningPath.length > 0) && (
+            {(researchOutput || sources.length > 0 || reasoningPath.length > 0 || isLoading) && (
               <div className="mt-8 border rounded-lg overflow-hidden">
-                <Tabs defaultValue="output" value={activeTab} onValueChange={setActiveTab}>
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="w-full grid grid-cols-3">
                     <TabsTrigger value="output">research output</TabsTrigger>
                     <TabsTrigger value="sources">sources ({sources.length})</TabsTrigger>
@@ -597,40 +602,21 @@ const ResearchPage = () => {
                         <Loader2 className="h-8 w-8 animate-spin opacity-70" />
                       </div>
                     ) : (
-                      <div className="whitespace-pre-wrap">{researchOutput}</div>
+                      <ResearchOutput output={researchOutput} />
                     )}
                   </TabsContent>
                   
                   <TabsContent value="sources" className="p-4">
-                    {sources.length === 0 ? (
-                      <p className="text-muted-foreground">no sources available yet.</p>
-                    ) : (
-                      <ul className="list-disc pl-5 space-y-2">
-                        {sources.map((source, index) => (
-                          <li key={index}>
-                            <a 
-                              href={source} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-500 hover:underline"
-                            >
-                              {source}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    <SourcesList sources={sources} />
                   </TabsContent>
                   
                   <TabsContent value="reasoning" className="p-4">
-                    {reasoningPath.length === 0 ? (
-                      <p className="text-muted-foreground">no reasoning path available yet.</p>
+                    {isLoading && reasoningPath.length === 0 ? (
+                      <div className="h-64 flex items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin opacity-70" />
+                      </div>
                     ) : (
-                      <ol className="list-decimal pl-5 space-y-2">
-                        {reasoningPath.map((step, index) => (
-                          <li key={index}>{step}</li>
-                        ))}
-                      </ol>
+                      <ReasoningPath reasoningPath={reasoningPath} sources={sources} />
                     )}
                   </TabsContent>
                 </Tabs>
