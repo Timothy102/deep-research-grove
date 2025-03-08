@@ -25,7 +25,7 @@ export const SignInForm = () => {
       <div className="space-y-2">
         <Input
           type="email"
-          placeholder="Email"
+          placeholder="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -35,7 +35,7 @@ export const SignInForm = () => {
       <div className="space-y-2">
         <Input
           type="password"
-          placeholder="Password"
+          placeholder="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -45,10 +45,10 @@ export const SignInForm = () => {
       <Button type="submit" className="w-full h-11" disabled={loading}>
         {loading ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in...
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> signing in...
           </>
         ) : (
-          "Sign In"
+          "sign in"
         )}
       </Button>
     </form>
@@ -75,7 +75,7 @@ export const SignUpForm = () => {
       <div className="space-y-2">
         <Input
           type="email"
-          placeholder="Email"
+          placeholder="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -85,7 +85,7 @@ export const SignUpForm = () => {
       <div className="space-y-2">
         <Input
           type="password"
-          placeholder="Password"
+          placeholder="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -95,10 +95,10 @@ export const SignUpForm = () => {
       <Button type="submit" className="w-full h-11" disabled={loading}>
         {loading ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating account...
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> creating account...
           </>
         ) : (
-          "Create Account"
+          "create account"
         )}
       </Button>
     </form>
