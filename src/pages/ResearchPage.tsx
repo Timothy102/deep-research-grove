@@ -57,7 +57,6 @@ const ResearchPage = () => {
   // User model fields
   const [domain, setDomain] = useState("");
   const [expertiseLevel, setExpertiseLevel] = useState("intermediate");
-  const [researchInterests, setResearchInterests] = useState<string[]>([""]);
   const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("general");
   
   const [model, setModel] = useState("claude-3.5-sonnet"); // Default model
@@ -97,34 +96,12 @@ const ResearchPage = () => {
     };
   }, [user, navigate]);
 
-  // Handle research interests management
-  const addResearchInterest = () => {
-    setResearchInterests([...researchInterests, ""]);
-  };
-
-  const removeResearchInterest = (index: number) => {
-    const updatedInterests = [...researchInterests];
-    updatedInterests.splice(index, 1);
-    setResearchInterests(updatedInterests);
-  };
-
-  const updateResearchInterest = (index: number, value: string) => {
-    const updatedInterests = [...researchInterests];
-    updatedInterests[index] = value;
-    setResearchInterests(updatedInterests);
-  };
-
-  // Create user model for API request
   const createUserModelPayload = () => {
-    // Filter out empty research interests
-    const filteredInterests = researchInterests.filter(interest => interest.trim() !== "");
-    
     return {
       user_id: user?.id || "anonymous",
       name: user?.email || "anonymous",
       domain: domain,
       expertise_level: expertiseLevel,
-      researchInterests: filteredInterests,
       cognitiveStyle: selectedCognitiveStyle,
       userContext: userContext // Add user context to the user model
     };
@@ -344,7 +321,6 @@ const ResearchPage = () => {
     setUserContext("");
     setDomain("");
     setExpertiseLevel("intermediate");
-    setResearchInterests([""]);
     setSelectedCognitiveStyle("general");
     setResearchOutput("");
     setSources([]);
@@ -363,9 +339,6 @@ const ResearchPage = () => {
       const userModelData = JSON.parse(item.user_model || "{}");
       if (userModelData.domain) setDomain(userModelData.domain);
       if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
-      if (userModelData.researchInterests && Array.isArray(userModelData.researchInterests)) {
-        setResearchInterests(userModelData.researchInterests.length ? userModelData.researchInterests : [""]);
-      }
       if (userModelData.userContext) setUserContext(userModelData.userContext);
       
       // Set selected cognitive style
@@ -524,42 +497,6 @@ const ResearchPage = () => {
                     <option key={level} value={level}>{level}</option>
                   ))}
                 </select>
-              </div>
-              
-              {/* Research Interests */}
-              <div>
-                <label className="block text-sm font-medium mb-1">research interests</label>
-                <div className="space-y-2">
-                  {researchInterests.map((interest, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <Input
-                        value={interest}
-                        onChange={(e) => updateResearchInterest(index, e.target.value)}
-                        placeholder={`research interest ${index + 1}`}
-                        className="flex-1"
-                      />
-                      {researchInterests.length > 1 && (
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => removeResearchInterest(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm"
-                    onClick={addResearchInterest}
-                    className="flex items-center gap-1"
-                  >
-                    <Plus className="h-3 w-3" /> add interest
-                  </Button>
-                </div>
               </div>
               
               {/* Cognitive Style (Radio buttons) */}
