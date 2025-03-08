@@ -7,9 +7,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Search, User, LogOut, FileText } from "lucide-react";
+import { Loader2, Search, User, LogOut, FileText, X, Plus } from "lucide-react";
 import { saveResearchHistory, getResearchHistory } from "@/services/researchService";
 import { useToast } from "@/components/ui/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 interface ResearchHistory {
   id: string;
@@ -19,12 +21,42 @@ interface ResearchHistory {
   created_at: string;
 }
 
+// Cognitive style options
+const cognitiveStyles = [
+  { id: "systematic", label: "Systematic" },
+  { id: "general", label: "General" },
+  { id: "first-principles", label: "First-principles" },
+  { id: "creative", label: "Creative" },
+  { id: "practical", label: "Practical Applier" },
+];
+
+// Expertise levels
+const expertiseLevels = [
+  "Beginner",
+  "Intermediate",
+  "Advanced",
+  "Expert"
+];
+
 const ResearchPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [userModel, setUserModel] = useState("");
   const [useCase, setUseCase] = useState("");
+  
+  // User model fields
+  const [domain, setDomain] = useState("");
+  const [expertiseLevel, setExpertiseLevel] = useState("Intermediate");
+  const [researchInterests, setResearchInterests] = useState<string[]>([""]);
+  const [selectedCognitiveStyles, setSelectedCognitiveStyles] = useState<Record<string, boolean>>({
+    systematic: false,
+    general: true,
+    "first-principles": false,
+    creative: false,
+    practical: false
+  });
+  
   const [model, setModel] = useState("claude-3.5-sonnet"); // Default model
   const [isLoading, setIsLoading] = useState(false);
   const [researchOutput, setResearchOutput] = useState("");
@@ -62,6 +94,54 @@ const ResearchPage = () => {
     };
   }, [user, navigate]);
 
+  // Handle research interests management
+  const addResearchInterest = () => {
+    setResearchInterests([...researchInterests, ""]);
+  };
+
+  const removeResearchInterest = (index: number) => {
+    const updatedInterests = [...researchInterests];
+    updatedInterests.splice(index, 1);
+    setResearchInterests(updatedInterests);
+  };
+
+  const updateResearchInterest = (index: number, value: string) => {
+    const updatedInterests = [...researchInterests];
+    updatedInterests[index] = value;
+    setResearchInterests(updatedInterests);
+  };
+
+  // Toggle cognitive style selection
+  const toggleCognitiveStyle = (styleId: string) => {
+    setSelectedCognitiveStyles(prev => ({
+      ...prev,
+      [styleId]: !prev[styleId]
+    }));
+  };
+
+  // Get selected cognitive styles as comma-separated string
+  const getSelectedCognitiveStyles = (): string => {
+    return Object.entries(selectedCognitiveStyles)
+      .filter(([_, isSelected]) => isSelected)
+      .map(([style]) => style)
+      .join(", ");
+  };
+
+  // Create user model for API request
+  const createUserModelPayload = () => {
+    // Filter out empty research interests
+    const filteredInterests = researchInterests.filter(interest => interest.trim() !== "");
+    
+    return {
+      user_id: user?.id || "anonymous",
+      name: user?.email || "anonymous",
+      domain: domain,
+      expertise_level: expertiseLevel,
+      researchInterests: filteredInterests,
+      cognitiveStyle: getSelectedCognitiveStyles()
+    };
+  };
+
   const handleResearch = async () => {
     if (!query.trim()) {
       toast({
@@ -78,10 +158,13 @@ const ResearchPage = () => {
     setReasoningPath([]);
     
     try {
+      // Generate user model payload
+      const userModelPayload = createUserModelPayload();
+      
       // Save research history and get ID
       const savedData = await saveResearchHistory({
         query,
-        user_model: userModel,
+        user_model: JSON.stringify(userModelPayload),
         use_case: useCase,
         model,
       });
@@ -90,8 +173,8 @@ const ResearchPage = () => {
         researchIdRef.current = savedData[0].id;
       }
       
-      // Start research with POST request instead of EventSource
-      startResearchStream();
+      // Start research with POST request
+      startResearchStream(userModelPayload);
       
       // Refresh history after submission
       const historyData = await getResearchHistory();
@@ -108,7 +191,7 @@ const ResearchPage = () => {
     }
   };
 
-  const startResearchStream = () => {
+  const startResearchStream = (userModelData: any) => {
     // Close any existing connection
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
@@ -127,7 +210,7 @@ const ResearchPage = () => {
           },
           body: JSON.stringify({
             query: query,
-            user_model: userModel,
+            user_model: userModelData,
             use_case: useCase,
             model: model
           })
@@ -264,7 +347,40 @@ const ResearchPage = () => {
 
   const loadHistoryItem = (item: ResearchHistory) => {
     setQuery(item.query);
-    setUserModel(item.user_model || "");
+    
+    // Try to parse user model from history
+    try {
+      const userModelData = JSON.parse(item.user_model || "{}");
+      if (userModelData.domain) setDomain(userModelData.domain);
+      if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
+      if (userModelData.researchInterests && Array.isArray(userModelData.researchInterests)) {
+        setResearchInterests(userModelData.researchInterests.length ? userModelData.researchInterests : [""]);
+      }
+      
+      // Reset cognitive styles
+      const newCognitiveStyles: Record<string, boolean> = {
+        systematic: false,
+        general: false,
+        "first-principles": false,
+        creative: false,
+        practical: false
+      };
+      
+      // Set selected cognitive styles
+      if (userModelData.cognitiveStyle) {
+        const styles = userModelData.cognitiveStyle.split(",").map((s: string) => s.trim());
+        styles.forEach((style: string) => {
+          if (style in newCognitiveStyles) {
+            newCognitiveStyles[style] = true;
+          }
+        });
+      }
+      setSelectedCognitiveStyles(newCognitiveStyles);
+    } catch (e) {
+      console.error("Error parsing user model from history:", e);
+      setUserModel(item.user_model || "");
+    }
+    
     setUseCase(item.use_case || "");
   };
 
@@ -332,7 +448,8 @@ const ResearchPage = () => {
           <div className="max-w-4xl mx-auto">
             <h1 className="text-2xl font-bold mb-6">Deep Research</h1>
             
-            <div className="space-y-4 mb-8">
+            <div className="space-y-6 mb-8">
+              {/* Research Query */}
               <div>
                 <label className="block text-sm font-medium mb-1">Research Query</label>
                 <Textarea
@@ -343,25 +460,94 @@ const ResearchPage = () => {
                 />
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">User Model (Optional)</label>
-                  <Input
-                    value={userModel}
-                    onChange={(e) => setUserModel(e.target.value)}
-                    placeholder="Describe yourself or your organization..."
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Use Case (Optional)</label>
-                  <Input
-                    value={useCase}
-                    onChange={(e) => setUseCase(e.target.value)}
-                    placeholder="What is this research for?"
-                  />
+              {/* User Domain */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Your Domain/Field</label>
+                <Input
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  placeholder="e.g. Computer Science, Medicine, Finance..."
+                />
+              </div>
+              
+              {/* Expertise Level */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Expertise Level</label>
+                <select
+                  value={expertiseLevel}
+                  onChange={(e) => setExpertiseLevel(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-md bg-background text-sm"
+                >
+                  {expertiseLevels.map(level => (
+                    <option key={level} value={level}>{level}</option>
+                  ))}
+                </select>
+              </div>
+              
+              {/* Research Interests */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Research Interests</label>
+                <div className="space-y-2">
+                  {researchInterests.map((interest, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <Input
+                        value={interest}
+                        onChange={(e) => updateResearchInterest(index, e.target.value)}
+                        placeholder={`Research interest ${index + 1}`}
+                        className="flex-1"
+                      />
+                      {researchInterests.length > 1 && (
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => removeResearchInterest(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    onClick={addResearchInterest}
+                    className="flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" /> Add Interest
+                  </Button>
                 </div>
               </div>
               
+              {/* Cognitive Style */}
+              <div>
+                <label className="block text-sm font-medium mb-2">Cognitive Style</label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {cognitiveStyles.map((style) => (
+                    <div key={style.id} className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`cognitive-${style.id}`} 
+                        checked={selectedCognitiveStyles[style.id]} 
+                        onCheckedChange={() => toggleCognitiveStyle(style.id)}
+                      />
+                      <Label htmlFor={`cognitive-${style.id}`}>{style.label}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Use Case (Optional) */}
+              <div>
+                <label className="block text-sm font-medium mb-1">Use Case (Optional)</label>
+                <Input
+                  value={useCase}
+                  onChange={(e) => setUseCase(e.target.value)}
+                  placeholder="What is this research for?"
+                />
+              </div>
+              
+              {/* Model Selection */}
               <div>
                 <label className="block text-sm font-medium mb-1">Model</label>
                 <select
@@ -376,6 +562,7 @@ const ResearchPage = () => {
                 </select>
               </div>
               
+              {/* Submit Button */}
               <Button 
                 onClick={handleResearch} 
                 disabled={isLoading || !query.trim()}
@@ -395,6 +582,7 @@ const ResearchPage = () => {
               </Button>
             </div>
             
+            {/* Research Results */}
             {(researchOutput || sources.length > 0 || reasoningPath.length > 0) && (
               <div className="mt-8 border rounded-lg overflow-hidden">
                 <Tabs defaultValue="output" value={activeTab} onValueChange={setActiveTab}>
