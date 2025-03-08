@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -7,11 +6,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Search, User, LogOut, FileText, X, Plus } from "lucide-react";
+import { Loader2, Search, User, LogOut, FileText, X, Plus, HelpCircle } from "lucide-react";
 import { saveResearchHistory, getResearchHistory } from "@/services/researchService";
 import { useToast } from "@/components/ui/use-toast";
-import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 interface ResearchHistory {
   id: string;
@@ -38,24 +42,20 @@ const expertiseLevels = [
   "Expert"
 ];
 
+// Example research objective
+const exampleObjective = `I was always interested as to why life needs to exist. Which biological/thermodynamical processes were in play for why we need to survive? My objective comes from curiosity, I'd love to understand the fundamentals behind this research objective. Feel free to synthesize more than one theory.`;
+
 const ResearchPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [userModel, setUserModel] = useState("");
-  const [useCase, setUseCase] = useState("");
+  const [researchObjective, setResearchObjective] = useState("");
   
   // User model fields
   const [domain, setDomain] = useState("");
   const [expertiseLevel, setExpertiseLevel] = useState("Intermediate");
   const [researchInterests, setResearchInterests] = useState<string[]>([""]);
-  const [selectedCognitiveStyles, setSelectedCognitiveStyles] = useState<Record<string, boolean>>({
-    systematic: false,
-    general: true,
-    "first-principles": false,
-    creative: false,
-    practical: false
-  });
+  const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("general");
   
   const [model, setModel] = useState("claude-3.5-sonnet"); // Default model
   const [isLoading, setIsLoading] = useState(false);
@@ -111,22 +111,6 @@ const ResearchPage = () => {
     setResearchInterests(updatedInterests);
   };
 
-  // Toggle cognitive style selection
-  const toggleCognitiveStyle = (styleId: string) => {
-    setSelectedCognitiveStyles(prev => ({
-      ...prev,
-      [styleId]: !prev[styleId]
-    }));
-  };
-
-  // Get selected cognitive styles as comma-separated string
-  const getSelectedCognitiveStyles = (): string => {
-    return Object.entries(selectedCognitiveStyles)
-      .filter(([_, isSelected]) => isSelected)
-      .map(([style]) => style)
-      .join(", ");
-  };
-
   // Create user model for API request
   const createUserModelPayload = () => {
     // Filter out empty research interests
@@ -138,7 +122,7 @@ const ResearchPage = () => {
       domain: domain,
       expertise_level: expertiseLevel,
       researchInterests: filteredInterests,
-      cognitiveStyle: getSelectedCognitiveStyles()
+      cognitiveStyle: selectedCognitiveStyle
     };
   };
 
@@ -165,7 +149,7 @@ const ResearchPage = () => {
       const savedData = await saveResearchHistory({
         query,
         user_model: JSON.stringify(userModelPayload),
-        use_case: useCase,
+        use_case: researchObjective,
         model,
       });
       
@@ -211,7 +195,7 @@ const ResearchPage = () => {
           body: JSON.stringify({
             query: query,
             user_model: userModelData,
-            use_case: useCase,
+            use_case: researchObjective,
             model: model
           })
         });
@@ -357,31 +341,15 @@ const ResearchPage = () => {
         setResearchInterests(userModelData.researchInterests.length ? userModelData.researchInterests : [""]);
       }
       
-      // Reset cognitive styles
-      const newCognitiveStyles: Record<string, boolean> = {
-        systematic: false,
-        general: false,
-        "first-principles": false,
-        creative: false,
-        practical: false
-      };
-      
-      // Set selected cognitive styles
+      // Set selected cognitive style
       if (userModelData.cognitiveStyle) {
-        const styles = userModelData.cognitiveStyle.split(",").map((s: string) => s.trim());
-        styles.forEach((style: string) => {
-          if (style in newCognitiveStyles) {
-            newCognitiveStyles[style] = true;
-          }
-        });
+        setSelectedCognitiveStyle(userModelData.cognitiveStyle);
       }
-      setSelectedCognitiveStyles(newCognitiveStyles);
     } catch (e) {
       console.error("Error parsing user model from history:", e);
-      setUserModel(item.user_model || "");
     }
     
-    setUseCase(item.use_case || "");
+    setResearchObjective(item.use_case || "");
   };
 
   return (
@@ -460,6 +428,42 @@ const ResearchPage = () => {
                 />
               </div>
               
+              {/* Research Objective */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <label className="block text-sm font-medium">Research Objective</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-5 w-5">
+                        <HelpCircle className="h-4 w-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-4">
+                      <div className="space-y-2">
+                        <h4 className="font-medium text-sm">What is a research objective?</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Explain why you're interested in this query:
+                          <ul className="list-disc pl-4 mt-1">
+                            <li>Why does this question interest you?</li>
+                            <li>What do you hope to learn from the answer?</li>
+                            <li>Is this for curiosity, work, or academic research?</li>
+                          </ul>
+                        </p>
+                        <div className="mt-2 p-2 bg-muted rounded-md">
+                          <p className="text-xs italic">{exampleObjective}</p>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <Textarea
+                  value={researchObjective}
+                  onChange={(e) => setResearchObjective(e.target.value)}
+                  placeholder="Explain why you're interested in this question and what you hope to learn..."
+                  className="min-h-[100px]"
+                />
+              </div>
+              
               {/* User Domain */}
               <div>
                 <label className="block text-sm font-medium mb-1">Your Domain/Field</label>
@@ -520,31 +524,23 @@ const ResearchPage = () => {
                 </div>
               </div>
               
-              {/* Cognitive Style */}
+              {/* Cognitive Style (Radio buttons) */}
               <div>
                 <label className="block text-sm font-medium mb-2">Cognitive Style</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <RadioGroup 
+                  value={selectedCognitiveStyle} 
+                  onValueChange={setSelectedCognitiveStyle}
+                  className="grid grid-cols-2 md:grid-cols-3 gap-2"
+                >
                   {cognitiveStyles.map((style) => (
                     <div key={style.id} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={`cognitive-${style.id}`} 
-                        checked={selectedCognitiveStyles[style.id]} 
-                        onCheckedChange={() => toggleCognitiveStyle(style.id)}
-                      />
-                      <Label htmlFor={`cognitive-${style.id}`}>{style.label}</Label>
+                      <RadioGroupItem value={style.id} id={`cognitive-${style.id}`} />
+                      <Label htmlFor={`cognitive-${style.id}`} className="text-sm uppercase tracking-wide">
+                        {style.label}
+                      </Label>
                     </div>
                   ))}
-                </div>
-              </div>
-              
-              {/* Use Case (Optional) */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Use Case (Optional)</label>
-                <Input
-                  value={useCase}
-                  onChange={(e) => setUseCase(e.target.value)}
-                  placeholder="What is this research for?"
-                />
+                </RadioGroup>
               </div>
               
               {/* Model Selection */}
