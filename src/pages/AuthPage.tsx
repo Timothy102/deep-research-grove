@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -5,7 +6,7 @@ import { SignInForm, SignUpForm } from "@/components/auth/AuthForms";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Loader2 } from "lucide-react";
+import { Loader2, MessageSquarePlus } from "lucide-react";
 
 const AuthPage = () => {
   const [authTab, setAuthTab] = useState("signin");
@@ -32,6 +33,10 @@ const AuthPage = () => {
     }
   };
 
+  const handleNewChat = () => {
+    navigate("/research");
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="py-6 px-8 flex items-center justify-between">
@@ -43,7 +48,18 @@ const AuthPage = () => {
             DeepResearch
           </span>
         </div>
-        <ThemeToggle />
+        <div className="flex items-center space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleNewChat}
+            className="flex items-center gap-1"
+          >
+            <MessageSquarePlus className="h-4 w-4" />
+            New Chat
+          </Button>
+          <ThemeToggle />
+        </div>
       </header>
 
       <main className="flex-1 flex items-center justify-center p-6">
