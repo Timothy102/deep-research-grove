@@ -27,33 +27,35 @@ interface ResearchHistory {
 
 // Cognitive style options
 const cognitiveStyles = [
-  { id: "systematic", label: "Systematic" },
-  { id: "general", label: "General" },
-  { id: "first-principles", label: "First-principles" },
-  { id: "creative", label: "Creative" },
-  { id: "practical", label: "Practical Applier" },
+  { id: "systematic", label: "systematic" },
+  { id: "general", label: "general" },
+  { id: "first-principles", label: "first-principles" },
+  { id: "creative", label: "creative" },
+  { id: "practical", label: "practical applier" },
 ];
 
 // Expertise levels
 const expertiseLevels = [
-  "Beginner",
-  "Intermediate",
-  "Advanced",
-  "Expert"
+  "beginner",
+  "intermediate",
+  "advanced",
+  "expert"
 ];
 
 // Example research objective
 const exampleObjective = `I was always interested as to why life needs to exist. Which biological/thermodynamical processes were in play for why we need to survive? My objective comes from curiosity, I'd love to understand the fundamentals behind this research objective. Feel free to synthesize more than one theory.`;
 
+// Detailed research guidance
+const researchGuidance = `when formulating your research objective, provide as much detail as possible about what you already know on your topic. share as much as you can about your current understanding, relevant theories, and specific questions you're exploring. include any theories you're familiar with, conflicting ideas you've encountered, or specific aspects that confuse you. be specific about the theoretical gaps you're trying to fill rather than practical outcomes you want to achieve. the more context you provide about your current knowledge, the more effectively our agent can extend your understanding into new territory.`;
+
 const ResearchPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [query, setQuery] = useState("");
   const [researchObjective, setResearchObjective] = useState("");
   
   // User model fields
   const [domain, setDomain] = useState("");
-  const [expertiseLevel, setExpertiseLevel] = useState("Intermediate");
+  const [expertiseLevel, setExpertiseLevel] = useState("intermediate");
   const [researchInterests, setResearchInterests] = useState<string[]>([""]);
   const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("general");
   
@@ -127,10 +129,10 @@ const ResearchPage = () => {
   };
 
   const handleResearch = async () => {
-    if (!query.trim()) {
+    if (!researchObjective.trim()) {
       toast({
-        title: "Query required",
-        description: "Please enter a research query",
+        title: "objective required",
+        description: "please enter a research objective",
         variant: "destructive",
       });
       return;
@@ -147,9 +149,9 @@ const ResearchPage = () => {
       
       // Save research history and get ID
       const savedData = await saveResearchHistory({
-        query,
+        query: researchObjective, // Using research objective as the query
         user_model: JSON.stringify(userModelPayload),
-        use_case: researchObjective,
+        use_case: "", // No longer using use_case
         model,
       });
       
@@ -167,8 +169,8 @@ const ResearchPage = () => {
     } catch (error) {
       console.error("Research error:", error);
       toast({
-        title: "Research Failed",
-        description: "There was an error processing your request",
+        title: "research failed",
+        description: "there was an error processing your request",
         variant: "destructive",
       });
       setIsLoading(false);
@@ -193,9 +195,9 @@ const ResearchPage = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            query: query,
+            query: researchObjective, // Using research objective as the query
             user_model: userModelData,
-            use_case: researchObjective,
+            use_case: "", // No longer using use_case
             model: model
           })
         });
@@ -248,7 +250,7 @@ const ResearchPage = () => {
                   setIsLoading(false);
                 } else if (data.event === "error") {
                   toast({
-                    title: "Research Error",
+                    title: "research error",
                     description: data.data.error,
                     variant: "destructive",
                   });
@@ -263,8 +265,8 @@ const ResearchPage = () => {
       } catch (error) {
         console.error("Fetch error:", error);
         toast({
-          title: "Connection Error",
-          description: "Failed to connect to research service",
+          title: "connection error",
+          description: "failed to connect to research service",
           variant: "destructive",
         });
         setIsLoading(false);
@@ -303,7 +305,7 @@ const ResearchPage = () => {
         setTimeout(() => pollResearchState(researchId), 3000);
       } else if (data.status === "error") {
         toast({
-          title: "Research Error",
+          title: "research error",
           description: data.error || "An error occurred during research",
           variant: "destructive",
         });
@@ -330,7 +332,7 @@ const ResearchPage = () => {
   };
 
   const loadHistoryItem = (item: ResearchHistory) => {
-    setQuery(item.query);
+    setResearchObjective(item.query); // Load the query as the research objective
     
     // Try to parse user model from history
     try {
@@ -348,8 +350,6 @@ const ResearchPage = () => {
     } catch (e) {
       console.error("Error parsing user model from history:", e);
     }
-    
-    setResearchObjective(item.use_case || "");
   };
 
   return (
@@ -358,7 +358,7 @@ const ResearchPage = () => {
         <div className="flex items-center space-x-2">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600"></div>
           <a href="/" className="no-underline">
-            <span className="font-display font-semibold text-xl">DeepResearch</span>
+            <span className="font-display font-semibold text-xl">deepresearch</span>
           </a>
         </div>
         <div className="flex items-center space-x-4">
@@ -369,7 +369,7 @@ const ResearchPage = () => {
             className="flex items-center gap-2"
           >
             <User className="h-4 w-4" />
-            Profile
+            profile
           </Button>
           <Button 
             variant="ghost" 
@@ -378,7 +378,7 @@ const ResearchPage = () => {
             className="flex items-center gap-2"
           >
             <LogOut className="h-4 w-4" />
-            Logout
+            logout
           </Button>
         </div>
       </header>
@@ -387,11 +387,11 @@ const ResearchPage = () => {
         <aside className="w-64 border-r p-4 overflow-y-auto hidden md:block">
           <h3 className="font-semibold mb-4 flex items-center">
             <FileText className="h-4 w-4 mr-2" />
-            Research History
+            research history
           </h3>
           
           {history.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No history yet</p>
+            <p className="text-sm text-muted-foreground">no history yet</p>
           ) : (
             <div className="space-y-2">
               {history.map((item) => (
@@ -414,24 +414,13 @@ const ResearchPage = () => {
 
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-2xl font-bold mb-6">Deep Research</h1>
+            <h1 className="text-2xl font-bold mb-6">deep research</h1>
             
-            <div className="space-y-6 mb-8">
-              {/* Research Query */}
-              <div>
-                <label className="block text-sm font-medium mb-1">Research Query</label>
-                <Textarea
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Enter your research question..."
-                  className="min-h-[100px]"
-                />
-              </div>
-              
+            <div className="space-y-6 mb-8">              
               {/* Research Objective */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <label className="block text-sm font-medium">Research Objective</label>
+                  <label className="block text-sm font-medium">research objective</label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-5 w-5">
@@ -440,13 +429,13 @@ const ResearchPage = () => {
                     </PopoverTrigger>
                     <PopoverContent className="w-80 p-4">
                       <div className="space-y-2">
-                        <h4 className="font-medium text-sm">What is a research objective?</h4>
+                        <h4 className="font-medium text-sm">what is a research objective?</h4>
                         <p className="text-xs text-muted-foreground">
-                          Explain why you're interested in this query:
+                          explain why you're interested in this query:
                           <ul className="list-disc pl-4 mt-1">
-                            <li>Why does this question interest you?</li>
-                            <li>What do you hope to learn from the answer?</li>
-                            <li>Is this for curiosity, work, or academic research?</li>
+                            <li>why does this question interest you?</li>
+                            <li>what do you hope to learn from the answer?</li>
+                            <li>is this for curiosity, work, or academic research?</li>
                           </ul>
                         </p>
                         <div className="mt-2 p-2 bg-muted rounded-md">
@@ -456,27 +445,32 @@ const ResearchPage = () => {
                     </PopoverContent>
                   </Popover>
                 </div>
+
+                <div className="mb-2 text-sm text-muted-foreground">
+                  {researchGuidance}
+                </div>
+                
                 <Textarea
                   value={researchObjective}
                   onChange={(e) => setResearchObjective(e.target.value)}
-                  placeholder="Explain why you're interested in this question and what you hope to learn..."
+                  placeholder="explain in detail what you want to research and what you already know about it..."
                   className="min-h-[100px]"
                 />
               </div>
               
               {/* User Domain */}
               <div>
-                <label className="block text-sm font-medium mb-1">Your Domain/Field</label>
+                <label className="block text-sm font-medium mb-1">your domain/field</label>
                 <Input
                   value={domain}
                   onChange={(e) => setDomain(e.target.value)}
-                  placeholder="e.g. Computer Science, Medicine, Finance..."
+                  placeholder="e.g. computer science, medicine, finance..."
                 />
               </div>
               
               {/* Expertise Level */}
               <div>
-                <label className="block text-sm font-medium mb-1">Expertise Level</label>
+                <label className="block text-sm font-medium mb-1">expertise level</label>
                 <select
                   value={expertiseLevel}
                   onChange={(e) => setExpertiseLevel(e.target.value)}
@@ -490,14 +484,14 @@ const ResearchPage = () => {
               
               {/* Research Interests */}
               <div>
-                <label className="block text-sm font-medium mb-1">Research Interests</label>
+                <label className="block text-sm font-medium mb-1">research interests</label>
                 <div className="space-y-2">
                   {researchInterests.map((interest, index) => (
                     <div key={index} className="flex items-center gap-2">
                       <Input
                         value={interest}
                         onChange={(e) => updateResearchInterest(index, e.target.value)}
-                        placeholder={`Research interest ${index + 1}`}
+                        placeholder={`research interest ${index + 1}`}
                         className="flex-1"
                       />
                       {researchInterests.length > 1 && (
@@ -519,14 +513,14 @@ const ResearchPage = () => {
                     onClick={addResearchInterest}
                     className="flex items-center gap-1"
                   >
-                    <Plus className="h-3 w-3" /> Add Interest
+                    <Plus className="h-3 w-3" /> add interest
                   </Button>
                 </div>
               </div>
               
               {/* Cognitive Style (Radio buttons) */}
               <div>
-                <label className="block text-sm font-medium mb-2">Cognitive Style</label>
+                <label className="block text-sm font-medium mb-2">cognitive style</label>
                 <RadioGroup 
                   value={selectedCognitiveStyle} 
                   onValueChange={setSelectedCognitiveStyle}
@@ -535,7 +529,7 @@ const ResearchPage = () => {
                   {cognitiveStyles.map((style) => (
                     <div key={style.id} className="flex items-center space-x-2">
                       <RadioGroupItem value={style.id} id={`cognitive-${style.id}`} />
-                      <Label htmlFor={`cognitive-${style.id}`} className="text-sm uppercase tracking-wide">
+                      <Label htmlFor={`cognitive-${style.id}`} className="text-sm">
                         {style.label}
                       </Label>
                     </div>
@@ -545,34 +539,34 @@ const ResearchPage = () => {
               
               {/* Model Selection */}
               <div>
-                <label className="block text-sm font-medium mb-1">Model</label>
+                <label className="block text-sm font-medium mb-1">model</label>
                 <select
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
                   className="w-full px-3 py-2 border rounded-md bg-background text-sm"
                 >
-                  <option value="claude-3.5-sonnet">Claude 3.5 Sonnet</option>
-                  <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                  <option value="deepseek-ai/DeepSeek-R1">DeepSeek R1</option>
-                  <option value="gpt4-turbo">GPT-4 Turbo</option>
+                  <option value="claude-3.5-sonnet">claude 3.5 sonnet</option>
+                  <option value="gemini-2.0-flash">gemini 2.0 flash</option>
+                  <option value="deepseek-ai/DeepSeek-R1">deepseek r1</option>
+                  <option value="gpt4-turbo">gpt-4 turbo</option>
                 </select>
               </div>
               
               {/* Submit Button */}
               <Button 
                 onClick={handleResearch} 
-                disabled={isLoading || !query.trim()}
+                disabled={isLoading || !researchObjective.trim()}
                 className="w-full h-12"
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Researching...
+                    researching...
                   </>
                 ) : (
                   <>
                     <Search className="mr-2 h-4 w-4" />
-                    Start Research
+                    start research
                   </>
                 )}
               </Button>
@@ -583,9 +577,9 @@ const ResearchPage = () => {
               <div className="mt-8 border rounded-lg overflow-hidden">
                 <Tabs defaultValue="output" value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="w-full grid grid-cols-3">
-                    <TabsTrigger value="output">Research Output</TabsTrigger>
-                    <TabsTrigger value="sources">Sources ({sources.length})</TabsTrigger>
-                    <TabsTrigger value="reasoning">Reasoning Path</TabsTrigger>
+                    <TabsTrigger value="output">research output</TabsTrigger>
+                    <TabsTrigger value="sources">sources ({sources.length})</TabsTrigger>
+                    <TabsTrigger value="reasoning">reasoning path</TabsTrigger>
                   </TabsList>
                   
                   <TabsContent value="output" className="p-4">
@@ -600,7 +594,7 @@ const ResearchPage = () => {
                   
                   <TabsContent value="sources" className="p-4">
                     {sources.length === 0 ? (
-                      <p className="text-muted-foreground">No sources available yet.</p>
+                      <p className="text-muted-foreground">no sources available yet.</p>
                     ) : (
                       <ul className="list-disc pl-5 space-y-2">
                         {sources.map((source, index) => (
@@ -621,7 +615,7 @@ const ResearchPage = () => {
                   
                   <TabsContent value="reasoning" className="p-4">
                     {reasoningPath.length === 0 ? (
-                      <p className="text-muted-foreground">No reasoning path available yet.</p>
+                      <p className="text-muted-foreground">no reasoning path available yet.</p>
                     ) : (
                       <ol className="list-decimal pl-5 space-y-2">
                         {reasoningPath.map((step, index) => (
