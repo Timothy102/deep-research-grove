@@ -5,6 +5,8 @@ export interface ResearchHistoryEntry {
   id?: string;
   user_id: string;
   query: string;
+  user_model?: string;
+  use_case?: string;
   model?: string;
   created_at?: string;
 }
