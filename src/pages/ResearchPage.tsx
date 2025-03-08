@@ -45,9 +45,6 @@ const expertiseLevels = [
 // Example research objective
 const exampleObjective = `I was always interested as to why life needs to exist. Which biological/thermodynamical processes were in play for why we need to survive? My objective comes from curiosity, I'd love to understand the fundamentals behind this research objective. Feel free to synthesize more than one theory.`;
 
-// Detailed research guidance
-const researchGuidance = `when formulating your research objective, provide as much detail as possible about what you already know on your topic. share as much as you can about your current understanding, relevant theories, and specific questions you're exploring. include any theories you're familiar with, conflicting ideas you've encountered, or specific aspects that confuse you. be specific about the theoretical gaps you're trying to fill rather than practical outcomes you want to achieve. the more context you provide about your current knowledge, the more effectively our agent can extend your understanding into new territory.`;
-
 const ResearchPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -444,10 +441,6 @@ const ResearchPage = () => {
                       </div>
                     </PopoverContent>
                   </Popover>
-                </div>
-
-                <div className="mb-2 text-sm text-muted-foreground">
-                  {researchGuidance}
                 </div>
                 
                 <Textarea
