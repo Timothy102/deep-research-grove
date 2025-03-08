@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -49,6 +50,7 @@ const ResearchPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [researchObjective, setResearchObjective] = useState("");
+  const [userContext, setUserContext] = useState(""); // Added for current understanding
   
   // User model fields
   const [domain, setDomain] = useState("");
@@ -121,7 +123,8 @@ const ResearchPage = () => {
       domain: domain,
       expertise_level: expertiseLevel,
       researchInterests: filteredInterests,
-      cognitiveStyle: selectedCognitiveStyle
+      cognitiveStyle: selectedCognitiveStyle,
+      userContext: userContext // Add user context to the user model
     };
   };
 
@@ -148,7 +151,6 @@ const ResearchPage = () => {
       const savedData = await saveResearchHistory({
         query: researchObjective, // Using research objective as the query
         user_model: JSON.stringify(userModelPayload),
-        use_case: "", // No longer using use_case
         model,
       });
       
@@ -192,9 +194,8 @@ const ResearchPage = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            query: researchObjective, // Using research objective as the query
+            research_objective: researchObjective, // Changed from query to research_objective
             user_model: userModelData,
-            use_case: "", // No longer using use_case
             model: model
           })
         });
@@ -339,6 +340,7 @@ const ResearchPage = () => {
       if (userModelData.researchInterests && Array.isArray(userModelData.researchInterests)) {
         setResearchInterests(userModelData.researchInterests.length ? userModelData.researchInterests : [""]);
       }
+      if (userModelData.userContext) setUserContext(userModelData.userContext);
       
       // Set selected cognitive style
       if (userModelData.cognitiveStyle) {
@@ -443,11 +445,25 @@ const ResearchPage = () => {
                   </Popover>
                 </div>
                 
+                <p className="text-sm text-muted-foreground">What do you want to research?</p>
+                
                 <Textarea
                   value={researchObjective}
                   onChange={(e) => setResearchObjective(e.target.value)}
                   placeholder="explain in detail what you want to research and what you already know about it..."
                   className="min-h-[100px]"
+                />
+              </div>
+              
+              {/* User Current Understanding */}
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">current understanding</label>
+                <p className="text-sm text-muted-foreground">Explain in your own words what you already know about this topic. Use 2-5 sentences.</p>
+                <Textarea
+                  value={userContext}
+                  onChange={(e) => setUserContext(e.target.value)}
+                  placeholder="share what you already know about this research topic..."
+                  className="min-h-[80px]"
                 />
               </div>
               
