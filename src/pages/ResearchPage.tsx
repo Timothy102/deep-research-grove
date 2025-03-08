@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Search, User, LogOut, FileText, X, Plus, HelpCircle } from "lucide-react";
+import { Loader2, Search, User, LogOut, FileText, X, Plus, HelpCircle, MessageSquarePlus } from "lucide-react";
 import { saveResearchHistory, getResearchHistory } from "@/services/researchService";
 import { useToast } from "@/components/ui/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -338,6 +338,23 @@ const ResearchPage = () => {
     }
   };
 
+  const handleNewChat = () => {
+    // Reset the form and research data to start a new chat
+    setResearchObjective("");
+    setUserContext("");
+    setDomain("");
+    setExpertiseLevel("intermediate");
+    setResearchInterests([""]);
+    setSelectedCognitiveStyle("general");
+    setResearchOutput("");
+    setSources([]);
+    setReasoningPath([]);
+    setActiveTab("output");
+    
+    // Scroll to the top of the page
+    window.scrollTo(0, 0);
+  };
+
   const loadHistoryItem = (item: ResearchHistory) => {
     setResearchObjective(item.query); // Load the query as the research objective
     
@@ -370,6 +387,15 @@ const ResearchPage = () => {
           </a>
         </div>
         <div className="flex items-center space-x-4">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleNewChat}
+            className="flex items-center gap-1"
+          >
+            <MessageSquarePlus className="h-4 w-4" />
+            new chat
+          </Button>
           <Button 
             variant="ghost" 
             size="sm" 
