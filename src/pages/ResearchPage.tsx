@@ -458,7 +458,7 @@ const ResearchPage = () => {
                 <Textarea
                   value={researchObjective}
                   onChange={(e) => setResearchObjective(e.target.value)}
-                  placeholder="explain in detail what you want to research and what you already know about it..."
+                  placeholder="explain your research objective strongly and explain what would be your ideal outcome"
                   className="min-h-[100px]"
                 />
               </div>
@@ -469,7 +469,7 @@ const ResearchPage = () => {
                 <Textarea
                   value={userContext}
                   onChange={(e) => setUserContext(e.target.value)}
-                  placeholder="Explain in your own words what you already know about this topic. Use 2-5 sentences."
+                  placeholder="explain in your own words what you already know about this topic. Use 2-5 sentences."
                   className="min-h-[80px]"
                 />
               </div>
