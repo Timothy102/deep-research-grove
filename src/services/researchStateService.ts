@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 
@@ -22,9 +21,16 @@ export interface ResearchState {
 
 // Save initial research state
 export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): Promise<ResearchState | null> {
+  console.log(`[${new Date().toISOString()}] 📝 Saving research state:`, { 
+    research_id: state.research_id,
+    session_id: state.session_id,
+    status: state.status
+  });
+  
   const { data: user } = await supabase.auth.getUser();
   
   if (!user.user) {
+    console.error(`[${new Date().toISOString()}] 🚫 User not authenticated`);
     throw new Error("User not authenticated");
   }
   
@@ -48,71 +54,69 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     user_id: user.user.id
   };
   
-  // If active_tab exists, include it
-  if (state.active_tab) {
-    try {
-      // Try to insert with active_tab
-      const { data, error } = await supabase
-        .from('research_states')
-        .insert({
-          ...validState,
-          active_tab: state.active_tab
-        })
-        .select();
-        
-      if (error) {
-        if (error.message.includes("active_tab")) {
-          console.log("active_tab column doesn't exist, trying without it");
-          // If error is related to active_tab, try without it
-          const { data: fallbackData, error: fallbackError } = await supabase
-            .from('research_states')
-            .insert(validState)
-            .select();
-            
-          if (fallbackError) {
-            console.error("Error saving research state:", fallbackError);
-            throw fallbackError;
-          }
-          
-          return fallbackData?.[0] as ResearchState;
-        } else {
-          console.error("Error saving research state:", error);
-          throw error;
-        }
-      }
-      
-      // Ensure the returned data has the correct status type
-      if (data && data.length > 0) {
-        const result = data[0] as ResearchState;
-        if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
-          result.status = 'in_progress'; // Default to 'in_progress' if invalid status
-        }
-        return result;
-      }
-    } catch (error) {
-      console.error("Error in save attempt with active_tab:", error);
-      // Fall through to try without active_tab
-    }
-  }
-  
-  // Default path without active_tab
-  const { data, error } = await supabase
-    .from('research_states')
-    .insert(validState)
-    .select();
+  try {
+    console.log(`[${new Date().toISOString()}] 🔄 Attempting to insert research state with user_id:`, user.user.id);
     
-  if (error) {
-    console.error("Error saving research state:", error);
-    throw error;
-  }
-  
-  // Ensure the returned data has the correct status type
-  if (data && data.length > 0) {
-    const result = data[0] as ResearchState;
-    if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
-      result.status = 'in_progress'; // Default to 'in_progress' if invalid status
+    // Default path without active_tab first
+    const { data, error } = await supabase
+      .from('research_states')
+      .insert(validState)
+      .select();
+      
+    if (error) {
+      console.error(`[${new Date().toISOString()}] ❌ Error saving research state:`, error);
+      
+      // Try with active_tab if it exists in state
+      if (state.active_tab && error.message.includes("violates not-null constraint")) {
+        console.log(`[${new Date().toISOString()}] 🔄 Trying with active_tab included`);
+        const { data: dataWithTab, error: errorWithTab } = await supabase
+          .from('research_states')
+          .insert({
+            ...validState,
+            active_tab: state.active_tab
+          })
+          .select();
+          
+        if (errorWithTab) {
+          console.error(`[${new Date().toISOString()}] ❌ Error saving research state with active_tab:`, errorWithTab);
+          throw errorWithTab;
+        }
+        
+        console.log(`[${new Date().toISOString()}] ✅ Successfully saved research state with active_tab`);
+        
+        if (dataWithTab && dataWithTab.length > 0) {
+          const result = dataWithTab[0] as ResearchState;
+          if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
+            result.status = 'in_progress'; // Default to 'in_progress' if invalid status
+          }
+          return result;
+        }
+      } else {
+        throw error;
+      }
     }
-    return result;
+    
+    console.log(`[${new Date().toISOString()}] ✅ Successfully saved research state`);
+    
+    // Ensure the returned data has the correct status type
+    if (data && data.length > 0) {
+      const result = data[0] as ResearchState;
+      if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
+        result.status = 'in_progress'; // Default to 'in_progress' if invalid status
+      }
+      return result;
+    }
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] 🔥 Critical error saving research state:`, error);
+    // Return a minimal valid research state so the UI doesn't break
+    return {
+      research_id: state.research_id,
+      session_id: state.session_id,
+      user_id: user.user.id,
+      status: 'error',
+      query: state.query,
+      error: error instanceof Error ? error.message : 'Unknown error saving research state'
+    };
   }
   
   return null;
