@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +20,10 @@ import ReasoningPath from "@/components/research/ReasoningPath";
 import SourcesList from "@/components/research/SourcesList";
 import ResearchOutput from "@/components/research/ResearchOutput";
 import HumanApprovalDialog from "@/components/research/HumanApprovalDialog";
+import { v4 as uuidv4 } from 'uuid';
+
+// Add uuid dependency
+// Add @types/uuid for TypeScript support
 
 interface ResearchHistory {
   id: string;
@@ -65,6 +69,7 @@ const exampleObjective = `I was always interested as to why life needs to exist.
 const ResearchPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const { sessionId } = useParams<{ sessionId: string }>();
   const [researchObjective, setResearchObjective] = useState("");
   const [userContext, setUserContext] = useState(""); // Added for current understanding
   
@@ -83,6 +88,7 @@ const ResearchPage = () => {
   const [history, setHistory] = useState<ResearchHistory[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
+  const currentSessionIdRef = useRef<string | null>(sessionId || null);
   const { toast } = useToast();
 
   // Add state for human approval
@@ -101,17 +107,25 @@ const ResearchPage = () => {
       return;
     }
     
-    // Load research history
-    const loadHistory = async () => {
-      try {
-        const historyData = await getResearchHistory();
-        setHistory(historyData as ResearchHistory[]);
-      } catch (error) {
-        console.error("Error loading history:", error);
-      }
-    };
+    // Check if we have a session ID in the URL, if not, create a new empty session
+    if (!sessionId) {
+      // Create a new session ID and navigate to it
+      const newSessionId = uuidv4();
+      navigate(`/research/${newSessionId}`, { replace: true });
+      return;
+    }
     
+    // Store the current session ID
+    currentSessionIdRef.current = sessionId;
+    
+    // Reset research state when session ID changes
+    resetResearchState();
+    
+    // Load research history
     loadHistory();
+    
+    // Try to load existing session data if available
+    loadSessionData(sessionId);
     
     return () => {
       // Clean up event source on unmount
@@ -119,7 +133,7 @@ const ResearchPage = () => {
         eventSourceRef.current.close();
       }
     };
-  }, [user, navigate]);
+  }, [user, navigate, sessionId]);
 
   // Effect to show approval dialog when a request comes in
   useEffect(() => {
@@ -128,6 +142,40 @@ const ResearchPage = () => {
     }
   }, [humanApprovalRequest]);
 
+  const resetResearchState = () => {
+    setResearchOutput("");
+    setSources([]);
+    setFindings([]);
+    setReasoningPath([]);
+    setActiveTab("output");
+    researchIdRef.current = null;
+    
+    // Close any existing EventSource connection
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+  };
+
+  const loadHistory = async () => {
+    try {
+      const historyData = await getResearchHistory();
+      setHistory(historyData as ResearchHistory[]);
+    } catch (error) {
+      console.error("Error loading history:", error);
+    }
+  };
+
+  const loadSessionData = async (sessionId: string) => {
+    // Logic to load research data for a specific session ID
+    // For now we'll leave this as a placeholder
+    // In the future, you could store and retrieve session data from localStorage or a database
+    console.log(`Loading session data for ${sessionId}`);
+    
+    // You could fetch the specific research session data from Supabase here
+    // and populate the UI with the saved data
+  };
+
   const createUserModelPayload = () => {
     return {
       user_id: user?.id || "anonymous",
@@ -135,7 +183,8 @@ const ResearchPage = () => {
       domain: domain,
       expertise_level: expertiseLevel,
       cognitiveStyle: selectedCognitiveStyle,
-      userContext: userContext // Add user context to the user model
+      userContext: userContext, // Add user context to the user model
+      session_id: currentSessionIdRef.current // Include the session ID in the user model
     };
   };
 
@@ -149,11 +198,9 @@ const ResearchPage = () => {
       return;
     }
   
+    // Reset state before starting new research
+    resetResearchState();
     setIsLoading(true);
-    setResearchOutput("");
-    setSources([]);
-    setFindings([]); // Reset findings
-    setReasoningPath([]);
     
     // Always switch to reasoning path tab when research starts
     setActiveTab("reasoning");
@@ -177,8 +224,7 @@ const ResearchPage = () => {
       startResearchStream(userModelPayload);
       
       // Refresh history after submission
-      const historyData = await getResearchHistory();
-      setHistory(historyData as ResearchHistory[]);
+      await loadHistory();
       
     } catch (error) {
       console.error("Research error:", error);
@@ -211,7 +257,8 @@ const ResearchPage = () => {
           body: JSON.stringify({
             research_objective: researchObjective,
             user_model: userModelData,
-            model: model
+            model: model,
+            session_id: currentSessionIdRef.current // Include session ID in the request
           })
         });
         
@@ -246,6 +293,16 @@ const ResearchPage = () => {
             if (line.startsWith("data: ")) {
               try {
                 const data = JSON.parse(line.substring(6));
+                
+                // Only process events for the current session
+                const eventSessionId = data.session_id || currentSessionIdRef.current;
+                if (eventSessionId !== currentSessionIdRef.current) {
+                  console.warn("Received event for different session, ignoring", { 
+                    eventSessionId, 
+                    currentSessionId: currentSessionIdRef.current 
+                  });
+                  continue;
+                }
                 
                 // Process the event based on its type
                 if (data.event === "start") {
@@ -314,7 +371,7 @@ const ResearchPage = () => {
   const pollResearchState = async (researchId: string) => {
     try {
       // Use GET method for research state
-      const response = await fetch(`https://timothy102--vertical-deep-research-get-research-state.modal.run?research_id=${researchId}`, {
+      const response = await fetch(`https://timothy102--vertical-deep-research-get-research-state.modal.run?research_id=${researchId}&session_id=${currentSessionIdRef.current}`, {
         method: 'GET'
       });
       
@@ -323,6 +380,12 @@ const ResearchPage = () => {
       }
       
       const data = await response.json();
+      
+      // Verify this response is for the current session
+      if (data.session_id && data.session_id !== currentSessionIdRef.current) {
+        console.warn("Received polling response for different session, ignoring");
+        return;
+      }
       
       if (data.status === "completed") {
         setResearchOutput(data.answer || "");
@@ -364,19 +427,9 @@ const ResearchPage = () => {
   };
 
   const handleNewChat = () => {
-    // Reset the form and research data to start a new chat
-    setResearchObjective("");
-    setUserContext("");
-    setDomain("");
-    setExpertiseLevel("intermediate");
-    setSelectedCognitiveStyle("general");
-    setResearchOutput("");
-    setSources([]);
-    setReasoningPath([]);
-    setActiveTab("output");
-    
-    // Scroll to the top of the page
-    window.scrollTo(0, 0);
+    // Create a new session ID and navigate to it
+    const newSessionId = uuidv4();
+    navigate(`/research/${newSessionId}`);
   };
 
   const loadHistoryItem = (item: ResearchHistory) => {
@@ -392,6 +445,12 @@ const ResearchPage = () => {
       // Set selected cognitive style
       if (userModelData.cognitiveStyle) {
         setSelectedCognitiveStyle(userModelData.cognitiveStyle);
+      }
+      
+      // If this history item has a session ID, navigate to it
+      if (userModelData.session_id && userModelData.session_id !== currentSessionIdRef.current) {
+        navigate(`/research/${userModelData.session_id}`);
+        return;
       }
     } catch (e) {
       console.error("Error parsing user model from history:", e);
@@ -409,7 +468,8 @@ const ResearchPage = () => {
           call_id: callId,
           node_id: nodeId,
           approved: true,
-          reason: ''
+          reason: '',
+          session_id: currentSessionIdRef.current // Include the session ID in the request
         })
       });
       
@@ -442,7 +502,8 @@ const ResearchPage = () => {
           call_id: callId,
           node_id: nodeId,
           approved: false,
-          reason: reason
+          reason: reason,
+          session_id: currentSessionIdRef.current // Include the session ID in the request
         })
       });
       

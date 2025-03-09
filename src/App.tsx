@@ -13,7 +13,15 @@ import { ThemeProvider } from "./components/ThemeProvider";
 import { AuthProvider } from "./components/auth/AuthContext";
 import { useAuth } from "./components/auth/AuthContext";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 0, // Don't reuse old data between sessions
+      gcTime: 10 * 60 * 1000, // 10 minutes
+      retry: 1
+    },
+  },
+});
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -35,16 +43,26 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/auth" element={<AuthPage />} />
+      
+      {/* Research routes with session ID support */}
       <Route path="/research" element={
         <ProtectedRoute>
           <ResearchPage />
         </ProtectedRoute>
       } />
+      
+      <Route path="/research/:sessionId" element={
+        <ProtectedRoute>
+          <ResearchPage />
+        </ProtectedRoute>
+      } />
+      
       <Route path="/profile" element={
         <ProtectedRoute>
           <ProfilePage />
         </ProtectedRoute>
       } />
+      
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

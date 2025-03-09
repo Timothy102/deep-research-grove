@@ -51,10 +51,10 @@ const findRelevantSources = (
   step: string, 
   sources: string[], 
   findings: Finding[] = []
-): { sourceIndex: number, source: string, content?: string }[] => {
+): { sourceIndex: number, source: string, content?: string, isFinding: boolean }[] => {
   if ((!sources || sources.length === 0) && (!findings || findings.length === 0)) return [];
   
-  const relevantSources: { sourceIndex: number, source: string, content?: string }[] = [];
+  const relevantSources: { sourceIndex: number, source: string, content?: string, isFinding: boolean }[] = [];
   
   // Look for explicit source references like [1], [2], etc.
   const refMatches = step.match(/\[(\d+)\]|\((\d+)\)/g);
@@ -68,12 +68,17 @@ const findRelevantSources = (
           relevantSources.push({ 
             sourceIndex: num, 
             source: finding.source,
-            content: finding.content 
+            content: finding.content,
+            isFinding: true
           });
         } 
         // Then check in sources
         else if (num <= sources.length) {
-          relevantSources.push({ sourceIndex: num, source: sources[num-1] });
+          relevantSources.push({ 
+            sourceIndex: num, 
+            source: sources[num-1],
+            isFinding: false
+          });
         }
       }
     });
@@ -83,17 +88,24 @@ const findRelevantSources = (
   if (step.toLowerCase().includes("searching")) {
     // First add any findings
     findings.forEach((finding, index) => {
-      relevantSources.push({ 
-        sourceIndex: index + 1, 
-        source: finding.source,
-        content: finding.content
-      });
+      if (!relevantSources.some(item => item.source === finding.source)) {
+        relevantSources.push({ 
+          sourceIndex: index + 1, 
+          source: finding.source,
+          content: finding.content,
+          isFinding: true
+        });
+      }
     });
     
     // Then add any sources that aren't already included
     sources.forEach((source, index) => {
       if (!relevantSources.some(item => item.source === source)) {
-        relevantSources.push({ sourceIndex: index + 1, source });
+        relevantSources.push({ 
+          sourceIndex: index + 1, 
+          source,
+          isFinding: false
+        });
       }
     });
     
@@ -117,7 +129,8 @@ const findRelevantSources = (
         relevantSources.push({ 
           sourceIndex: index + 1, 
           source: finding.source,
-          content: finding.content
+          content: finding.content,
+          isFinding: true
         });
       }
     });
@@ -130,13 +143,27 @@ const findRelevantSources = (
         const domain = urlParts.length > 1 ? urlParts[urlParts.length - 2] : '';
         
         if (domain && stepText.includes(domain)) {
-          relevantSources.push({ sourceIndex: index + 1, source });
+          relevantSources.push({ 
+            sourceIndex: index + 1, 
+            source,
+            isFinding: false
+          });
         }
       }
     });
   }
   
   return relevantSources;
+};
+
+// Function to extract domain name from URL
+const extractDomain = (url: string): string => {
+  try {
+    const hostname = new URL(url).hostname;
+    return hostname.replace(/^www\./, '');
+  } catch (e) {
+    return url;
+  }
 };
 
 const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpanded = false }: ReasoningStepProps) => {
@@ -222,21 +249,41 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
             <div className="space-y-2 mt-3">
               <h4 className="text-xs font-medium text-muted-foreground">Related Sources & Findings:</h4>
               <div className="space-y-2">
-                {relevantSources.map(({ sourceIndex, source, content }, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs p-2 bg-muted rounded-md">
-                    <span className="inline-block mt-0.5 w-5 h-5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 flex items-center justify-center text-[10px] shrink-0">
+                {relevantSources.map(({ sourceIndex, source, content, isFinding }, i) => (
+                  <div 
+                    key={i} 
+                    className={cn(
+                      "flex items-start gap-2 text-xs p-2 rounded-md",
+                      isFinding 
+                        ? "bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900"
+                        : "bg-muted border border-muted-foreground/10"
+                    )}
+                  >
+                    <span className={cn(
+                      "inline-block mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0",
+                      isFinding
+                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                        : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+                    )}>
                       {sourceIndex}
                     </span>
                     <div className="flex-1 overflow-hidden">
-                      <a 
-                        href={source} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-600 dark:text-blue-400 hover:underline truncate block"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {source}
-                      </a>
+                      <div className="flex items-center gap-1.5">
+                        {isFinding && (
+                          <Badge variant="outline" className="h-4 py-0 px-1 text-[9px] bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                            finding
+                          </Badge>
+                        )}
+                        <a 
+                          href={source} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 dark:text-blue-400 hover:underline truncate block"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {extractDomain(source)}
+                        </a>
+                      </div>
                       {content && (
                         <div className="mt-1 text-muted-foreground text-xs bg-muted-foreground/5 p-1.5 rounded border border-muted-foreground/10">
                           {content}
@@ -291,40 +338,9 @@ const ReasoningPath = ({ reasoningPath, sources = [], findings = [] }: {
     );
   }
 
-  // Improved logic to deduplicate steps and avoid repetition
-  const groupedSteps: string[] = [];
-  let lastType = "";
-  let lastStepContent = "";
-  
-  reasoningPath.forEach((step) => {
-    const currentType = getStepType(step).type;
-    
-    // Extract step content without the type prefix
-    const currentStepContent = step.replace(/^(Processing|Exploring):\s*/i, "").trim();
-    
-    // Check for duplicates with a much stricter rule
-    if ((currentType === "processing" || currentType === "exploring") &&
-        (lastType === "processing" || lastType === "exploring")) {
-      // Don't add if it's similar content
-      if (currentStepContent === lastStepContent) {
-        return; // Skip this step
-      }
-      
-      // Don't add consecutive steps of the same type
-      if (currentType === lastType) {
-        return; // Skip this step
-      }
-    }
-    
-    // Add the step to our filtered list
-    groupedSteps.push(step);
-    lastType = currentType;
-    lastStepContent = currentStepContent;
-  });
-
   return (
     <div className="space-y-1">
-      {groupedSteps.map((step, index) => (
+      {reasoningPath.map((step, index) => (
         <ReasoningStep 
           key={index} 
           step={step} 
