@@ -349,6 +349,7 @@ const ResearchPage = () => {
                 }
                 
                 const eventType = data.event || data.type;
+                console.log("Processing event type:", eventType, data);
                 
                 if (eventType === "start") {
                   console.log("Research started");
@@ -437,13 +438,22 @@ const ResearchPage = () => {
                   }
                 } else if (eventType === "human_approval_request") {
                   console.log("Received human approval request:", data.data);
-                  setHumanApprovalRequest({
+                  const approvalRequest = {
                     call_id: data.data.call_id,
                     node_id: data.data.node_id,
                     query: data.data.query,
                     content: data.data.content,
                     approval_type: data.data.approval_type
+                  };
+                  
+                  // Force a toast to ensure user sees the request
+                  toast({
+                    title: "Human approval required",
+                    description: "Please review and approve or reject the content",
+                    variant: "default",
                   });
+                  
+                  setHumanApprovalRequest(approvalRequest);
                 }
               } catch (error) {
                 console.error("Error parsing event data:", error);
@@ -602,6 +612,9 @@ const ResearchPage = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
+      const responseData = await response.json();
+      console.log("Approval response:", responseData);
+      
       toast({
         title: "approval submitted",
         description: "your approval has been processed",
@@ -638,6 +651,9 @@ const ResearchPage = () => {
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
+      const responseData = await response.json();
+      console.log("Rejection response:", responseData);
       
       toast({
         title: "rejection submitted",

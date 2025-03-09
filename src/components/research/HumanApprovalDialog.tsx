@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -41,24 +41,32 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
+  // Log when the dialog should show
+  useEffect(() => {
+    if (isOpen) {
+      console.log("Dialog opened with props:", { callId, nodeId, content });
+    }
+  }, [isOpen, callId, nodeId, content]);
+
   const handleApprove = async () => {
     setIsSubmitting(true);
     try {
+      console.log("Approving content with callId:", callId);
       if (onApprove) {
         await onApprove(callId, nodeId);
       } else {
         await respondToApproval(callId, true);
       }
       toast({
-        title: "approved",
-        description: "content has been approved",
+        title: "Approved",
+        description: "Content has been approved",
       });
       onClose();
     } catch (error) {
       console.error("Error approving content:", error);
       toast({
-        title: "error",
-        description: "failed to approve content",
+        title: "Error",
+        description: "Failed to approve content",
         variant: "destructive",
       });
     } finally {
@@ -78,14 +86,15 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
   const handleConfirmReject = async () => {
     setIsSubmitting(true);
     try {
+      console.log("Rejecting content with callId:", callId);
       if (onReject) {
         await onReject(callId, nodeId, rejectionReason);
       } else {
         await respondToApproval(callId, false, rejectionReason);
       }
       toast({
-        title: "rejected",
-        description: "content has been rejected",
+        title: "Rejected",
+        description: "Content has been rejected",
       });
       setShowReasonInput(false);
       setRejectionReason("");
@@ -93,8 +102,8 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
     } catch (error) {
       console.error("Error rejecting content:", error);
       toast({
-        title: "rejection error",
-        description: "failed to reject content",
+        title: "Rejection Error",
+        description: "Failed to reject content",
         variant: "destructive",
       });
     } finally {
@@ -102,8 +111,9 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
     }
   };
 
-  // New function to call the endpoint directly
+  // Function to call the endpoint directly
   const respondToApproval = async (callId: string, approved: boolean, comment: string = "") => {
+    console.log("Direct API call to approval endpoint with:", { callId, approved, comment });
     const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
       method: 'POST',
       headers: {
@@ -117,6 +127,8 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
     });
     
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error("API response error:", errorText);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     
@@ -126,7 +138,13 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
   console.log("Dialog props:", { isOpen, callId, nodeId, content, query });
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog 
+      open={isOpen} 
+      onOpenChange={(open) => {
+        console.log("Dialog open state changing to:", open);
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Human Approval Required</DialogTitle>
@@ -179,7 +197,7 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
                 id="rejection-reason"
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="explain why you're rejecting this content..."
+                placeholder="Explain why you're rejecting this content..."
                 className="mt-1"
               />
             </div>
