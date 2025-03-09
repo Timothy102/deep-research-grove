@@ -147,3 +147,45 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
   
   return result;
 }
+
+// Get the latest research state for a session (this is a new function)
+export async function getLatestSessionState(sessionId: string): Promise<ResearchState | null> {
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    
+    if (!user.user) {
+      throw new Error("User not authenticated");
+    }
+    
+    console.log("Fetching latest session state for session:", sessionId, "and user:", user.user.id);
+    
+    const { data, error } = await supabase
+      .from('research_states')
+      .select('*')
+      .match({ session_id: sessionId, user_id: user.user.id })
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+      
+    if (error) {
+      console.error("Error fetching latest session state:", error);
+      throw error;
+    }
+    
+    if (data) {
+      const result = data as ResearchState;
+      console.log("Found session state:", result);
+      
+      if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
+        result.status = 'in_progress'; // Default to 'in_progress' if invalid status
+      }
+      return result;
+    }
+    
+    console.log("No session state found for session:", sessionId);
+    return null;
+  } catch (error) {
+    console.error("Error in getLatestSessionState:", error);
+    return null;
+  }
+}

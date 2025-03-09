@@ -152,38 +152,38 @@ const ResearchPage = () => {
 
   const loadSessionData = async (sessionId: string) => {
     try {
-      const response = await fetch(`https://timothy102--vertical-deep-research-get-session-state.modal.run?session_id=${sessionId}`, {
-        method: 'GET'
-      });
+      console.log("Loading session data for session ID:", sessionId);
       
-      if (!response.ok) {
-        console.log("No existing session data found or error occurred");
+      const sessionState = await getLatestSessionState(sessionId);
+      
+      if (!sessionState) {
+        console.log("No existing session data found");
         return;
       }
       
-      const data = await response.json();
+      console.log("Retrieved session data:", sessionState);
       
-      if (data && data.research_id) {
-        researchIdRef.current = data.research_id;
+      if (sessionState.research_id) {
+        researchIdRef.current = sessionState.research_id;
         
-        if (data.status === "completed") {
-          setResearchOutput(data.answer || "");
-          setSources(data.sources || []);
+        if (sessionState.status === "completed") {
+          setResearchOutput(sessionState.answer || "");
+          setSources(sessionState.sources || []);
           
-          if (data.findings) {
-            const parsedFindings = Array.isArray(data.findings) 
-              ? data.findings 
-              : (typeof data.findings === 'string' ? JSON.parse(data.findings) : []);
+          if (sessionState.findings) {
+            const parsedFindings = Array.isArray(sessionState.findings) 
+              ? sessionState.findings 
+              : (typeof sessionState.findings === 'string' ? JSON.parse(sessionState.findings) : []);
             setFindings(parsedFindings);
           }
           
-          setReasoningPath(data.reasoning_path || []);
-          setResearchObjective(data.query || "");
+          setReasoningPath(sessionState.reasoning_path || []);
+          setResearchObjective(sessionState.query || "");
           
-          if (data.user_model) {
-            const userModelData = typeof data.user_model === 'string' 
-              ? JSON.parse(data.user_model) 
-              : data.user_model;
+          if (sessionState.user_model) {
+            const userModelData = typeof sessionState.user_model === 'string' 
+              ? JSON.parse(sessionState.user_model) 
+              : sessionState.user_model;
             
             if (userModelData.domain) setDomain(userModelData.domain);
             if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
@@ -440,17 +440,17 @@ const ResearchPage = () => {
         return;
       }
       
-      const url = `https://timothy102--vertical-deep-research-get-research-state.modal.run?research_id=${researchId}&session_id=${currentSessionIdRef.current}`;
+      console.log("Polling for research state:", researchId, "in session:", currentSessionIdRef.current);
       
-      const response = await fetch(url, {
-        method: 'GET'
-      });
+      const data = await getResearchState(researchId, currentSessionIdRef.current);
       
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      if (!data) {
+        console.log("No research state found, will retry...");
+        setTimeout(() => pollResearchState(researchId), 3000);
+        return;
       }
       
-      const data = await response.json();
+      console.log("Polled research state:", data);
       
       if ((data.session_id && data.session_id !== currentSessionIdRef.current) ||
           (data.research_id && data.research_id !== researchId)) {
