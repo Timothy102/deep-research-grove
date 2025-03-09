@@ -44,7 +44,6 @@ interface Finding {
   content?: string;
 }
 
-// Cognitive style options
 const cognitiveStyles = [
   { id: "systematic", label: "systematic" },
   { id: "general", label: "general" },
@@ -53,7 +52,6 @@ const cognitiveStyles = [
   { id: "practical", label: "practical applier" },
 ];
 
-// Expertise levels
 const expertiseLevels = [
   "beginner",
   "intermediate",
@@ -61,7 +59,6 @@ const expertiseLevels = [
   "expert"
 ];
 
-// Example research objective
 const exampleObjective = `I was always interested as to why life needs to exist. Which biological/thermodynamical processes were in play for why we need to survive? My objective comes from curiosity, I'd love to understand the fundamentals behind this research objective. Feel free to synthesize more than one theory.`;
 
 const ResearchPage = () => {
@@ -69,27 +66,25 @@ const ResearchPage = () => {
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
   const [researchObjective, setResearchObjective] = useState("");
-  const [userContext, setUserContext] = useState(""); // Added for current understanding
-  
-  // User model fields
+  const [userContext, setUserContext] = useState("");
+
   const [domain, setDomain] = useState("");
   const [expertiseLevel, setExpertiseLevel] = useState("intermediate");
   const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("general");
-  
-  const [model, setModel] = useState("claude-3.5-sonnet"); // Default model
+
+  const [model, setModel] = useState("claude-3.5-sonnet");
   const [isLoading, setIsLoading] = useState(false);
   const [researchOutput, setResearchOutput] = useState("");
   const [sources, setSources] = useState<string[]>([]);
-  const [findings, setFindings] = useState<Finding[]>([]); // New state for findings
+  const [findings, setFindings] = useState<Finding[]>([]);
   const [reasoningPath, setReasoningPath] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("output"); // Adjust initial active tab
+  const [activeTab, setActiveTab] = useState("output");
   const [history, setHistory] = useState<ResearchHistory[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
   const { toast } = useToast();
 
-  // Add state for human approval
   const [humanApprovalRequest, setHumanApprovalRequest] = useState<{
     call_id: string;
     node_id: string;
@@ -105,35 +100,27 @@ const ResearchPage = () => {
       return;
     }
     
-    // Check if we have a session ID in the URL, if not, create a new empty session
     if (!sessionId) {
-      // Create a new session ID and navigate to it
       const newSessionId = uuidv4();
       navigate(`/research/${newSessionId}`, { replace: true });
       return;
     }
     
-    // Store the current session ID
     currentSessionIdRef.current = sessionId;
     
-    // Reset research state when session ID changes
     resetResearchState();
     
-    // Load research history
     loadHistory();
     
-    // Try to load existing session data if available
     loadSessionData(sessionId);
     
     return () => {
-      // Clean up event source on unmount
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
       }
     };
   }, [user, navigate, sessionId]);
 
-  // Effect to show approval dialog when a request comes in
   useEffect(() => {
     if (humanApprovalRequest) {
       setShowApprovalDialog(true);
@@ -148,7 +135,6 @@ const ResearchPage = () => {
     setActiveTab("output");
     researchIdRef.current = null;
     
-    // Close any existing EventSource connection
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
       eventSourceRef.current = null;
@@ -166,7 +152,6 @@ const ResearchPage = () => {
 
   const loadSessionData = async (sessionId: string) => {
     try {
-      // Try to load the most recent research state for this session
       const response = await fetch(`https://timothy102--vertical-deep-research-get-session-state.modal.run?session_id=${sessionId}`, {
         method: 'GET'
       });
@@ -178,16 +163,13 @@ const ResearchPage = () => {
       
       const data = await response.json();
       
-      // If we have valid research data for this session, populate the UI
       if (data && data.research_id) {
         researchIdRef.current = data.research_id;
         
-        // If the research is completed, update the UI with the results
         if (data.status === "completed") {
           setResearchOutput(data.answer || "");
           setSources(data.sources || []);
           
-          // Convert findings from JSON if needed
           if (data.findings) {
             const parsedFindings = Array.isArray(data.findings) 
               ? data.findings 
@@ -198,20 +180,15 @@ const ResearchPage = () => {
           setReasoningPath(data.reasoning_path || []);
           setResearchObjective(data.query || "");
           
-          // Try to parse user model from query
-          try {
-            if (data.user_model) {
-              const userModelData = typeof data.user_model === 'string' 
-                ? JSON.parse(data.user_model) 
-                : data.user_model;
-              
-              if (userModelData.domain) setDomain(userModelData.domain);
-              if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
-              if (userModelData.cognitiveStyle) setSelectedCognitiveStyle(userModelData.cognitiveStyle);
-              if (userModelData.userContext) setUserContext(userModelData.userContext);
-            }
-          } catch (e) {
-            console.error("Error parsing user model:", e);
+          if (data.user_model) {
+            const userModelData = typeof data.user_model === 'string' 
+              ? JSON.parse(data.user_model) 
+              : data.user_model;
+            
+            if (userModelData.domain) setDomain(userModelData.domain);
+            if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
+            if (userModelData.cognitiveStyle) setSelectedCognitiveStyle(userModelData.cognitiveStyle);
+            if (userModelData.userContext) setUserContext(userModelData.userContext);
           }
         }
       }
@@ -227,8 +204,8 @@ const ResearchPage = () => {
       domain: domain,
       expertise_level: expertiseLevel,
       cognitiveStyle: selectedCognitiveStyle,
-      userContext: userContext, // Add user context to the user model
-      session_id: currentSessionIdRef.current // Include the session ID in the user model
+      userContext: userContext,
+      session_id: currentSessionIdRef.current
     };
   };
 
@@ -242,29 +219,23 @@ const ResearchPage = () => {
       return;
     }
   
-    // Reset state before starting new research
     resetResearchState();
     setIsLoading(true);
     
-    // Always switch to reasoning path tab when research starts
     setActiveTab("reasoning");
     
     try {
-      // Generate user model payload
       const userModelPayload = createUserModelPayload();
       
-      // Create a unique research ID
       const newResearchId = uuidv4();
       researchIdRef.current = newResearchId;
       
-      // Save research history for backward compatibility
       await saveResearchHistory({
         query: researchObjective,
         user_model: JSON.stringify(userModelPayload),
         model,
       });
       
-      // Save initial research state to our new table
       if (currentSessionIdRef.current) {
         await saveResearchState({
           research_id: newResearchId,
@@ -275,10 +246,8 @@ const ResearchPage = () => {
         });
       }
       
-      // Start research with POST request
       startResearchStream(userModelPayload, newResearchId);
       
-      // Refresh history after submission
       await loadHistory();
       
     } catch (error) {
@@ -293,15 +262,12 @@ const ResearchPage = () => {
   };
 
   const startResearchStream = (userModelData: any, researchId: string) => {
-    // Close any existing connection
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
     
-    // Create a POST request to the stream_research endpoint
     const streamUrl = `https://timothy102--vertical-deep-research-stream-research.modal.run`;
     
-    // Set up EventSource with POST using a lightweight fetch polyfill
     const fetchEventSource = async () => {
       try {
         const response = await fetch(streamUrl, {
@@ -314,7 +280,7 @@ const ResearchPage = () => {
             user_model: userModelData,
             model: model,
             session_id: currentSessionIdRef.current,
-            research_id: researchId // Send the research ID to backend
+            research_id: researchId
           })
         });
         
@@ -322,7 +288,6 @@ const ResearchPage = () => {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        // Read the response as a stream
         const reader = response.body?.getReader();
         if (!reader) {
           throw new Error("Unable to get reader from response");
@@ -331,26 +296,22 @@ const ResearchPage = () => {
         const decoder = new TextDecoder();
         let buffer = "";
         
-        // Process the stream
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
             break;
           }
           
-          // Decode the chunk and add it to the buffer
           buffer += decoder.decode(value, { stream: true });
           
-          // Process complete events in the buffer
           const lines = buffer.split("\n\n");
-          buffer = lines.pop() || ""; // Keep the last incomplete chunk in the buffer
+          buffer = lines.pop() || "";
           
           for (const line of lines) {
             if (line.startsWith("data: ")) {
               try {
                 const data = JSON.parse(line.substring(6));
                 
-                // Only process events for the current session and research
                 const eventSessionId = data.session_id || currentSessionIdRef.current;
                 const eventResearchId = data.research_id || researchId;
                 
@@ -363,14 +324,12 @@ const ResearchPage = () => {
                   continue;
                 }
                 
-                // Process the event based on its type
                 if (data.event === "start") {
                   console.log("Research started");
                 } else if (data.event === "update") {
                   const message = data.data.message || "";
                   setResearchOutput(prev => prev + message + "\n");
                   
-                  // Update research state in database
                   if (currentSessionIdRef.current) {
                     updateResearchState(researchId, currentSessionIdRef.current, {
                       answer: researchOutput + message + "\n"
@@ -380,14 +339,12 @@ const ResearchPage = () => {
                   const source = data.data.source || "";
                   setSources(prev => [...prev, source]);
                   
-                  // Update sources in database
                   if (currentSessionIdRef.current) {
                     updateResearchState(researchId, currentSessionIdRef.current, {
                       sources: [...sources, source]
                     }).catch(err => console.error("Error updating sources:", err));
                   }
                 } else if (data.event === "finding") {
-                  // Handle finding events
                   const finding = { 
                     source: data.data.source || "",
                     content: data.data.content || undefined 
@@ -395,7 +352,6 @@ const ResearchPage = () => {
                   
                   setFindings(prev => [...prev, finding]);
                   
-                  // Update findings in database
                   if (currentSessionIdRef.current) {
                     const updatedFindings = [...findings, finding];
                     updateResearchState(researchId, currentSessionIdRef.current, {
@@ -406,7 +362,6 @@ const ResearchPage = () => {
                   const step = data.data.step || "";
                   setReasoningPath(prev => [...prev, step]);
                   
-                  // Update reasoning path in database
                   if (currentSessionIdRef.current) {
                     const updatedPath = [...reasoningPath, step];
                     updateResearchState(researchId, currentSessionIdRef.current, {
@@ -425,7 +380,6 @@ const ResearchPage = () => {
                   setReasoningPath(finalReasoningPath);
                   setIsLoading(false);
                   
-                  // Update final state in database
                   if (currentSessionIdRef.current) {
                     updateResearchState(researchId, currentSessionIdRef.current, {
                       status: 'completed',
@@ -436,7 +390,6 @@ const ResearchPage = () => {
                     }).catch(err => console.error("Error updating final state:", err));
                   }
                   
-                  // Switch to output tab when research is complete
                   setActiveTab("output");
                 } else if (data.event === "error") {
                   toast({
@@ -446,14 +399,12 @@ const ResearchPage = () => {
                   });
                   setIsLoading(false);
                   
-                  // Update error state in database
                   if (currentSessionIdRef.current) {
                     updateResearchState(researchId, currentSessionIdRef.current, {
                       status: 'error',
                     }).catch(err => console.error("Error updating error state:", err));
                   }
                 } else if (data.event === "human_approval_request") {
-                  // Handle human approval request
                   console.log("Received human approval request:", data.data);
                   setHumanApprovalRequest(data.data);
                 }
@@ -472,17 +423,15 @@ const ResearchPage = () => {
         });
         setIsLoading(false);
         
-        // If streaming fails, try polling for research state
         if (researchId && currentSessionIdRef.current) {
           pollResearchState(researchId);
         }
       }
     };
     
-    // Start the fetch process
     fetchEventSource();
   };
-  
+
   const pollResearchState = async (researchId: string) => {
     try {
       if (!currentSessionIdRef.current) {
@@ -490,7 +439,6 @@ const ResearchPage = () => {
         return;
       }
       
-      // Use the new parameter format for research state
       const url = `https://timothy102--vertical-deep-research-get-research-state.modal.run?research_id=${researchId}&session_id=${currentSessionIdRef.current}`;
       
       const response = await fetch(url, {
@@ -503,7 +451,6 @@ const ResearchPage = () => {
       
       const data = await response.json();
       
-      // Verify this response is for the current session and research
       if ((data.session_id && data.session_id !== currentSessionIdRef.current) ||
           (data.research_id && data.research_id !== researchId)) {
         console.warn("Received polling response for different session/research, ignoring");
@@ -514,7 +461,6 @@ const ResearchPage = () => {
         setResearchOutput(data.answer || "");
         setSources(data.sources || []);
         
-        // Parse findings if necessary
         if (data.findings) {
           const parsedFindings = Array.isArray(data.findings) 
             ? data.findings 
@@ -525,10 +471,8 @@ const ResearchPage = () => {
         setReasoningPath(data.reasoning_path || []);
         setIsLoading(false);
         
-        // Switch to output tab when polling returns complete status
         setActiveTab("output");
       } else if (data.status === "in_progress") {
-        // Keep polling if still in progress
         setTimeout(() => pollResearchState(researchId), 3000);
       } else if (data.status === "error") {
         toast({
@@ -559,27 +503,23 @@ const ResearchPage = () => {
   };
 
   const handleNewChat = () => {
-    // Create a new session ID and navigate to it
     const newSessionId = uuidv4();
     navigate(`/research/${newSessionId}`);
   };
 
   const loadHistoryItem = (item: ResearchHistory) => {
-    setResearchObjective(item.query); // Load the query as the research objective
+    setResearchObjective(item.query);
     
-    // Try to parse user model from history
     try {
       const userModelData = JSON.parse(item.user_model || "{}");
       if (userModelData.domain) setDomain(userModelData.domain);
       if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
       if (userModelData.userContext) setUserContext(userModelData.userContext);
       
-      // Set selected cognitive style
       if (userModelData.cognitiveStyle) {
         setSelectedCognitiveStyle(userModelData.cognitiveStyle);
       }
       
-      // If this history item has a session ID, navigate to it
       if (userModelData.session_id && userModelData.session_id !== currentSessionIdRef.current) {
         navigate(`/research/${userModelData.session_id}`);
         return;
@@ -601,7 +541,7 @@ const ResearchPage = () => {
           node_id: nodeId,
           approved: true,
           reason: '',
-          session_id: currentSessionIdRef.current // Include the session ID in the request
+          session_id: currentSessionIdRef.current
         })
       });
       
@@ -622,7 +562,7 @@ const ResearchPage = () => {
       });
     }
   };
-  
+
   const handleRejectRequest = async (callId: string, nodeId: string, reason: string) => {
     try {
       const response = await fetch('https://timothy102--vertical-deep-research-human-approval.modal.run', {
@@ -635,7 +575,7 @@ const ResearchPage = () => {
           node_id: nodeId,
           approved: false,
           reason: reason,
-          session_id: currentSessionIdRef.current // Include the session ID in the request
+          session_id: currentSessionIdRef.current
         })
       });
       
@@ -731,7 +671,6 @@ const ResearchPage = () => {
             <h1 className="text-2xl font-bold mb-6">deep research</h1>
             
             <div className="space-y-6 mb-8">              
-              {/* Research Objective */}
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <label className="block text-sm font-medium">research objective</label>
@@ -770,7 +709,6 @@ const ResearchPage = () => {
                 />
               </div>
               
-              {/* User Current Understanding */}
               <div className="space-y-2">
                 <label className="block text-sm font-medium">current understanding</label>
                 <Textarea
@@ -781,7 +719,6 @@ const ResearchPage = () => {
                 />
               </div>
               
-              {/* User Domain */}
               <div>
                 <label className="block text-sm font-medium mb-1">your domain/field</label>
                 <Input
@@ -791,7 +728,6 @@ const ResearchPage = () => {
                 />
               </div>
               
-              {/* Expertise Level */}
               <div>
                 <label className="block text-sm font-medium mb-1">expertise level</label>
                 <select
@@ -805,7 +741,6 @@ const ResearchPage = () => {
                 </select>
               </div>
               
-              {/* Cognitive Style (Radio buttons) */}
               <div>
                 <label className="block text-sm font-medium mb-2">cognitive style</label>
                 <RadioGroup 
@@ -824,7 +759,6 @@ const ResearchPage = () => {
                 </RadioGroup>
               </div>
               
-              {/* Model Selection */}
               <div>
                 <label className="block text-sm font-medium mb-1">model</label>
                 <select
@@ -839,7 +773,6 @@ const ResearchPage = () => {
                 </select>
               </div>
               
-              {/* Submit Button */}
               <Button 
                 onClick={handleResearch} 
                 disabled={isLoading || !researchObjective.trim()}
@@ -859,7 +792,6 @@ const ResearchPage = () => {
               </Button>
             </div>
             
-            {/* Research Results */}
             {(researchOutput || sources.length > 0 || findings.length > 0 || reasoningPath.length > 0 || isLoading) && (
               <div className="mt-8 border rounded-lg overflow-hidden">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -905,7 +837,6 @@ const ResearchPage = () => {
         </main>
       </div>
       
-      {/* Human approval dialog */}
       {humanApprovalRequest && (
         <HumanApprovalDialog
           isOpen={showApprovalDialog}
@@ -913,3 +844,14 @@ const ResearchPage = () => {
           content={humanApprovalRequest.content}
           query={humanApprovalRequest.query}
           callId={humanApprovalRequest.call_id}
+          nodeId={humanApprovalRequest.node_id}
+          approvalType={humanApprovalRequest.approval_type}
+          onApprove={handleApproveRequest}
+          onReject={handleRejectRequest}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ResearchPage;
