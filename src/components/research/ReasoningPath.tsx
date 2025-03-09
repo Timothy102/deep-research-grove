@@ -1,8 +1,10 @@
+
 import { useState } from "react";
-import { ChevronDown, ChevronRight, ExternalLink, Search, CheckCircle2, ArrowRight, Clock, BrainCircuit, Book, Lightbulb } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, Search, CheckCircle2, ArrowRight, Clock, BrainCircuit, Book, Lightbulb, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface Finding {
   source: string;
@@ -186,6 +188,161 @@ const extractDomain = (url: string): string => {
   }
 };
 
+const SourceItem = ({ source, content, sourceIndex, isFinding }: { 
+  source: string; 
+  content?: string; 
+  sourceIndex: number;
+  isFinding: boolean;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(!!content);
+  
+  return (
+    <div 
+      className={cn(
+        "flex flex-col rounded-md transition-all mb-2",
+        isFinding 
+          ? "bg-blue-50/80 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900"
+          : "bg-muted/50 border border-muted-foreground/10"
+      )}
+    >
+      <div 
+        className="flex items-center gap-2 p-2 cursor-pointer"
+        onClick={() => content && setIsExpanded(!isExpanded)}
+      >
+        <span className={cn(
+          "inline-block w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0",
+          isFinding
+            ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+            : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+        )}>
+          {sourceIndex}
+        </span>
+        
+        <div className="flex-1 overflow-hidden">
+          <div className="flex items-center gap-1.5">
+            {isFinding && (
+              <Badge variant="outline" className="h-4 py-0 px-1 text-[9px] bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                finding
+              </Badge>
+            )}
+            <a 
+              href={source} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 dark:text-blue-400 hover:underline truncate block text-left"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {extractDomain(source)}
+            </a>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-1">
+          {content && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-5 w-5 p-0 hover:bg-muted"
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                setIsExpanded(!isExpanded);
+              }}
+            >
+              {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            </Button>
+          )}
+          
+          <a
+            href={source}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </a>
+        </div>
+      </div>
+      
+      {isExpanded && content && (
+        <div className="px-2 pb-2 pt-1 ml-7 animate-accordion-down">
+          <div className="text-xs text-muted-foreground bg-background p-2 rounded border text-left">
+            {content}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AllSourcesAndFindings = ({ sources = [], findings = [] }: { sources: string[], findings: Finding[] }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  
+  if (sources.length === 0 && findings.length === 0) {
+    return null;
+  }
+  
+  return (
+    <Collapsible 
+      open={isExpanded} 
+      onOpenChange={setIsExpanded}
+      className="mt-4 border rounded-md p-2 bg-muted/20"
+    >
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" size="sm" className="w-full flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            <span>All Sources & Findings ({sources.length + findings.length})</span>
+          </span>
+          {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-2 space-y-1 animate-accordion-down">
+        <div className="space-y-1">
+          {findings.length > 0 && (
+            <div className="mb-3">
+              <h4 className="text-xs font-medium mb-2 text-muted-foreground flex items-center gap-1.5">
+                <Book className="h-3.5 w-3.5" />
+                Findings ({findings.length}):
+              </h4>
+              <div className="space-y-1">
+                {findings.map((finding, index) => (
+                  <SourceItem
+                    key={`finding-${index}`}
+                    source={finding.source}
+                    content={finding.content}
+                    sourceIndex={index + 1}
+                    isFinding={true}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {sources.length > 0 && (
+            <div>
+              <h4 className="text-xs font-medium mb-2 text-muted-foreground flex items-center gap-1.5">
+                <ExternalLink className="h-3.5 w-3.5" />
+                Sources ({sources.length}):
+              </h4>
+              <div className="space-y-1">
+                {sources.map((source, index) => (
+                  <SourceItem
+                    key={`source-${index}`}
+                    source={source}
+                    sourceIndex={index + 1}
+                    isFinding={false}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
+
 const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpanded = false, isActive = false }: ReasoningStepProps) => {
   const [expanded, setExpanded] = useState(defaultExpanded || index === 0);
   const { type, color, icon, label } = getStepType(step);
@@ -240,6 +397,12 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
                 <span className="ml-1 animate-pulse">●</span>
               )}
             </Badge>
+            
+            {relevantSources.length > 0 && (
+              <Badge variant="outline" className="font-normal text-xs">
+                {relevantSources.length} source{relevantSources.length !== 1 ? 's' : ''}
+              </Badge>
+            )}
           </div>
           
           <p className="text-sm">{formattedStep}</p>
@@ -260,105 +423,33 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
               </h4>
               
               <div className="space-y-2 rounded-md border p-2 bg-muted/30">
-                {relevantSources.map(({ sourceIndex, source, content, isFinding }, i) => {
-                  const [isExpanded, setIsExpanded] = useState(content ? true : false);
-                  return (
-                    <div 
-                      key={i} 
-                      className={cn(
-                        "flex flex-col rounded-md transition-all",
-                        isFinding 
-                          ? "bg-blue-50/80 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900"
-                          : "bg-muted/50 border border-muted-foreground/10"
-                      )}
-                    >
-                      <div 
-                        className="flex items-center gap-2 p-2 cursor-pointer"
-                        onClick={() => setIsExpanded(!isExpanded)}
-                      >
-                        <span className={cn(
-                          "inline-block w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0",
-                          isFinding
-                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-                            : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
-                        )}>
-                          {sourceIndex}
-                        </span>
-                        
-                        <div className="flex-1 overflow-hidden">
-                          <div className="flex items-center gap-1.5">
-                            {isFinding && (
-                              <Badge variant="outline" className="h-4 py-0 px-1 text-[9px] bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
-                                finding
-                              </Badge>
-                            )}
-                            <a 
-                              href={source} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-blue-600 dark:text-blue-400 hover:underline truncate block text-left"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {extractDomain(source)}
-                            </a>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-1">
-                          {content && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 p-0 hover:bg-muted"
-                              onClick={(e) => { 
-                                e.stopPropagation(); 
-                                setIsExpanded(!isExpanded);
-                              }}
-                            >
-                              {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                            </Button>
-                          )}
-                          
-                          <a
-                            href={source}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
-                        </div>
-                      </div>
-                      
-                      {isExpanded && content && (
-                        <div className="px-2 pb-2 pt-1 ml-7 animate-accordion-down">
-                          <div className="text-xs text-muted-foreground bg-background p-2 rounded border text-left">
-                            {content}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                {relevantSources.map(({ sourceIndex, source, content, isFinding }, i) => (
+                  <SourceItem 
+                    key={`relevant-${i}`}
+                    source={source}
+                    content={content}
+                    sourceIndex={sourceIndex}
+                    isFinding={isFinding}
+                  />
+                ))}
               </div>
-              
-              {type === "searching" && (
-                <div className="mt-3 space-y-2">
-                  <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                    <Search className="h-3.5 w-3.5" />
-                    Search Queries:
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {step.split("\n").filter(line => line.trim().length > 0 && !line.toLowerCase().includes("searching")).map((line, i) => (
-                      <Badge key={i} variant="outline" className="bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800 flex items-center gap-1.5 py-1.5 px-2.5">
-                        <Search className="h-3 w-3 text-violet-600 dark:text-violet-400" />
-                        <span className="text-xs text-violet-800 dark:text-violet-300">{line.trim()}</span>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+            </div>
+          )}
+          
+          {type === "searching" && (
+            <div className="mt-3 space-y-2">
+              <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <Search className="h-3.5 w-3.5" />
+                Search Queries:
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {step.split("\n").filter(line => line.trim().length > 0 && !line.toLowerCase().includes("searching")).map((line, i) => (
+                  <Badge key={i} variant="outline" className="bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800 flex items-center gap-1.5 py-1.5 px-2.5">
+                    <Search className="h-3 w-3 text-violet-600 dark:text-violet-400" />
+                    <span className="text-xs text-violet-800 dark:text-violet-300">{line.trim()}</span>
+                  </Badge>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -389,6 +480,8 @@ const ReasoningPath = ({ reasoningPath, sources = [], findings = [], isActive = 
           isActive={isActive && index === reasoningPath.length - 1}
         />
       ))}
+      
+      <AllSourcesAndFindings sources={sources} findings={findings} />
     </div>
   );
 };
