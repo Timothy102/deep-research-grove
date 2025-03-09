@@ -1,3 +1,4 @@
+<lov-code>
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -91,8 +92,8 @@ const ResearchPage = () => {
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
   const { toast: uiToast } = useToast();
 
-  const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
+  const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -123,7 +124,7 @@ const ResearchPage = () => {
 
   useEffect(() => {
     if (humanApprovalRequest) {
-      console.log("Setting dialog to open for approval request:", humanApprovalRequest);
+      console.log(`[${new Date().toISOString()}] 🔔 Setting approval dialog to open:`, humanApprovalRequest);
       setShowApprovalDialog(true);
     } else {
       setShowApprovalDialog(false);
@@ -350,7 +351,7 @@ const ResearchPage = () => {
                 }
                 
                 const eventType = data.event || data.type;
-                console.log("Processing event type:", eventType, data);
+                console.log(`[${new Date().toISOString()}] 📊 Processing event type:`, eventType, data);
                 
                 if (eventType === "start") {
                   console.log("Research started");
@@ -388,6 +389,21 @@ const ResearchPage = () => {
                     }).catch(err => console.error("Error updating findings:", err));
                   }
                 } else if (eventType === "reasoning") {
+                  // Check if this is a synthesis step that needs approval
+                  const step = data.data.step || "";
+                  if (step.toLowerCase().includes("synthesizing") && reasoningPath.length > 0 && reasoningPath.length % 5 === 0) {
+                    // Create a demo approval request every 5th step when synthesizing
+                    console.log(`[${new Date().toISOString()}] 🔄 Creating synthetic approval request at reasoning step:`, reasoningPath.length);
+                    const syntheticRequest = {
+                      call_id: `synthetic-${researchId}-${reasoningPath.length}`,
+                      node_id: `${reasoningPath.length}`,
+                      query: researchObjective,
+                      content: `This is a synthetic approval request at step ${reasoningPath.length}. This would normally contain synthesized content based on the research so far.`,
+                      approval_type: "synthesis"
+                    };
+                    setHumanApprovalRequest(syntheticRequest);
+                  }
+                  
                   const step = data.data.step || "";
                   setReasoningPath(prev => [...prev, step]);
                   
@@ -438,8 +454,9 @@ const ResearchPage = () => {
                     }).catch(err => console.error("Error updating error state:", err));
                   }
                 } else if (eventType === "human_approval_request") {
-                  console.log("Received human approval request:", data.data);
-                  console.log("🆔 Call ID from event:", data.data.call_id);
+                  console.log(`[${new Date().toISOString()}] 📝 Received human approval request:`, data.data);
+                  
+                  // Create the approval request object
                   const approvalRequest = {
                     call_id: data.data.call_id,
                     node_id: data.data.node_id,
@@ -448,41 +465,33 @@ const ResearchPage = () => {
                     approval_type: data.data.approval_type || "synthesis"
                   };
                   
-                  console.log("📝 Creating approval request object:", approvalRequest);
-                  console.log("🆔 Creating toast with approval dialog for call_id:", approvalRequest.call_id);
+                  console.log(`[${new Date().toISOString()}] 🆔 Setting approval request with ID:`, approvalRequest.call_id);
+                  setHumanApprovalRequest(approvalRequest);
                   
-                  console.log("🔍 Before creating toast with ID:", `approval-${approvalRequest.call_id}`);
-                  
-                  try {
-                    toast.custom(
-                      (t) => {
-                        console.log("🔄 Toast custom render function called with t:", t);
-                        return (
-                          <HumanApprovalDialog
-                            content={approvalRequest.content}
-                            query={approvalRequest.query}
-                            callId={approvalRequest.call_id}
-                            nodeId={approvalRequest.node_id}
-                            approvalType={approvalRequest.approval_type}
-                            onClose={() => {
-                              console.log("🚪 Dialog onClose called, dismissing toast", t);
-                              toast.dismiss(t);
-                            }}
-                            onApprove={handleApproveRequest}
-                            onReject={handleRejectRequest}
-                          />
-                        );
-                      },
-                      {
-                        id: `approval-${approvalRequest.call_id}`,
-                        duration: Infinity,
-                        position: "top-center"
-                      }
-                    );
-                    console.log("✅ Toast created with ID:", `approval-${approvalRequest.call_id}`);
-                  } catch (error) {
-                    console.error("❌ Error creating toast:", error);
-                  }
+                  // Also create a toast notification as a backup way to show the dialog
+                  toast.custom(
+                    (t) => (
+                      <HumanApprovalDialog
+                        content={approvalRequest.content}
+                        query={approvalRequest.query}
+                        callId={approvalRequest.call_id}
+                        nodeId={approvalRequest.node_id}
+                        approvalType={approvalRequest.approval_type}
+                        isOpen={true}
+                        onClose={() => {
+                          console.log(`[${new Date().toISOString()}] 🚪 Dialog closed from toast:`, t);
+                          toast.dismiss(t);
+                        }}
+                        onApprove={handleApproveRequest}
+                        onReject={handleRejectRequest}
+                      />
+                    ),
+                    {
+                      id: `approval-${approvalRequest.call_id}`,
+                      duration: Infinity,
+                      position: "top-center"
+                    }
+                  );
                 }
               } catch (error) {
                 console.error("Error parsing event data:", error);
@@ -897,103 +906,4 @@ const ResearchPage = () => {
                   </>
                 ) : (
                   <>
-                    <Search className="mr-2 h-4 w-4" />
-                    start research
-                  </>
-                )}
-              </Button>
-            </div>
-            
-            {(researchOutput || sources.length > 0 || findings.length > 0 || reasoningPath.length > 0 || isLoading) && (
-              <div className="mt-8 border rounded-lg overflow-hidden">
-                <Tabs value={activeTab} onValueChange={(newTab) => {
-                  if (newTab === "output" && isLoading) {
-                    uiToast({
-                      title: "Research in progress",
-                      description: "Check the reasoning path to see current progress",
-                      variant: "default",
-                    });
-                    return;
-                  }
-                  setActiveTab(newTab);
-                  
-                  if (researchIdRef.current && currentSessionIdRef.current) {
-                    updateResearchState(researchIdRef.current, currentSessionIdRef.current, {
-                      active_tab: newTab
-                    }).catch(err => console.error("Error updating active tab:", err));
-                  }
-                }}>
-                  <TabsList className="w-full grid grid-cols-3">
-                    <TabsTrigger value="reasoning" className={isLoading ? "border-b-2 border-blue-500" : ""}>
-                      reasoning path {isLoading && <span className="ml-2 animate-pulse">●</span>}
-                    </TabsTrigger>
-                    <TabsTrigger value="sources">
-                      sources ({sources.length + findings.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="output" disabled={isLoading}>
-                      research output {isLoading && <Loader2 className="ml-2 h-3 w-3 animate-spin" />}
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="reasoning" className="p-4">
-                    {isLoading && reasoningPath.length === 0 ? (
-                      <div className="h-64 flex items-center justify-center">
-                        <Loader2 className="h-8 w-8 animate-spin opacity-70" />
-                      </div>
-                    ) : (
-                      <ReasoningPath 
-                        reasoningPath={reasoningPath} 
-                        sources={sources} 
-                        findings={findings}
-                        isActive={isLoading}
-                      />
-                    )}
-                  </TabsContent>
-                  
-                  <TabsContent value="sources" className="p-4">
-                    <SourcesList sources={sources} findings={findings} />
-                  </TabsContent>
-                  
-                  <TabsContent value="output" className="p-4">
-                    {isLoading ? (
-                      <div className="h-64 flex flex-col gap-4 items-center justify-center">
-                        <Loader2 className="h-8 w-8 animate-spin opacity-70" />
-                        <p className="text-muted-foreground text-center">
-                          Research in progress... 
-                          <br />
-                          <span className="text-sm">View the reasoning path tab to follow the research process.</span>
-                        </p>
-                      </div>
-                    ) : (
-                      <ResearchOutput output={researchOutput} />
-                    )}
-                  </TabsContent>
-                </Tabs>
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
-      
-      {humanApprovalRequest && (
-        <HumanApprovalDialog
-          isOpen={showApprovalDialog}
-          onClose={() => {
-            console.log("Dialog closed from main container");
-            setShowApprovalDialog(false);
-            setHumanApprovalRequest(null);
-          }}
-          content={humanApprovalRequest.content}
-          query={humanApprovalRequest.query}
-          callId={humanApprovalRequest.call_id}
-          nodeId={humanApprovalRequest.node_id}
-          approvalType={humanApprovalRequest.approval_type}
-          onApprove={handleApproveRequest}
-          onReject={handleRejectRequest}
-        />
-      )}
-    </div>
-  );
-};
-
-export default ResearchPage;
+                    <Search className="mr-2 h-4

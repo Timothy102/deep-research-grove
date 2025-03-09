@@ -151,7 +151,8 @@ const HumanApprovalDialog = ({
     }
   };
 
-  if (!isOpen) return null;
+  // Return null if dialog shouldn't be shown
+  if (!isOpen && typeof isOpen !== 'undefined') return null;
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-[9999] p-4 overflow-hidden">
