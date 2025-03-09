@@ -26,35 +26,42 @@ const HumanApprovalDialog = ({
   approvalType,
   onClose,
   onApprove,
-  onReject
+  onReject,
+  isOpen
 }: HumanApprovalDialogProps) => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [showReasonInput, setShowReasonInput] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    console.log("HumanApprovalDialog mounted with props:", { callId, nodeId, content, approvalType });
-  }, [callId, nodeId, content, approvalType]);
+    console.log("🔍 HumanApprovalDialog mounted with props:", { 
+      callId, 
+      nodeId, 
+      content: content?.substring(0, 50) + "...", 
+      approvalType,
+      isOpen
+    });
+  }, [callId, nodeId, content, approvalType, isOpen]);
 
   const handleApprove = async () => {
-    console.log("Approve button clicked for callId:", callId);
+    console.log("👍 Approve button clicked for callId:", callId);
     setIsSubmitting(true);
     try {
-      console.log("Starting approval process for callId:", callId);
+      console.log("🚀 Starting approval process for callId:", callId);
       if (onApprove) {
-        console.log("Using provided onApprove callback");
+        console.log("📞 Using provided onApprove callback");
         await onApprove(callId, nodeId);
       } else {
-        console.log("Using direct API call to approval endpoint");
+        console.log("📡 Using direct API call to approval endpoint");
         await respondToApproval(callId, true);
       }
-      console.log("Approval successful");
+      console.log("✅ Approval successful");
       toast.success("Content has been approved");
     } catch (error) {
-      console.error("Error approving content:", error);
+      console.error("❌ Error approving content:", error);
       toast.error("Failed to approve content");
     } finally {
-      console.log("Approval process complete, closing dialog");
+      console.log("🏁 Approval process complete, closing dialog");
       setIsSubmitting(false);
       toast.dismiss(`approval-${callId}`);
       onClose();
@@ -62,35 +69,35 @@ const HumanApprovalDialog = ({
   };
 
   const handleStartReject = () => {
-    console.log("Starting rejection process, showing reason input");
+    console.log("👎 Starting rejection process, showing reason input");
     setShowReasonInput(true);
   };
 
   const handleCancelReject = () => {
-    console.log("Canceling rejection");
+    console.log("🔙 Canceling rejection");
     setShowReasonInput(false);
     setRejectionReason("");
   };
 
   const handleConfirmReject = async () => {
-    console.log("Confirm reject button clicked for callId:", callId);
+    console.log("👎 Confirm reject button clicked for callId:", callId);
     setIsSubmitting(true);
     try {
-      console.log("Rejecting content with callId:", callId, "Reason:", rejectionReason);
+      console.log("🚀 Rejecting content with callId:", callId, "Reason:", rejectionReason);
       if (onReject) {
-        console.log("Using provided onReject callback");
+        console.log("📞 Using provided onReject callback");
         await onReject(callId, nodeId, rejectionReason);
       } else {
-        console.log("Using direct API call to approval endpoint");
+        console.log("📡 Using direct API call to approval endpoint");
         await respondToApproval(callId, false, rejectionReason);
       }
-      console.log("Rejection successful");
+      console.log("✅ Rejection successful");
       toast.success("Content has been rejected");
     } catch (error) {
-      console.error("Error rejecting content:", error);
+      console.error("❌ Error rejecting content:", error);
       toast.error("Failed to reject content");
     } finally {
-      console.log("Rejection process complete, closing dialog");
+      console.log("🏁 Rejection process complete, closing dialog");
       setIsSubmitting(false);
       setShowReasonInput(false);
       setRejectionReason("");
@@ -101,7 +108,7 @@ const HumanApprovalDialog = ({
 
   // Function to call the endpoint directly with body parameters
   const respondToApproval = async (callId: string, approved: boolean, comment: string = "") => {
-    console.log("Making POST request to approval endpoint with body:", { call_id: callId, approved, comment });
+    console.log("📤 Making POST request to approval endpoint with body:", { call_id: callId, approved, comment });
     
     try {
       const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
@@ -116,27 +123,29 @@ const HumanApprovalDialog = ({
         })
       });
       
-      console.log("API response status:", response.status);
+      console.log("📥 API response status:", response.status);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("API response error:", errorText);
+        console.error("❌ API response error:", errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const responseData = await response.json();
-      console.log("API response data:", responseData);
+      console.log("📦 API response data:", responseData);
       return responseData;
     } catch (error) {
-      console.error("Error in respondToApproval:", error);
+      console.error("❌ Error in respondToApproval:", error);
       throw error;
     }
   };
 
-  console.log("Rendering HumanApprovalDialog with state:", { 
+  console.log("🔄 Rendering HumanApprovalDialog with state:", { 
     showReasonInput, 
     isSubmitting, 
-    hasRejectionReason: !!rejectionReason 
+    hasRejectionReason: !!rejectionReason,
+    callId,
+    approvalType
   });
 
   return (

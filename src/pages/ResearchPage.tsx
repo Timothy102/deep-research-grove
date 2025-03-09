@@ -439,6 +439,7 @@ const ResearchPage = () => {
                   }
                 } else if (eventType === "human_approval_request") {
                   console.log("Received human approval request:", data.data);
+                  console.log("🆔 Call ID from event:", data.data.call_id);
                   const approvalRequest = {
                     call_id: data.data.call_id,
                     node_id: data.data.node_id,
@@ -447,30 +448,41 @@ const ResearchPage = () => {
                     approval_type: data.data.approval_type || "synthesis"
                   };
                   
-                  console.log("Creating toast with approval dialog for call_id:", approvalRequest.call_id);
-                  toast.custom(
-                    (t) => (
-                      <HumanApprovalDialog
-                        content={approvalRequest.content}
-                        query={approvalRequest.query}
-                        callId={approvalRequest.call_id}
-                        nodeId={approvalRequest.node_id}
-                        approvalType={approvalRequest.approval_type}
-                        onClose={() => {
-                          console.log("Dialog onClose called, dismissing toast", t);
-                          toast.dismiss(t);
-                        }}
-                        onApprove={handleApproveRequest}
-                        onReject={handleRejectRequest}
-                      />
-                    ),
-                    {
-                      id: `approval-${approvalRequest.call_id}`,
-                      duration: Infinity,
-                      position: "top-center"
-                    }
-                  );
-                  console.log("Toast created with ID:", `approval-${approvalRequest.call_id}`);
+                  console.log("📝 Creating approval request object:", approvalRequest);
+                  console.log("🆔 Creating toast with approval dialog for call_id:", approvalRequest.call_id);
+                  
+                  console.log("🔍 Before creating toast with ID:", `approval-${approvalRequest.call_id}`);
+                  
+                  try {
+                    toast.custom(
+                      (t) => {
+                        console.log("🔄 Toast custom render function called with t:", t);
+                        return (
+                          <HumanApprovalDialog
+                            content={approvalRequest.content}
+                            query={approvalRequest.query}
+                            callId={approvalRequest.call_id}
+                            nodeId={approvalRequest.node_id}
+                            approvalType={approvalRequest.approval_type}
+                            onClose={() => {
+                              console.log("🚪 Dialog onClose called, dismissing toast", t);
+                              toast.dismiss(t);
+                            }}
+                            onApprove={handleApproveRequest}
+                            onReject={handleRejectRequest}
+                          />
+                        );
+                      },
+                      {
+                        id: `approval-${approvalRequest.call_id}`,
+                        duration: Infinity,
+                        position: "top-center"
+                      }
+                    );
+                    console.log("✅ Toast created with ID:", `approval-${approvalRequest.call_id}`);
+                  } catch (error) {
+                    console.error("❌ Error creating toast:", error);
+                  }
                 }
               } catch (error) {
                 console.error("Error parsing event data:", error);
