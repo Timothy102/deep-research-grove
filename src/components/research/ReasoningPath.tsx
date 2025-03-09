@@ -194,7 +194,7 @@ const SourceItem = ({ source, content, sourceIndex, isFinding }: {
   sourceIndex: number;
   isFinding: boolean;
 }) => {
-  const [isExpanded, setIsExpanded] = useState(!!content);
+  const [isExpanded, setIsExpanded] = useState(false);
   
   return (
     <div 

@@ -19,6 +19,7 @@ const queryClient = new QueryClient();
 
 function AppRoutes() {
   const [lastPath, setLastPath] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Get the last path from local storage on initial load
@@ -26,6 +27,7 @@ function AppRoutes() {
     if (savedPath) {
       setLastPath(savedPath);
     }
+    setIsLoading(false);
 
     // Save current path to localStorage whenever it changes
     const saveCurrentPath = () => {
@@ -33,6 +35,7 @@ function AppRoutes() {
       if (currentPath !== '/' && !currentPath.includes('/auth')) {
         console.log(`[${new Date().toISOString()}] 📍 Saving current path:`, currentPath);
         localStorage.setItem('lastPath', currentPath);
+        setLastPath(currentPath);
       }
     };
 
@@ -46,12 +49,20 @@ function AppRoutes() {
     
     window.addEventListener('popstate', handleRouteChange);
     
+    // Manually call once to save the initial path
+    saveCurrentPath();
+    
     // Clean up event listeners
     return () => {
       window.removeEventListener('beforeunload', saveCurrentPath);
       window.removeEventListener('popstate', handleRouteChange);
     };
   }, []);
+
+  // Show nothing while we're determining the redirect
+  if (isLoading) {
+    return null;
+  }
 
   // Redirect to saved path if we're at the root and have a saved path
   if (window.location.pathname === '/' && lastPath && lastPath !== '/') {
