@@ -18,7 +18,9 @@ const SourcesList = ({ sources }: { sources: string[] }) => {
           key={index} 
           className="flex items-center gap-2 p-3 rounded-md border transition-all hover:shadow-sm"
         >
-          <Badge variant="outline" className="h-6 w-6 p-0 flex items-center justify-center shrink-0">
+          <Badge 
+            className="h-6 w-6 p-0 flex items-center justify-center shrink-0 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+          >
             {index + 1}
           </Badge>
           <div className="flex-1 overflow-hidden">
