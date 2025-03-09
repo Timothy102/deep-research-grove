@@ -155,31 +155,35 @@ const HumanApprovalDialog = ({
 
   // Adding a fixed positioning wrapper to center the dialog
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-      <Card className="w-full max-w-xl mx-auto shadow-lg animate-in fade-in duration-300">
-        <CardHeader>
-          <CardTitle>{approvalType === "synthesis" ? "Synthesis Approval" : "Human Approval Required"}</CardTitle>
-          <CardDescription>
-            {approvalType === "synthesis" ? "Synthesis step requires approval" : "Human approval required"}
+    <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 animate-in fade-in duration-200">
+      <Card className="w-full max-w-2xl mx-auto shadow-lg animate-in fade-in slide-in-from-bottom-8 duration-300 border-0 sm:border">
+        <CardHeader className="px-6 pt-6 pb-4 bg-muted/30">
+          <CardTitle className="text-xl">
+            {approvalType === "synthesis" ? "Review Synthesis" : "Review Required"}
+          </CardTitle>
+          <CardDescription className="text-muted-foreground mt-1">
+            {approvalType === "synthesis" 
+              ? "Please review the synthesized content before proceeding" 
+              : "Your approval is required to continue the research"}
           </CardDescription>
         </CardHeader>
         
-        <CardContent className="space-y-4">
+        <CardContent className="px-6 py-4 space-y-5">
           <div>
-            <h4 className="text-sm font-medium mb-1">Query</h4>
-            <p className="text-sm p-2 bg-muted rounded-md">{query}</p>
+            <h4 className="text-sm font-medium mb-2 text-muted-foreground">QUERY</h4>
+            <p className="text-sm p-3 bg-muted rounded-md">{query}</p>
           </div>
           
           <div>
-            <h4 className="text-sm font-medium mb-1">Content to review</h4>
-            <div className="text-sm p-3 bg-muted rounded-md max-h-[200px] overflow-y-auto whitespace-pre-wrap">
+            <h4 className="text-sm font-medium mb-2 text-muted-foreground">CONTENT</h4>
+            <div className="text-sm p-4 bg-muted rounded-md max-h-[250px] overflow-y-auto whitespace-pre-wrap border-l-2 border-primary/20">
               {content}
             </div>
           </div>
 
           {showReasonInput && (
-            <div>
-              <label htmlFor="rejection-reason" className="text-sm font-medium">
+            <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+              <label htmlFor="rejection-reason" className="text-sm font-medium block mb-2 text-muted-foreground">
                 Reason for rejection (optional)
               </label>
               <Textarea
@@ -187,18 +191,18 @@ const HumanApprovalDialog = ({
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 placeholder="Explain why you're rejecting this content..."
-                className="mt-1"
+                className="resize-none"
               />
             </div>
           )}
         </CardContent>
 
-        <CardFooter className="flex flex-col sm:flex-row gap-2">
+        <CardFooter className="flex flex-col sm:flex-row justify-end gap-3 p-6 pt-2 bg-muted/20">
           {!showReasonInput ? (
             <>
               <Button
                 variant="outline"
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto border-red-200 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-300"
                 onClick={handleStartReject}
                 disabled={isSubmitting}
               >
@@ -206,7 +210,7 @@ const HumanApprovalDialog = ({
                 Reject
               </Button>
               <Button
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
                 onClick={handleApprove}
                 disabled={isSubmitting}
               >
@@ -219,7 +223,11 @@ const HumanApprovalDialog = ({
               <Button variant="outline" onClick={handleCancelReject} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button onClick={handleConfirmReject} disabled={isSubmitting}>
+              <Button 
+                onClick={handleConfirmReject} 
+                disabled={isSubmitting}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
                 <MessageSquare className="mr-2 h-4 w-4" />
                 {isSubmitting ? "Processing..." : "Submit Rejection"}
               </Button>
