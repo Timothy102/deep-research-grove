@@ -1,4 +1,4 @@
-<lov-code>
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -404,7 +404,6 @@ const ResearchPage = () => {
                     setHumanApprovalRequest(syntheticRequest);
                   }
                   
-                  const step = data.data.step || "";
                   setReasoningPath(prev => [...prev, step]);
                   
                   if (isLoading) {
@@ -906,4 +905,77 @@ const ResearchPage = () => {
                   </>
                 ) : (
                   <>
-                    <Search className="mr-2 h-4
+                    <Search className="mr-2 h-4 w-4" />
+                    start research
+                  </>
+                )}
+              </Button>
+            </div>
+            
+            {(researchOutput || sources.length > 0 || reasoningPath.length > 0) && (
+              <div className="mt-10">
+                <Tabs 
+                  value={activeTab} 
+                  onValueChange={setActiveTab}
+                  className="w-full"
+                >
+                  <TabsList className="grid grid-cols-3 mb-6">
+                    <TabsTrigger value="reasoning" className="flex items-center gap-1">
+                      <FileText className="h-4 w-4" />
+                      <span className="hidden sm:inline">research</span> planning
+                    </TabsTrigger>
+                    <TabsTrigger value="sources" className="flex items-center gap-1">
+                      <FileText className="h-4 w-4" />
+                      sources
+                    </TabsTrigger>
+                    <TabsTrigger value="output" className="flex items-center gap-1">
+                      <FileText className="h-4 w-4" />
+                      result
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="reasoning">
+                    <ReasoningPath 
+                      reasoningPath={reasoningPath} 
+                      isLoading={isLoading}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="sources">
+                    <SourcesList sources={sources} findings={findings} />
+                  </TabsContent>
+                  
+                  <TabsContent value="output">
+                    <ResearchOutput 
+                      output={researchOutput} 
+                      isLoading={isLoading}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+      
+      {showApprovalDialog && humanApprovalRequest && (
+        <HumanApprovalDialog
+          isOpen={showApprovalDialog}
+          onClose={() => {
+            setShowApprovalDialog(false);
+            setHumanApprovalRequest(null);
+          }}
+          content={humanApprovalRequest.content}
+          query={humanApprovalRequest.query}
+          callId={humanApprovalRequest.call_id}
+          nodeId={humanApprovalRequest.node_id}
+          approvalType={humanApprovalRequest.approval_type}
+          onApprove={handleApproveRequest}
+          onReject={handleRejectRequest}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ResearchPage;
