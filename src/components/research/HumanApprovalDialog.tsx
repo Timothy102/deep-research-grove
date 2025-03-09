@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, XCircle, MessageSquare } from "lucide-react";
+import { CheckCircle2, XCircle, MessageSquare, FileText } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 
@@ -153,56 +153,73 @@ const HumanApprovalDialog = ({
     approvalType
   });
 
-  // Adding a fixed positioning wrapper to center the dialog
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-50 animate-in fade-in duration-200">
-      <Card className="w-full max-w-2xl mx-auto shadow-lg animate-in fade-in slide-in-from-bottom-8 duration-300 border-0 sm:border">
-        <CardHeader className="px-6 pt-6 pb-4 bg-muted/30">
-          <CardTitle className="text-xl">
-            {approvalType === "synthesis" ? "Review Synthesis" : "Review Required"}
-          </CardTitle>
-          <CardDescription className="text-muted-foreground mt-1">
+    <div className="fixed inset-0 flex items-center justify-center z-50">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose}></div>
+      <Card className="w-full max-w-2xl m-4 shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-200 relative z-10 border border-gray-200 dark:border-gray-800">
+        <div className="absolute top-3 right-3 flex space-x-1.5">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="h-8 w-8 p-0 rounded-full opacity-70 hover:opacity-100"
+            onClick={onClose}
+          >
+            <XCircle className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </Button>
+        </div>
+        
+        <CardHeader className="px-6 pt-6 pb-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/50 rounded-t-lg border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center">
+            <FileText className="h-5 w-5 mr-2 text-primary/70" />
+            <CardTitle className="text-lg font-medium">
+              {approvalType === "synthesis" ? "Review Synthesis" : "Approval Required"}
+            </CardTitle>
+          </div>
+          <CardDescription className="text-sm text-muted-foreground mt-1">
             {approvalType === "synthesis" 
               ? "Please review the synthesized content before proceeding" 
               : "Your approval is required to continue the research"}
           </CardDescription>
         </CardHeader>
         
-        <CardContent className="px-6 py-4 space-y-5">
+        <CardContent className="p-6 space-y-4">
           <div>
-            <h4 className="text-sm font-medium mb-2 text-muted-foreground">QUERY</h4>
-            <p className="text-sm p-3 bg-muted rounded-md">{query}</p>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Query</h4>
+            <div className="text-sm p-3 bg-muted/50 rounded-md border border-gray-200/50 dark:border-gray-800/50">
+              {query}
+            </div>
           </div>
           
           <div>
-            <h4 className="text-sm font-medium mb-2 text-muted-foreground">CONTENT</h4>
-            <div className="text-sm p-4 bg-muted rounded-md max-h-[250px] overflow-y-auto whitespace-pre-wrap border-l-2 border-primary/20">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Content</h4>
+            <div className="text-sm p-4 bg-muted/50 rounded-md max-h-[280px] overflow-y-auto whitespace-pre-wrap border-l-2 border-primary/30 shadow-sm">
               {content}
             </div>
           </div>
 
           {showReasonInput && (
-            <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-              <label htmlFor="rejection-reason" className="text-sm font-medium block mb-2 text-muted-foreground">
-                Reason for rejection (optional)
-              </label>
+            <div className="animate-in fade-in slide-in-from-top-2 duration-200 pt-2">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Reason for rejection
+              </h4>
               <Textarea
                 id="rejection-reason"
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 placeholder="Explain why you're rejecting this content..."
-                className="resize-none"
+                className="resize-none focus:ring-primary/30"
               />
             </div>
           )}
         </CardContent>
 
-        <CardFooter className="flex flex-col sm:flex-row justify-end gap-3 p-6 pt-2 bg-muted/20">
+        <CardFooter className="flex flex-col sm:flex-row justify-end gap-3 p-5 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900/50 dark:to-gray-800/50 rounded-b-lg border-t border-gray-100 dark:border-gray-800">
           {!showReasonInput ? (
             <>
               <Button
                 variant="outline"
-                className="w-full sm:w-auto border-red-200 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950 dark:hover:text-red-300"
+                className="w-full sm:w-auto bg-white hover:bg-red-50 hover:text-red-600 dark:bg-gray-900 dark:hover:bg-red-950/20 dark:hover:text-red-400 dark:border-gray-700"
                 onClick={handleStartReject}
                 disabled={isSubmitting}
               >
@@ -220,13 +237,18 @@ const HumanApprovalDialog = ({
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={handleCancelReject} disabled={isSubmitting}>
+              <Button 
+                variant="outline" 
+                onClick={handleCancelReject} 
+                disabled={isSubmitting}
+                className="w-full sm:w-auto bg-white dark:bg-gray-900 dark:border-gray-700"
+              >
                 Cancel
               </Button>
               <Button 
                 onClick={handleConfirmReject} 
                 disabled={isSubmitting}
-                className="bg-red-600 hover:bg-red-700 text-white"
+                className="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white"
               >
                 <MessageSquare className="mr-2 h-4 w-4" />
                 {isSubmitting ? "Processing..." : "Submit Rejection"}
