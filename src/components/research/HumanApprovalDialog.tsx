@@ -13,6 +13,9 @@ interface HumanApprovalDialogProps {
   nodeId: string;
   approvalType: string;
   onClose: () => void;
+  onApprove?: (callId: string, nodeId: string) => Promise<void>;
+  onReject?: (callId: string, nodeId: string, reason: string) => Promise<void>;
+  isOpen?: boolean;
 }
 
 const HumanApprovalDialog = ({
@@ -21,6 +24,9 @@ const HumanApprovalDialog = ({
   callId,
   nodeId,
   approvalType,
+  onClose,
+  onApprove,
+  onReject
 }: HumanApprovalDialogProps) => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [showReasonInput, setShowReasonInput] = useState(false);
@@ -32,7 +38,11 @@ const HumanApprovalDialog = ({
     setIsSubmitting(true);
     try {
       console.log("Approving content with callId:", callId);
-      await respondToApproval(callId, true);
+      if (onApprove) {
+        await onApprove(callId, nodeId);
+      } else {
+        await respondToApproval(callId, true);
+      }
       toast.success("Content has been approved");
     } catch (error) {
       console.error("Error approving content:", error);
@@ -40,6 +50,7 @@ const HumanApprovalDialog = ({
     } finally {
       setIsSubmitting(false);
       toast.dismiss(`approval-${callId}`);
+      onClose();
     }
   };
 
@@ -56,7 +67,11 @@ const HumanApprovalDialog = ({
     setIsSubmitting(true);
     try {
       console.log("Rejecting content with callId:", callId);
-      await respondToApproval(callId, false, rejectionReason);
+      if (onReject) {
+        await onReject(callId, nodeId, rejectionReason);
+      } else {
+        await respondToApproval(callId, false, rejectionReason);
+      }
       toast.success("Content has been rejected");
     } catch (error) {
       console.error("Error rejecting content:", error);
@@ -66,6 +81,7 @@ const HumanApprovalDialog = ({
       setShowReasonInput(false);
       setRejectionReason("");
       toast.dismiss(`approval-${callId}`);
+      onClose();
     }
   };
 
