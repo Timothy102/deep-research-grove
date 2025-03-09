@@ -15,7 +15,7 @@ export interface ResearchState {
   reasoning_path?: string[];
   created_at?: string;
   updated_at?: string;
-  user_model?: string; // Add the user_model field
+  user_model?: string | Json;
 }
 
 // Save initial research state

@@ -77,6 +77,7 @@ export type Database = {
           status: string
           updated_at: string | null
           user_id: string
+          user_model: Json | null
         }
         Insert: {
           answer?: string | null
@@ -91,6 +92,7 @@ export type Database = {
           status?: string
           updated_at?: string | null
           user_id: string
+          user_model?: Json | null
         }
         Update: {
           answer?: string | null
@@ -105,6 +107,7 @@ export type Database = {
           status?: string
           updated_at?: string | null
           user_id?: string
+          user_model?: Json | null
         }
         Relationships: []
       }
