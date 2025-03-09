@@ -78,7 +78,7 @@ const ResearchPage = () => {
   const [sources, setSources] = useState<string[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [reasoningPath, setReasoningPath] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("output");
+  const [activeTab, setActiveTab] = useState("reasoning");
   const [history, setHistory] = useState<ResearchHistory[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
@@ -132,7 +132,7 @@ const ResearchPage = () => {
     setSources([]);
     setFindings([]);
     setReasoningPath([]);
-    setActiveTab("output");
+    setActiveTab("reasoning");
     researchIdRef.current = null;
     
     if (eventSourceRef.current) {
@@ -327,6 +327,7 @@ const ResearchPage = () => {
                 
                 if (data.event === "start") {
                   console.log("Research started");
+                  setActiveTab("reasoning");
                 } else if (data.event === "update") {
                   const message = data.data.message || "";
                   setResearchOutput(prev => prev + message + "\n");
@@ -362,6 +363,10 @@ const ResearchPage = () => {
                 } else if (data.event === "reasoning") {
                   const step = data.data.step || "";
                   setReasoningPath(prev => [...prev, step]);
+                  
+                  if (isLoading) {
+                    setActiveTab("reasoning");
+                  }
                   
                   if (currentSessionIdRef.current) {
                     const updatedPath = [...reasoningPath, step];
@@ -795,13 +800,27 @@ const ResearchPage = () => {
             
             {(researchOutput || sources.length > 0 || findings.length > 0 || reasoningPath.length > 0 || isLoading) && (
               <div className="mt-8 border rounded-lg overflow-hidden">
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                <Tabs value={activeTab} onValueChange={(newTab) => {
+                  if (newTab === "output" && isLoading) {
+                    toast({
+                      title: "Research in progress",
+                      description: "Check the reasoning path to see current progress",
+                      variant: "default",
+                    });
+                    return;
+                  }
+                  setActiveTab(newTab);
+                }}>
                   <TabsList className="w-full grid grid-cols-3">
-                    <TabsTrigger value="reasoning">reasoning path</TabsTrigger>
+                    <TabsTrigger value="reasoning" className={isLoading ? "border-b-2 border-blue-500" : ""}>
+                      reasoning path {isLoading && <span className="ml-2 animate-pulse">●</span>}
+                    </TabsTrigger>
                     <TabsTrigger value="sources">
                       sources ({sources.length + findings.length})
                     </TabsTrigger>
-                    <TabsTrigger value="output">research output</TabsTrigger>
+                    <TabsTrigger value="output" disabled={isLoading}>
+                      research output {isLoading && <Loader2 className="ml-2 h-3 w-3 animate-spin" />}
+                    </TabsTrigger>
                   </TabsList>
                   
                   <TabsContent value="reasoning" className="p-4">
@@ -824,8 +843,13 @@ const ResearchPage = () => {
                   
                   <TabsContent value="output" className="p-4">
                     {isLoading ? (
-                      <div className="h-64 flex items-center justify-center">
+                      <div className="h-64 flex flex-col gap-4 items-center justify-center">
                         <Loader2 className="h-8 w-8 animate-spin opacity-70" />
+                        <p className="text-muted-foreground text-center">
+                          Research in progress... 
+                          <br />
+                          <span className="text-sm">View the reasoning path tab to follow the research process.</span>
+                        </p>
                       </div>
                     ) : (
                       <ResearchOutput output={researchOutput} />
