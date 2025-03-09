@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Search, CheckCircle2, ArrowRight, Clock, BrainCircuit, Book, Lightbulb, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +24,7 @@ interface ReasoningPathProps {
   sources?: string[];
   findings?: Finding[];
   isActive?: boolean;
+  isLoading?: boolean;
 }
 
 const getStepType = (step: string): { type: string; color: string; icon: React.ReactNode; label: string } => {
@@ -458,7 +458,7 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
   );
 };
 
-const ReasoningPath = ({ reasoningPath, sources = [], findings = [], isActive = false }: ReasoningPathProps) => {
+const ReasoningPath = ({ reasoningPath, sources = [], findings = [], isActive = false, isLoading = false }: ReasoningPathProps) => {
   if (!reasoningPath.length) {
     return (
       <div className="text-center py-12 text-muted-foreground">

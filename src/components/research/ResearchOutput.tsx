@@ -1,9 +1,14 @@
 
 import { useState } from "react";
-import { Copy, CheckCircle2 } from "lucide-react";
+import { Copy, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const ResearchOutput = ({ output }: { output: string }) => {
+interface ResearchOutputProps {
+  output: string;
+  isLoading?: boolean; // Added the isLoading property to the interface
+}
+
+const ResearchOutput = ({ output, isLoading = false }: ResearchOutputProps) => {
   const [copied, setCopied] = useState(false);
   
   const copyToClipboard = async () => {
@@ -37,6 +42,11 @@ const ResearchOutput = ({ output }: { output: string }) => {
         </Button>
       </div>
       <div className="p-4 whitespace-pre-wrap text-sm rounded-md border">
+        {isLoading && (
+          <div className="flex justify-center items-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
         {output}
       </div>
     </div>
