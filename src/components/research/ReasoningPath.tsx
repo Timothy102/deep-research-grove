@@ -5,10 +5,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+interface Finding {
+  source: string;
+  content?: string;
+}
+
 interface ReasoningStepProps {
   step: string;
   index: number;
   sources?: string[];
+  findings?: Finding[];
   defaultExpanded?: boolean;
 }
 
@@ -40,46 +46,92 @@ const getStepIcon = (step: string) => {
   }
 };
 
-// Enhanced function to find relevant sources for a step
-const findRelevantSources = (step: string, sources: string[]): { sourceIndex: number, source: string }[] => {
-  if (!sources || sources.length === 0) return [];
+// Enhanced function to find relevant sources and findings for a step
+const findRelevantSources = (
+  step: string, 
+  sources: string[], 
+  findings: Finding[] = []
+): { sourceIndex: number, source: string, content?: string }[] => {
+  if ((!sources || sources.length === 0) && (!findings || findings.length === 0)) return [];
   
-  const relevantSources: { sourceIndex: number, source: string }[] = [];
+  const relevantSources: { sourceIndex: number, source: string, content?: string }[] = [];
   
   // Look for explicit source references like [1], [2], etc.
   const refMatches = step.match(/\[(\d+)\]|\((\d+)\)/g);
   if (refMatches) {
     refMatches.forEach(match => {
       const num = parseInt(match.replace(/[\[\]\(\)]/g, ''), 10);
-      if (!isNaN(num) && num > 0 && num <= sources.length) {
-        relevantSources.push({ sourceIndex: num, source: sources[num-1] });
+      if (!isNaN(num) && num > 0) {
+        // Check in findings first
+        const finding = findings.find((_, index) => index === num - 1);
+        if (finding) {
+          relevantSources.push({ 
+            sourceIndex: num, 
+            source: finding.source,
+            content: finding.content 
+          });
+        } 
+        // Then check in sources
+        else if (num <= sources.length) {
+          relevantSources.push({ sourceIndex: num, source: sources[num-1] });
+        }
       }
     });
   }
   
-  // For "searching" steps, include all sources
+  // For "searching" steps, include all findings and sources
   if (step.toLowerCase().includes("searching")) {
-    sources.forEach((source, index) => {
-      relevantSources.push({ sourceIndex: index + 1, source });
+    // First add any findings
+    findings.forEach((finding, index) => {
+      relevantSources.push({ 
+        sourceIndex: index + 1, 
+        source: finding.source,
+        content: finding.content
+      });
     });
+    
+    // Then add any sources that aren't already included
+    sources.forEach((source, index) => {
+      if (!relevantSources.some(item => item.source === source)) {
+        relevantSources.push({ sourceIndex: index + 1, source });
+      }
+    });
+    
     return relevantSources;
   }
   
   // If no explicit references found and it's not a searching step,
   // try to find sources by matching step content with URLs
   if (relevantSources.length === 0) {
-    // Extract keywords from the step (basic implementation)
+    // Extract keywords from the step
     const stepText = step.toLowerCase();
-    sources.forEach((source, index) => {
-      // This is a simple heuristic - match if any significant word from step
-      // appears in the source URL
-      const sourceUrl = source.toLowerCase();
+    
+    // Check findings first
+    findings.forEach((finding, index) => {
+      const sourceUrl = finding.source.toLowerCase();
       // Extract domain name for matching
       const urlParts = sourceUrl.replace(/https?:\/\//, '').split('/')[0].split('.');
       const domain = urlParts.length > 1 ? urlParts[urlParts.length - 2] : '';
       
       if (domain && stepText.includes(domain)) {
-        relevantSources.push({ sourceIndex: index + 1, source });
+        relevantSources.push({ 
+          sourceIndex: index + 1, 
+          source: finding.source,
+          content: finding.content
+        });
+      }
+    });
+    
+    // Then check regular sources
+    sources.forEach((source, index) => {
+      if (!relevantSources.some(item => item.source === source)) {
+        const sourceUrl = source.toLowerCase();
+        const urlParts = sourceUrl.replace(/https?:\/\//, '').split('/')[0].split('.');
+        const domain = urlParts.length > 1 ? urlParts[urlParts.length - 2] : '';
+        
+        if (domain && stepText.includes(domain)) {
+          relevantSources.push({ sourceIndex: index + 1, source });
+        }
       }
     });
   }
@@ -87,13 +139,13 @@ const findRelevantSources = (step: string, sources: string[]): { sourceIndex: nu
   return relevantSources;
 };
 
-const ReasoningStep = ({ step, index, sources = [], defaultExpanded = false }: ReasoningStepProps) => {
+const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpanded = false }: ReasoningStepProps) => {
   const [expanded, setExpanded] = useState(defaultExpanded || index === 0);
   const { type, color } = getStepType(step);
   const stepIcon = getStepIcon(step);
   
-  // Find relevant sources for this step
-  const relevantSources = findRelevantSources(step, sources);
+  // Find relevant sources and findings for this step
+  const relevantSources = findRelevantSources(step, sources, findings);
   
   // Extract status from step text if present
   let formattedStep = step;
@@ -168,9 +220,9 @@ const ReasoningStep = ({ step, index, sources = [], defaultExpanded = false }: R
           {/* Show sources section if any relevant sources exist */}
           {relevantSources.length > 0 && (
             <div className="space-y-2 mt-3">
-              <h4 className="text-xs font-medium text-muted-foreground">Related Sources:</h4>
+              <h4 className="text-xs font-medium text-muted-foreground">Related Sources & Findings:</h4>
               <div className="space-y-2">
-                {relevantSources.map(({ sourceIndex, source }, i) => (
+                {relevantSources.map(({ sourceIndex, source, content }, i) => (
                   <div key={i} className="flex items-start gap-2 text-xs p-2 bg-muted rounded-md">
                     <span className="inline-block mt-0.5 w-5 h-5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 flex items-center justify-center text-[10px] shrink-0">
                       {sourceIndex}
@@ -185,6 +237,11 @@ const ReasoningStep = ({ step, index, sources = [], defaultExpanded = false }: R
                       >
                         {source}
                       </a>
+                      {content && (
+                        <div className="mt-1 text-muted-foreground text-xs bg-muted-foreground/5 p-1.5 rounded border border-muted-foreground/10">
+                          {content}
+                        </div>
+                      )}
                     </div>
                     <a
                       href={source}
@@ -221,7 +278,11 @@ const ReasoningStep = ({ step, index, sources = [], defaultExpanded = false }: R
   );
 };
 
-const ReasoningPath = ({ reasoningPath, sources = [] }: { reasoningPath: string[], sources?: string[] }) => {
+const ReasoningPath = ({ reasoningPath, sources = [], findings = [] }: { 
+  reasoningPath: string[], 
+  sources?: string[],
+  findings?: Finding[]
+}) => {
   if (!reasoningPath.length) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -244,8 +305,13 @@ const ReasoningPath = ({ reasoningPath, sources = [] }: { reasoningPath: string[
     // Check for duplicates with a much stricter rule
     if ((currentType === "processing" || currentType === "exploring") &&
         (lastType === "processing" || lastType === "exploring")) {
-      // Don't add if it's similar content or same type
-      if (currentStepContent === lastStepContent || currentType === lastType) {
+      // Don't add if it's similar content
+      if (currentStepContent === lastStepContent) {
+        return; // Skip this step
+      }
+      
+      // Don't add consecutive steps of the same type
+      if (currentType === lastType) {
         return; // Skip this step
       }
     }
@@ -264,6 +330,7 @@ const ReasoningPath = ({ reasoningPath, sources = [] }: { reasoningPath: string[
           step={step} 
           index={index} 
           sources={sources}
+          findings={findings}
           defaultExpanded={index === 0} // First item is expanded by default
         />
       ))}

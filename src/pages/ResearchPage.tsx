@@ -37,6 +37,11 @@ interface HumanApprovalRequest {
   approval_type: string;
 }
 
+interface Finding {
+  source: string;
+  content?: string;
+}
+
 // Cognitive style options
 const cognitiveStyles = [
   { id: "systematic", label: "systematic" },
@@ -72,6 +77,7 @@ const ResearchPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [researchOutput, setResearchOutput] = useState("");
   const [sources, setSources] = useState<string[]>([]);
+  const [findings, setFindings] = useState<Finding[]>([]); // New state for findings
   const [reasoningPath, setReasoningPath] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("output"); // Adjust initial active tab
   const [history, setHistory] = useState<ResearchHistory[]>([]);
@@ -146,6 +152,7 @@ const ResearchPage = () => {
     setIsLoading(true);
     setResearchOutput("");
     setSources([]);
+    setFindings([]); // Reset findings
     setReasoningPath([]);
     
     // Always switch to reasoning path tab when research starts
@@ -247,11 +254,21 @@ const ResearchPage = () => {
                   setResearchOutput(prev => prev + data.data.message + "\n");
                 } else if (data.event === "source") {
                   setSources(prev => [...prev, data.data.source]);
+                } else if (data.event === "finding") {
+                  // Handle finding events
+                  setFindings(prev => [
+                    ...prev, 
+                    { 
+                      source: data.data.source,
+                      content: data.data.content || undefined 
+                    }
+                  ]);
                 } else if (data.event === "reasoning") {
                   setReasoningPath(prev => [...prev, data.data.step]);
                 } else if (data.event === "complete") {
                   setResearchOutput(data.data.answer);
                   setSources(data.data.sources || []);
+                  setFindings(data.data.findings || []); // Add findings from complete event
                   setReasoningPath(data.data.reasoning_path || []);
                   setIsLoading(false);
                   // Switch to output tab when research is complete
@@ -310,6 +327,7 @@ const ResearchPage = () => {
       if (data.status === "completed") {
         setResearchOutput(data.answer || "");
         setSources(data.sources || []);
+        setFindings(data.findings || []); // Add findings from polling response
         setReasoningPath(data.reasoning_path || []);
         setIsLoading(false);
         // Switch to output tab when polling returns complete status
@@ -649,12 +667,14 @@ const ResearchPage = () => {
             </div>
             
             {/* Research Results */}
-            {(researchOutput || sources.length > 0 || reasoningPath.length > 0 || isLoading) && (
+            {(researchOutput || sources.length > 0 || findings.length > 0 || reasoningPath.length > 0 || isLoading) && (
               <div className="mt-8 border rounded-lg overflow-hidden">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="w-full grid grid-cols-3">
                     <TabsTrigger value="reasoning">reasoning path</TabsTrigger>
-                    <TabsTrigger value="sources">sources ({sources.length})</TabsTrigger>
+                    <TabsTrigger value="sources">
+                      sources ({sources.length + findings.length})
+                    </TabsTrigger>
                     <TabsTrigger value="output">research output</TabsTrigger>
                   </TabsList>
                   
@@ -664,12 +684,16 @@ const ResearchPage = () => {
                         <Loader2 className="h-8 w-8 animate-spin opacity-70" />
                       </div>
                     ) : (
-                      <ReasoningPath reasoningPath={reasoningPath} sources={sources} />
+                      <ReasoningPath 
+                        reasoningPath={reasoningPath} 
+                        sources={sources} 
+                        findings={findings}
+                      />
                     )}
                   </TabsContent>
                   
                   <TabsContent value="sources" className="p-4">
-                    <SourcesList sources={sources} />
+                    <SourcesList sources={sources} findings={findings} />
                   </TabsContent>
                   
                   <TabsContent value="output" className="p-4">
