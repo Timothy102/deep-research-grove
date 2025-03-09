@@ -27,6 +27,7 @@ import SourcesList from "@/components/research/SourcesList";
 import ResearchOutput from "@/components/research/ResearchOutput";
 import HumanApprovalDialog from "@/components/research/HumanApprovalDialog";
 import { v4 as uuidv4 } from 'uuid';
+import { toast } from "sonner";
 
 interface ResearchHistory {
   id: string;
@@ -88,7 +89,7 @@ const ResearchPage = () => {
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
 
   const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
@@ -230,7 +231,7 @@ const ResearchPage = () => {
 
   const handleResearch = async () => {
     if (!researchObjective.trim()) {
-      toast({
+      uiToast({
         title: "objective required",
         description: "please enter a research objective",
         variant: "destructive",
@@ -275,7 +276,7 @@ const ResearchPage = () => {
       
     } catch (error) {
       console.error("Research error:", error);
-      toast({
+      uiToast({
         title: "research failed",
         description: "there was an error processing your request",
         variant: "destructive",
@@ -424,7 +425,7 @@ const ResearchPage = () => {
                   
                   setActiveTab("output");
                 } else if (eventType === "error") {
-                  toast({
+                  uiToast({
                     title: "research error",
                     description: data.data.error || "Unknown error",
                     variant: "destructive",
@@ -441,19 +442,28 @@ const ResearchPage = () => {
                   const approvalRequest = {
                     call_id: data.data.call_id,
                     node_id: data.data.node_id,
-                    query: data.data.query,
+                    query: data.data.query || researchObjective,
                     content: data.data.content,
-                    approval_type: data.data.approval_type
+                    approval_type: data.data.approval_type || "synthesis"
                   };
                   
-                  // Force a toast to ensure user sees the request
-                  toast({
-                    title: "Human approval required",
-                    description: "Please review and approve or reject the content",
-                    variant: "default",
-                  });
-                  
-                  setHumanApprovalRequest(approvalRequest);
+                  toast.custom(
+                    (t) => (
+                      <HumanApprovalDialog
+                        content={approvalRequest.content}
+                        query={approvalRequest.query}
+                        callId={approvalRequest.call_id}
+                        nodeId={approvalRequest.node_id}
+                        approvalType={approvalRequest.approval_type}
+                        onClose={() => toast.dismiss(t)}
+                      />
+                    ),
+                    {
+                      id: `approval-${approvalRequest.call_id}`,
+                      duration: Infinity,
+                      position: "top-center"
+                    }
+                  );
                 }
               } catch (error) {
                 console.error("Error parsing event data:", error);
@@ -463,7 +473,7 @@ const ResearchPage = () => {
         }
       } catch (error) {
         console.error("Fetch error:", error);
-        toast({
+        uiToast({
           title: "connection error",
           description: "failed to connect to research service",
           variant: "destructive",
@@ -538,7 +548,7 @@ const ResearchPage = () => {
         
         setTimeout(() => pollResearchState(researchId), 3000);
       } else if (data.status === "error") {
-        toast({
+        uiToast({
           title: "research error",
           description: data.error || "An error occurred during research",
           variant: "destructive",
@@ -547,7 +557,7 @@ const ResearchPage = () => {
       }
     } catch (error) {
       console.error("Polling error:", error);
-      toast({
+      uiToast({
         title: "Error",
         description: "Failed to retrieve research results",
         variant: "destructive",
@@ -615,7 +625,7 @@ const ResearchPage = () => {
       const responseData = await response.json();
       console.log("Approval response:", responseData);
       
-      toast({
+      uiToast({
         title: "approval submitted",
         description: "your approval has been processed",
       });
@@ -624,7 +634,7 @@ const ResearchPage = () => {
       setHumanApprovalRequest(null);
     } catch (error) {
       console.error("Error submitting approval:", error);
-      toast({
+      uiToast({
         title: "approval error",
         description: "there was an error submitting your approval",
         variant: "destructive",
@@ -655,7 +665,7 @@ const ResearchPage = () => {
       const responseData = await response.json();
       console.log("Rejection response:", responseData);
       
-      toast({
+      uiToast({
         title: "rejection submitted",
         description: "your rejection has been processed",
       });
@@ -664,7 +674,7 @@ const ResearchPage = () => {
       setHumanApprovalRequest(null);
     } catch (error) {
       console.error("Error submitting rejection:", error);
-      toast({
+      uiToast({
         title: "rejection error",
         description: "there was an error submitting your rejection",
         variant: "destructive",
@@ -871,7 +881,7 @@ const ResearchPage = () => {
               <div className="mt-8 border rounded-lg overflow-hidden">
                 <Tabs value={activeTab} onValueChange={(newTab) => {
                   if (newTab === "output" && isLoading) {
-                    toast({
+                    uiToast({
                       title: "Research in progress",
                       description: "Check the reasoning path to see current progress",
                       variant: "default",
