@@ -17,6 +17,7 @@ export interface ResearchState {
   updated_at?: string;
   user_model?: string | Json;
   active_tab?: string; // Added to persist active tab
+  error?: string; // Added for error messages
 }
 
 // Save initial research state
@@ -25,6 +26,11 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
   
   if (!user.user) {
     throw new Error("User not authenticated");
+  }
+  
+  // If there's no reasoning_path, initialize with first step
+  if (!state.reasoning_path || state.reasoning_path.length === 0) {
+    state.reasoning_path = ["Analyzing research objective..."];
   }
   
   const { data, error } = await supabase

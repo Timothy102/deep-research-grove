@@ -244,6 +244,8 @@ const ResearchPage = () => {
     resetResearchState();
     setIsLoading(true);
     
+    const initialReasoningPath = ["Analyzing research objective..."];
+    setReasoningPath(initialReasoningPath);
     setActiveTab("reasoning");
     
     try {
@@ -265,7 +267,8 @@ const ResearchPage = () => {
           status: 'in_progress',
           query: researchObjective,
           user_model: JSON.stringify(userModelPayload),
-          active_tab: "reasoning"
+          active_tab: "reasoning",
+          reasoning_path: initialReasoningPath
         });
       }
       
@@ -522,7 +525,7 @@ const ResearchPage = () => {
       } else if (data.status === "error") {
         toast({
           title: "research error",
-          description: "An error occurred during research",
+          description: data.error || "An error occurred during research",
           variant: "destructive",
         });
         setIsLoading(false);
@@ -925,4 +928,3 @@ const ResearchPage = () => {
 };
 
 export default ResearchPage;
-
