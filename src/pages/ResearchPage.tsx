@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Search, User, LogOut, FileText, X, Plus, HelpCircle, MessageSquarePlus } from "lucide-react";
 import { saveResearchHistory, getResearchHistory } from "@/services/researchService";
-import { saveResearchState, updateResearchState, getResearchState } from "@/services/researchStateService";
+import { saveResearchState, updateResearchState, getResearchState, getLatestSessionState } from "@/services/researchStateService";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -452,8 +452,8 @@ const ResearchPage = () => {
       
       console.log("Polled research state:", data);
       
-      if ((data.session_id && data.session_id !== currentSessionIdRef.current) ||
-          (data.research_id && data.research_id !== researchId)) {
+      if ((data?.session_id && data.session_id !== currentSessionIdRef.current) ||
+          (data?.research_id && data.research_id !== researchId)) {
         console.warn("Received polling response for different session/research, ignoring");
         return;
       }
@@ -478,7 +478,7 @@ const ResearchPage = () => {
       } else if (data.status === "error") {
         toast({
           title: "research error",
-          description: data.error || "An error occurred during research",
+          description: "An error occurred during research",
           variant: "destructive",
         });
         setIsLoading(false);
