@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -914,12 +913,3 @@ const ResearchPage = () => {
           content={humanApprovalRequest.content}
           query={humanApprovalRequest.query}
           callId={humanApprovalRequest.call_id}
-          nodeId={humanApprovalRequest.node_id}
-          approvalType={humanApprovalRequest.approval_type}
-        />
-      )}
-    </div>
-  );
-};
-
-export default ResearchPage;

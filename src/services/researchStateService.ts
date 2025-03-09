@@ -1,5 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { Json } from "@/integrations/supabase/types";
 
 export interface ResearchState {
   id?: string;
@@ -14,6 +15,7 @@ export interface ResearchState {
   reasoning_path?: string[];
   created_at?: string;
   updated_at?: string;
+  user_model?: string; // Add the user_model field
 }
 
 // Save initial research state
@@ -37,7 +39,16 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     throw error;
   }
   
-  return data?.[0] || null;
+  // Ensure the returned data has the correct status type
+  if (data && data.length > 0) {
+    const result = data[0] as ResearchState;
+    if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
+      result.status = 'in_progress'; // Default to 'in_progress' if invalid status
+    }
+    return result;
+  }
+  
+  return null;
 }
 
 // Update existing research state
@@ -63,7 +74,16 @@ export async function updateResearchState(
     throw error;
   }
   
-  return data?.[0] || null;
+  // Ensure the returned data has the correct status type
+  if (data && data.length > 0) {
+    const result = data[0] as ResearchState;
+    if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
+      result.status = 'in_progress'; // Default to 'in_progress' if invalid status
+    }
+    return result;
+  }
+  
+  return null;
 }
 
 // Get research state by research_id and session_id
@@ -85,7 +105,16 @@ export async function getResearchState(researchId: string, sessionId: string): P
     throw error;
   }
   
-  return data;
+  // Ensure the returned data has the correct status type
+  if (data) {
+    const result = data as ResearchState;
+    if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
+      result.status = 'in_progress'; // Default to 'in_progress' if invalid status
+    }
+    return result;
+  }
+  
+  return null;
 }
 
 // Get all research states for a session
@@ -107,5 +136,14 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
     throw error;
   }
   
-  return data || [];
+  // Ensure all returned items have the correct status type
+  const result = (data || []).map(item => {
+    const typedItem = item as ResearchState;
+    if (typedItem.status !== 'in_progress' && typedItem.status !== 'completed' && typedItem.status !== 'error') {
+      typedItem.status = 'in_progress'; // Default to 'in_progress' if invalid status
+    }
+    return typedItem;
+  });
+  
+  return result;
 }
