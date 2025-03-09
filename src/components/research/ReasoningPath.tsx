@@ -40,7 +40,7 @@ const getStepIcon = (step: string) => {
   }
 };
 
-// Find relevant sources for a step using markers like [1], [2] or keywords
+// Enhanced function to find relevant sources for a step
 const findRelevantSources = (step: string, sources: string[]): { sourceIndex: number, source: string }[] => {
   if (!sources || sources.length === 0) return [];
   
@@ -58,9 +58,29 @@ const findRelevantSources = (step: string, sources: string[]): { sourceIndex: nu
   }
   
   // For "searching" steps, include all sources
-  if (step.toLowerCase().includes("searching") && relevantSources.length === 0) {
+  if (step.toLowerCase().includes("searching")) {
     sources.forEach((source, index) => {
       relevantSources.push({ sourceIndex: index + 1, source });
+    });
+    return relevantSources;
+  }
+  
+  // If no explicit references found and it's not a searching step,
+  // try to find sources by matching step content with URLs
+  if (relevantSources.length === 0) {
+    // Extract keywords from the step (basic implementation)
+    const stepText = step.toLowerCase();
+    sources.forEach((source, index) => {
+      // This is a simple heuristic - match if any significant word from step
+      // appears in the source URL
+      const sourceUrl = source.toLowerCase();
+      // Extract domain name for matching
+      const urlParts = sourceUrl.replace(/https?:\/\//, '').split('/')[0].split('.');
+      const domain = urlParts.length > 1 ? urlParts[urlParts.length - 2] : '';
+      
+      if (domain && stepText.includes(domain)) {
+        relevantSources.push({ sourceIndex: index + 1, source });
+      }
     });
   }
   
@@ -210,29 +230,30 @@ const ReasoningPath = ({ reasoningPath, sources = [] }: { reasoningPath: string[
     );
   }
 
-  // Group similar steps to avoid repetition
+  // Improved logic to deduplicate steps and avoid repetition
   const groupedSteps: string[] = [];
   let lastType = "";
+  let lastStepContent = "";
   
   reasoningPath.forEach((step) => {
-    const stepType = getStepType(step).type;
+    const currentType = getStepType(step).type;
     
-    // If this is the same type as the last one and both are "processing" or "exploring",
-    // skip it to avoid repetition
-    if ((stepType === "processing" && lastType === "processing") || 
-        (stepType === "exploring" && lastType === "exploring")) {
-      // Don't add duplicate processing/exploring steps with the same content
-      const lastStep = groupedSteps[groupedSteps.length - 1];
-      const currentStepContent = step.replace(/^(Processing|Exploring):\s*/i, "").trim();
-      const lastStepContent = lastStep.replace(/^(Processing|Exploring):\s*/i, "").trim();
-      
-      if (currentStepContent === lastStepContent) {
+    // Extract step content without the type prefix
+    const currentStepContent = step.replace(/^(Processing|Exploring):\s*/i, "").trim();
+    
+    // Check for duplicates with a much stricter rule
+    if ((currentType === "processing" || currentType === "exploring") &&
+        (lastType === "processing" || lastType === "exploring")) {
+      // Don't add if it's similar content or same type
+      if (currentStepContent === lastStepContent || currentType === lastType) {
         return; // Skip this step
       }
     }
     
+    // Add the step to our filtered list
     groupedSteps.push(step);
-    lastType = stepType;
+    lastType = currentType;
+    lastStepContent = currentStepContent;
   });
 
   return (
