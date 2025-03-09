@@ -11,6 +11,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, XCircle, MessageSquare } from "lucide-react";
+import { respondToApproval } from "@/services/humanLayerService";
+import { useToast } from "@/hooks/use-toast";
 
 interface HumanApprovalDialogProps {
   isOpen: boolean;
@@ -20,8 +22,6 @@ interface HumanApprovalDialogProps {
   callId: string;
   nodeId: string;
   approvalType: string;
-  onApprove: (callId: string, nodeId: string) => void;
-  onReject: (callId: string, nodeId: string, reason: string) => void;
 }
 
 const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
@@ -32,15 +32,31 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
   callId,
   nodeId,
   approvalType,
-  onApprove,
-  onReject,
 }) => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [showReasonInput, setShowReasonInput] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
-  const handleApprove = () => {
-    onApprove(callId, nodeId);
-    onClose();
+  const handleApprove = async () => {
+    setIsSubmitting(true);
+    try {
+      await respondToApproval(callId, true);
+      toast({
+        title: "approved",
+        description: "content has been approved",
+      });
+      onClose();
+    } catch (error) {
+      console.error("Error approving content:", error);
+      toast({
+        title: "error",
+        description: "failed to approve content",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleStartReject = () => {
@@ -52,11 +68,27 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
     setRejectionReason("");
   };
 
-  const handleConfirmReject = () => {
-    onReject(callId, nodeId, rejectionReason);
-    setShowReasonInput(false);
-    setRejectionReason("");
-    onClose();
+  const handleConfirmReject = async () => {
+    setIsSubmitting(true);
+    try {
+      await respondToApproval(callId, false, rejectionReason);
+      toast({
+        title: "rejected",
+        description: "content has been rejected",
+      });
+      setShowReasonInput(false);
+      setRejectionReason("");
+      onClose();
+    } catch (error) {
+      console.error("Error rejecting content:", error);
+      toast({
+        title: "error",
+        description: "failed to reject content",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -89,6 +121,7 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
               variant="outline"
               className="w-full sm:w-auto"
               onClick={handleStartReject}
+              disabled={isSubmitting}
             >
               <XCircle className="mr-2 h-4 w-4" />
               Reject
@@ -96,9 +129,10 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
             <Button
               className="w-full sm:w-auto"
               onClick={handleApprove}
+              disabled={isSubmitting}
             >
               <CheckCircle2 className="mr-2 h-4 w-4" />
-              Approve
+              {isSubmitting ? "Processing..." : "Approve"}
             </Button>
           </DialogFooter>
         ) : (
@@ -111,17 +145,17 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
                 id="rejection-reason"
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Explain why you're rejecting this content..."
+                placeholder="explain why you're rejecting this content..."
                 className="mt-1"
               />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={handleCancelReject}>
+              <Button variant="outline" onClick={handleCancelReject} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button onClick={handleConfirmReject}>
+              <Button onClick={handleConfirmReject} disabled={isSubmitting}>
                 <MessageSquare className="mr-2 h-4 w-4" />
-                Submit Rejection
+                {isSubmitting ? "Processing..." : "Submit Rejection"}
               </Button>
             </div>
           </div>

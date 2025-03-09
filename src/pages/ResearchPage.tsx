@@ -80,7 +80,13 @@ const ResearchPage = () => {
   const { toast } = useToast();
 
   // Add state for human approval
-  const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
+  const [humanApprovalRequest, setHumanApprovalRequest] = useState<{
+    call_id: string;
+    node_id: string;
+    query: string;
+    content: string;
+    approval_type: string;
+  } | null>(null);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
 
   useEffect(() => {
@@ -692,8 +698,6 @@ const ResearchPage = () => {
           callId={humanApprovalRequest.call_id}
           nodeId={humanApprovalRequest.node_id}
           approvalType={humanApprovalRequest.approval_type}
-          onApprove={handleApproveRequest}
-          onReject={handleRejectRequest}
         />
       )}
     </div>
