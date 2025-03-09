@@ -280,7 +280,8 @@ const ResearchPage = () => {
             user_model: userModelData,
             model: model,
             session_id: currentSessionIdRef.current,
-            research_id: researchId
+            research_id: researchId,
+            user_id: user?.id
           })
         });
         
