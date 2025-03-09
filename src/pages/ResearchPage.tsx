@@ -351,10 +351,12 @@ const ResearchPage = () => {
                   continue;
                 }
                 
-                if (data.event === "start") {
+                const eventType = data.event || data.type;
+                
+                if (eventType === "start") {
                   console.log("Research started");
                   setActiveTab("reasoning");
-                } else if (data.event === "update") {
+                } else if (eventType === "update") {
                   const message = data.data.message || "";
                   setResearchOutput(prev => prev + message + "\n");
                   
@@ -363,7 +365,7 @@ const ResearchPage = () => {
                       answer: researchOutput + message + "\n"
                     }).catch(err => console.error("Error updating research state:", err));
                   }
-                } else if (data.event === "source") {
+                } else if (eventType === "source") {
                   const source = data.data.source || "";
                   setSources(prev => [...prev, source]);
                   
@@ -372,7 +374,7 @@ const ResearchPage = () => {
                       sources: [...sources, source]
                     }).catch(err => console.error("Error updating sources:", err));
                   }
-                } else if (data.event === "finding") {
+                } else if (eventType === "finding") {
                   const finding = { 
                     source: data.data.source || "",
                     content: data.data.content || undefined 
@@ -386,7 +388,7 @@ const ResearchPage = () => {
                       findings: updatedFindings
                     }).catch(err => console.error("Error updating findings:", err));
                   }
-                } else if (data.event === "reasoning") {
+                } else if (eventType === "reasoning") {
                   const step = data.data.step || "";
                   setReasoningPath(prev => [...prev, step]);
                   
@@ -400,7 +402,7 @@ const ResearchPage = () => {
                       reasoning_path: updatedPath
                     }).catch(err => console.error("Error updating reasoning path:", err));
                   }
-                } else if (data.event === "complete") {
+                } else if (eventType === "complete") {
                   const finalAnswer = data.data.answer || "";
                   const finalSources = data.data.sources || [];
                   const finalFindings = data.data.findings || [];
@@ -423,7 +425,7 @@ const ResearchPage = () => {
                   }
                   
                   setActiveTab("output");
-                } else if (data.event === "error") {
+                } else if (eventType === "error") {
                   toast({
                     title: "research error",
                     description: data.data.error || "Unknown error",
@@ -436,7 +438,7 @@ const ResearchPage = () => {
                       status: 'error',
                     }).catch(err => console.error("Error updating error state:", err));
                   }
-                } else if (data.event === "human_approval_request") {
+                } else if (eventType === "human_approval_request") {
                   console.log("Received human approval request:", data.data);
                   setHumanApprovalRequest(data.data);
                 }
@@ -600,6 +602,9 @@ const ResearchPage = () => {
         title: "approval submitted",
         description: "your approval has been processed",
       });
+      
+      setShowApprovalDialog(false);
+      setHumanApprovalRequest(null);
     } catch (error) {
       console.error("Error submitting approval:", error);
       toast({
@@ -633,6 +638,9 @@ const ResearchPage = () => {
         title: "rejection submitted",
         description: "your rejection has been processed",
       });
+      
+      setShowApprovalDialog(false);
+      setHumanApprovalRequest(null);
     } catch (error) {
       console.error("Error submitting rejection:", error);
       toast({
