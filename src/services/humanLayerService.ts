@@ -12,13 +12,15 @@ const hl = humanlayer({
 interface FunctionCallStatus {
   approved: boolean;
   comment: string;
+  requested_at?: Date; // Added the missing property as optional
 }
 
 // Function to respond to approval requests
 export async function respondToApproval(callId: string, approved: boolean, comment: string = "") {
   const status: FunctionCallStatus = {
     approved: approved,
-    comment: comment
+    comment: comment,
+    requested_at: new Date() // Providing the current date/time
   };
 
   try {
