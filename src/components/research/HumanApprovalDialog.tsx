@@ -22,6 +22,8 @@ interface HumanApprovalDialogProps {
   callId: string;
   nodeId: string;
   approvalType: string;
+  onApprove?: (callId: string, nodeId: string) => Promise<void>;
+  onReject?: (callId: string, nodeId: string, reason: string) => Promise<void>;
 }
 
 const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
@@ -32,6 +34,8 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
   callId,
   nodeId,
   approvalType,
+  onApprove,
+  onReject,
 }) => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [showReasonInput, setShowReasonInput] = useState(false);
@@ -41,7 +45,11 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
   const handleApprove = async () => {
     setIsSubmitting(true);
     try {
-      await respondToApproval(callId, true);
+      if (onApprove) {
+        await onApprove(callId, nodeId);
+      } else {
+        await respondToApproval(callId, true);
+      }
       toast({
         title: "approved",
         description: "content has been approved",
@@ -71,7 +79,11 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
   const handleConfirmReject = async () => {
     setIsSubmitting(true);
     try {
-      await respondToApproval(callId, false, rejectionReason);
+      if (onReject) {
+        await onReject(callId, nodeId, rejectionReason);
+      } else {
+        await respondToApproval(callId, false, rejectionReason);
+      }
       toast({
         title: "rejected",
         description: "content has been rejected",
