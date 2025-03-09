@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Search, CheckCircle2, ArrowRight, Clock, BrainCircuit, Book, Lightbulb } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -16,55 +15,71 @@ interface ReasoningStepProps {
   sources?: string[];
   findings?: Finding[];
   defaultExpanded?: boolean;
+  isActive?: boolean;
 }
 
-const getStepType = (step: string): { type: string; color: string; icon: React.ReactNode } => {
-  if (step.toLowerCase().includes("search") || step.toLowerCase().includes("looking up")) {
+interface ReasoningPathProps {
+  reasoningPath: string[];
+  sources?: string[];
+  findings?: Finding[];
+  isActive?: boolean;
+}
+
+const getStepType = (step: string): { type: string; color: string; icon: React.ReactNode; label: string } => {
+  const stepLower = step.toLowerCase();
+  
+  if (stepLower.includes("search") || stepLower.includes("looking up")) {
     return { 
       type: "searching", 
       color: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-300 border-violet-200 dark:border-violet-800", 
-      icon: <Search className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+      icon: <Search className="h-4 w-4 text-violet-600 dark:text-violet-400" />,
+      label: "searching"
     };
-  } else if (step.toLowerCase().includes("reason") || step.toLowerCase().includes("analyz") || step.toLowerCase().includes("evaluat") || step.toLowerCase().includes("compar")) {
+  } else if (stepLower.includes("reason") || stepLower.includes("analyz") || stepLower.includes("evaluat") || stepLower.includes("compar")) {
     return { 
       type: "reasoning", 
       color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-amber-200 dark:border-amber-800", 
-      icon: <BrainCircuit className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+      icon: <BrainCircuit className="h-4 w-4 text-amber-600 dark:text-amber-400" />,
+      label: "reasoning"
     };
-  } else if (step.toLowerCase().includes("synthe") || step.toLowerCase().includes("combin") || step.toLowerCase().includes("integrat") || step.toLowerCase().includes("summar")) {
+  } else if (stepLower.includes("synthe") || stepLower.includes("combin") || stepLower.includes("integrat") || stepLower.includes("summar")) {
     return { 
       type: "synthesizing", 
       color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800", 
-      icon: <Lightbulb className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+      icon: <Lightbulb className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />,
+      label: "synthesizing"
     };
-  } else if (step.toLowerCase().includes("read") || step.toLowerCase().includes("review")) {
+  } else if (stepLower.includes("read") || stepLower.includes("review")) {
     return { 
       type: "reading", 
       color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 border-blue-200 dark:border-blue-800", 
-      icon: <Book className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+      icon: <Book className="h-4 w-4 text-blue-600 dark:text-blue-400" />,
+      label: "reading"
     };
-  } else if (step.toLowerCase().includes("objective")) {
+  } else if (stepLower.includes("objective")) {
     return { 
       type: "objective", 
       color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800", 
-      icon: <CheckCircle2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+      icon: <CheckCircle2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />,
+      label: "setting objective"
     };
-  } else if (step.toLowerCase().includes("planning") || step.toLowerCase().includes("starting")) {
+  } else if (stepLower.includes("planning") || stepLower.includes("starting")) {
     return { 
       type: "planning", 
       color: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-300 border-sky-200 dark:border-sky-800", 
-      icon: <Clock className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+      icon: <Clock className="h-4 w-4 text-sky-600 dark:text-sky-400" />,
+      label: "planning"
     };
   } else {
     return { 
       type: "step", 
       color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700", 
-      icon: <ArrowRight className="h-4 w-4" />
+      icon: <ArrowRight className="h-4 w-4" />,
+      label: "processing"
     };
   }
 };
 
-// Enhanced function to find relevant sources and findings for a step
 const findRelevantSources = (
   step: string, 
   sources: string[], 
@@ -74,13 +89,11 @@ const findRelevantSources = (
   
   const relevantSources: { sourceIndex: number, source: string, content?: string, isFinding: boolean }[] = [];
   
-  // Look for explicit source references like [1], [2], etc.
   const refMatches = step.match(/\[(\d+)\]|\((\d+)\)/g);
   if (refMatches) {
     refMatches.forEach(match => {
       const num = parseInt(match.replace(/[\[\]\(\)]/g, ''), 10);
       if (!isNaN(num) && num > 0) {
-        // Check in findings first
         const finding = findings.find((_, index) => index === num - 1);
         if (finding) {
           relevantSources.push({ 
@@ -90,7 +103,6 @@ const findRelevantSources = (
             isFinding: true
           });
         } 
-        // Then check in sources
         else if (num <= sources.length) {
           relevantSources.push({ 
             sourceIndex: num, 
@@ -102,9 +114,7 @@ const findRelevantSources = (
     });
   }
   
-  // For "searching" steps, include all findings and sources
   if (step.toLowerCase().includes("search")) {
-    // First add any findings
     findings.forEach((finding, index) => {
       if (!relevantSources.some(item => item.source === finding.source)) {
         relevantSources.push({ 
@@ -116,7 +126,6 @@ const findRelevantSources = (
       }
     });
     
-    // Then add any sources that aren't already included
     sources.forEach((source, index) => {
       if (!relevantSources.some(item => item.source === source)) {
         relevantSources.push({ 
@@ -130,16 +139,11 @@ const findRelevantSources = (
     return relevantSources;
   }
   
-  // If no explicit references found and it's not a searching step,
-  // try to find sources by matching step content with URLs
   if (relevantSources.length === 0) {
-    // Extract keywords from the step
     const stepText = step.toLowerCase();
     
-    // Check findings first
     findings.forEach((finding, index) => {
       const sourceUrl = finding.source.toLowerCase();
-      // Extract domain name for matching
       const urlParts = sourceUrl.replace(/https?:\/\//, '').split('/')[0].split('.');
       const domain = urlParts.length > 1 ? urlParts[urlParts.length - 2] : '';
       
@@ -153,7 +157,6 @@ const findRelevantSources = (
       }
     });
     
-    // Then check regular sources
     sources.forEach((source, index) => {
       if (!relevantSources.some(item => item.source === source)) {
         const sourceUrl = source.toLowerCase();
@@ -174,7 +177,6 @@ const findRelevantSources = (
   return relevantSources;
 };
 
-// Function to extract domain name from URL
 const extractDomain = (url: string): string => {
   try {
     const hostname = new URL(url).hostname;
@@ -184,20 +186,19 @@ const extractDomain = (url: string): string => {
   }
 };
 
-const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpanded = false }: ReasoningStepProps) => {
+const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpanded = false, isActive = false }: ReasoningStepProps) => {
   const [expanded, setExpanded] = useState(defaultExpanded || index === 0);
-  const { type, color, icon } = getStepType(step);
+  const { type, color, icon, label } = getStepType(step);
   
-  // Find relevant sources and findings for this step
   const relevantSources = findRelevantSources(step, sources, findings);
   
-  // Extract status from step text if present
   let formattedStep = step;
   
-  // Remove redundant type prefixes for cleaner display
   const typeWords = ["Processing", "Exploring", "Searching", "Reasoning", "Synthesizing", "Reading"];
   const regex = new RegExp(`^(${typeWords.join('|')}):\\s*`, 'i');
   formattedStep = formattedStep.replace(regex, "");
+
+  const isLastStep = isActive && index === sources.length - 1;
 
   return (
     <div className="mb-3 animate-fade-in">
@@ -234,7 +235,10 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <Badge className={cn("font-normal flex items-center gap-1", color)}>
               {icon}
-              <span>{type}</span>
+              <span>{label}</span>
+              {isLastStep && (
+                <span className="ml-1 animate-pulse">●</span>
+              )}
             </Badge>
           </div>
           
@@ -244,12 +248,10 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
       
       {expanded && (
         <div className="ml-11 mt-2 space-y-2 border-l-2 pl-4 border-gray-200 dark:border-gray-800">
-          {/* Detailed information for the step */}
           <div className="text-sm text-muted-foreground">
             <p className="mb-2">{formattedStep}</p>
           </div>
           
-          {/* Show sources section if any relevant sources exist */}
           {relevantSources.length > 0 && (
             <div className="space-y-2 mt-3">
               <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
@@ -294,7 +296,7 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
                               href={source} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="text-blue-600 dark:text-blue-400 hover:underline truncate block"
+                              className="text-blue-600 dark:text-blue-400 hover:underline truncate block text-left"
                               onClick={(e) => e.stopPropagation()}
                             >
                               {extractDomain(source)}
@@ -331,7 +333,7 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
                       
                       {isExpanded && content && (
                         <div className="px-2 pb-2 pt-1 ml-7 animate-accordion-down">
-                          <div className="text-xs text-muted-foreground bg-background p-2 rounded border">
+                          <div className="text-xs text-muted-foreground bg-background p-2 rounded border text-left">
                             {content}
                           </div>
                         </div>
@@ -341,7 +343,6 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
                 })}
               </div>
               
-              {/* Display search queries if this is a searching step */}
               {type === "searching" && (
                 <div className="mt-3 space-y-2">
                   <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
@@ -366,11 +367,7 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
   );
 };
 
-const ReasoningPath = ({ reasoningPath, sources = [], findings = [] }: { 
-  reasoningPath: string[], 
-  sources?: string[],
-  findings?: Finding[]
-}) => {
+const ReasoningPath = ({ reasoningPath, sources = [], findings = [], isActive = false }: ReasoningPathProps) => {
   if (!reasoningPath.length) {
     return (
       <div className="text-center py-12 text-muted-foreground">
@@ -380,7 +377,7 @@ const ReasoningPath = ({ reasoningPath, sources = [], findings = [] }: {
   }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 text-left">
       {reasoningPath.map((step, index) => (
         <ReasoningStep 
           key={index} 
@@ -388,7 +385,8 @@ const ReasoningPath = ({ reasoningPath, sources = [], findings = [] }: {
           index={index} 
           sources={sources}
           findings={findings}
-          defaultExpanded={index === 0} // First item is expanded by default
+          defaultExpanded={index === 0 || index === reasoningPath.length - 1}
+          isActive={isActive && index === reasoningPath.length - 1}
         />
       ))}
     </div>

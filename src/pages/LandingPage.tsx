@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,7 @@ const LandingPage = () => {
       </header>
 
       <main className="flex-1 max-w-2xl mx-auto px-4 py-16">
-        <div className="space-y-6">
+        <div className="space-y-6 text-left">
           
           <p className="text-base">
             deep research sucks.

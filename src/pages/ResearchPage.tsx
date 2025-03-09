@@ -456,6 +456,8 @@ const ResearchPage = () => {
                         nodeId={approvalRequest.node_id}
                         approvalType={approvalRequest.approval_type}
                         onClose={() => toast.dismiss(t)}
+                        onApprove={handleApproveRequest}
+                        onReject={handleRejectRequest}
                       />
                     ),
                     {
@@ -918,6 +920,7 @@ const ResearchPage = () => {
                         reasoningPath={reasoningPath} 
                         sources={sources} 
                         findings={findings}
+                        isActive={isLoading}
                       />
                     )}
                   </TabsContent>
