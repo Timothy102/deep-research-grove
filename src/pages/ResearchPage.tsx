@@ -90,13 +90,7 @@ const ResearchPage = () => {
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
   const { toast } = useToast();
 
-  const [humanApprovalRequest, setHumanApprovalRequest] = useState<{
-    call_id: string;
-    node_id: string;
-    query: string;
-    content: string;
-    approval_type: string;
-  } | null>(null);
+  const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
 
   useEffect(() => {
@@ -128,7 +122,10 @@ const ResearchPage = () => {
 
   useEffect(() => {
     if (humanApprovalRequest) {
+      console.log("Setting dialog to open for approval request:", humanApprovalRequest);
       setShowApprovalDialog(true);
+    } else {
+      setShowApprovalDialog(false);
     }
   }, [humanApprovalRequest]);
 
@@ -440,7 +437,13 @@ const ResearchPage = () => {
                   }
                 } else if (eventType === "human_approval_request") {
                   console.log("Received human approval request:", data.data);
-                  setHumanApprovalRequest(data.data);
+                  setHumanApprovalRequest({
+                    call_id: data.data.call_id,
+                    node_id: data.data.node_id,
+                    query: data.data.query,
+                    content: data.data.content,
+                    approval_type: data.data.approval_type
+                  });
                 }
               } catch (error) {
                 console.error("Error parsing event data:", error);
@@ -581,6 +584,7 @@ const ResearchPage = () => {
 
   const handleApproveRequest = async (callId: string, nodeId: string) => {
     try {
+      console.log("Sending approval for call ID:", callId);
       const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
         method: 'POST',
         headers: {
@@ -617,6 +621,7 @@ const ResearchPage = () => {
 
   const handleRejectRequest = async (callId: string, nodeId: string, reason: string) => {
     try {
+      console.log("Sending rejection for call ID:", callId);
       const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
         method: 'POST',
         headers: {
@@ -919,7 +924,11 @@ const ResearchPage = () => {
       {humanApprovalRequest && (
         <HumanApprovalDialog
           isOpen={showApprovalDialog}
-          onClose={() => setShowApprovalDialog(false)}
+          onClose={() => {
+            console.log("Dialog closed");
+            setShowApprovalDialog(false);
+            setHumanApprovalRequest(null);
+          }}
           content={humanApprovalRequest.content}
           query={humanApprovalRequest.query}
           callId={humanApprovalRequest.call_id}

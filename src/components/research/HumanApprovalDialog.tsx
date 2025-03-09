@@ -123,11 +123,13 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
     return await response.json();
   };
 
+  console.log("Dialog props:", { isOpen, callId, nodeId, content, query });
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>How would you like to proceed?</DialogTitle>
+          <DialogTitle>Human Approval Required</DialogTitle>
           <DialogDescription className="text-sm opacity-70">
             {approvalType === "synthesis" ? "Synthesis step requires approval" : "Human approval required"}
           </DialogDescription>
