@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, XCircle, MessageSquare } from "lucide-react";
-import { respondToApproval } from "@/services/humanLayerService";
 import { useToast } from "@/hooks/use-toast";
 
 interface HumanApprovalDialogProps {
@@ -101,6 +100,27 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // New function to call the endpoint directly
+  const respondToApproval = async (callId: string, approved: boolean, comment: string = "") => {
+    const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        call_id: callId,
+        approved: approved,
+        comment: comment
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
   };
 
   return (

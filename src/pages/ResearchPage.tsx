@@ -579,16 +579,15 @@ const ResearchPage = () => {
 
   const handleApproveRequest = async (callId: string, nodeId: string) => {
     try {
-      const response = await fetch('https://timothy102--vertical-deep-research-human-approval.modal.run', {
+      const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           call_id: callId,
-          node_id: nodeId,
           approved: true,
-          reason: '',
+          comment: '',
           session_id: currentSessionIdRef.current
         })
       });
@@ -613,16 +612,15 @@ const ResearchPage = () => {
 
   const handleRejectRequest = async (callId: string, nodeId: string, reason: string) => {
     try {
-      const response = await fetch('https://timothy102--vertical-deep-research-human-approval.modal.run', {
+      const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           call_id: callId,
-          node_id: nodeId,
           approved: false,
-          reason: reason,
+          comment: reason,
           session_id: currentSessionIdRef.current
         })
       });
