@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, ExternalLink, Search, CheckCircle2, ArrowRight, Clock } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, Search, CheckCircle2, ArrowRight, Clock, BrainCircuit, Book, Lightbulb } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -18,31 +18,49 @@ interface ReasoningStepProps {
   defaultExpanded?: boolean;
 }
 
-const getStepType = (step: string): { type: string; color: string } => {
-  if (step.toLowerCase().includes("research objective")) {
-    return { type: "objective", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300" };
-  } else if (step.toLowerCase().includes("processing:")) {
-    return { type: "processing", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300" };
-  } else if (step.toLowerCase().includes("exploring:")) {
-    return { type: "exploring", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" };
-  } else if (step.toLowerCase().includes("searching")) {
-    return { type: "searching", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300" };
-  } else if (step.toLowerCase().includes("reading")) {
-    return { type: "reading", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300" };
+const getStepType = (step: string): { type: string; color: string; icon: React.ReactNode } => {
+  if (step.toLowerCase().includes("search") || step.toLowerCase().includes("looking up")) {
+    return { 
+      type: "searching", 
+      color: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-300 border-violet-200 dark:border-violet-800", 
+      icon: <Search className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+    };
+  } else if (step.toLowerCase().includes("reason") || step.toLowerCase().includes("analyz") || step.toLowerCase().includes("evaluat") || step.toLowerCase().includes("compar")) {
+    return { 
+      type: "reasoning", 
+      color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-amber-200 dark:border-amber-800", 
+      icon: <BrainCircuit className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+    };
+  } else if (step.toLowerCase().includes("synthe") || step.toLowerCase().includes("combin") || step.toLowerCase().includes("integrat") || step.toLowerCase().includes("summar")) {
+    return { 
+      type: "synthesizing", 
+      color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800", 
+      icon: <Lightbulb className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+    };
+  } else if (step.toLowerCase().includes("read") || step.toLowerCase().includes("review")) {
+    return { 
+      type: "reading", 
+      color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 border-blue-200 dark:border-blue-800", 
+      icon: <Book className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+    };
+  } else if (step.toLowerCase().includes("objective")) {
+    return { 
+      type: "objective", 
+      color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800", 
+      icon: <CheckCircle2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+    };
+  } else if (step.toLowerCase().includes("planning") || step.toLowerCase().includes("starting")) {
+    return { 
+      type: "planning", 
+      color: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-300 border-sky-200 dark:border-sky-800", 
+      icon: <Clock className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+    };
   } else {
-    return { type: "step", color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300" };
-  }
-};
-
-const getStepIcon = (step: string) => {
-  if (step.toLowerCase().includes("planning")) {
-    return <Clock className="h-4 w-4 text-blue-500" />;
-  } else if (step.toLowerCase().includes("searching")) {
-    return <Search className="h-4 w-4 text-amber-500" />;
-  } else if (step.toLowerCase().includes("completed")) {
-    return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-  } else {
-    return <ArrowRight className="h-4 w-4" />;
+    return { 
+      type: "step", 
+      color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700", 
+      icon: <ArrowRight className="h-4 w-4" />
+    };
   }
 };
 
@@ -85,7 +103,7 @@ const findRelevantSources = (
   }
   
   // For "searching" steps, include all findings and sources
-  if (step.toLowerCase().includes("searching")) {
+  if (step.toLowerCase().includes("search")) {
     // First add any findings
     findings.forEach((finding, index) => {
       if (!relevantSources.some(item => item.source === finding.source)) {
@@ -168,37 +186,25 @@ const extractDomain = (url: string): string => {
 
 const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpanded = false }: ReasoningStepProps) => {
   const [expanded, setExpanded] = useState(defaultExpanded || index === 0);
-  const { type, color } = getStepType(step);
-  const stepIcon = getStepIcon(step);
+  const { type, color, icon } = getStepType(step);
   
   // Find relevant sources and findings for this step
   const relevantSources = findRelevantSources(step, sources, findings);
   
   // Extract status from step text if present
   let formattedStep = step;
-  let statusBadge = null;
   
-  const planningMatch = step.match(/planning/i);
-  if (planningMatch) {
-    statusBadge = (
-      <Badge variant="outline" className="font-normal">
-        <Clock className="h-4 w-4 mr-1 text-blue-500" />
-        <span>planning</span>
-      </Badge>
-    );
-  }
-
   // Remove redundant type prefixes for cleaner display
-  if (type === "processing" || type === "exploring") {
-    formattedStep = formattedStep.replace(/^(Processing|Exploring):\s*/i, "");
-  }
+  const typeWords = ["Processing", "Exploring", "Searching", "Reasoning", "Synthesizing", "Reading"];
+  const regex = new RegExp(`^(${typeWords.join('|')}):\\s*`, 'i');
+  formattedStep = formattedStep.replace(regex, "");
 
   return (
     <div className="mb-3 animate-fade-in">
       <div 
         className={cn(
           "flex items-start space-x-2 p-3 rounded-md border transition-all duration-200",
-          expanded ? "shadow-sm" : "hover:bg-gray-50 dark:hover:bg-gray-900"
+          expanded ? `shadow-sm border-l-4 ${color.split(' ')[0]}` : "hover:bg-gray-50 dark:hover:bg-gray-900"
         )}
         role="button"
         onClick={() => setExpanded(!expanded)}
@@ -226,11 +232,10 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
         
         <div className="flex flex-col flex-1">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <Badge className={cn("font-normal", color)}>
-              {type}
+            <Badge className={cn("font-normal flex items-center gap-1", color)}>
+              {icon}
+              <span>{type}</span>
             </Badge>
-            
-            {statusBadge}
           </div>
           
           <p className="text-sm">{formattedStep}</p>
@@ -247,71 +252,107 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
           {/* Show sources section if any relevant sources exist */}
           {relevantSources.length > 0 && (
             <div className="space-y-2 mt-3">
-              <h4 className="text-xs font-medium text-muted-foreground">Related Sources & Findings:</h4>
-              <div className="space-y-2">
-                {relevantSources.map(({ sourceIndex, source, content, isFinding }, i) => (
-                  <div 
-                    key={i} 
-                    className={cn(
-                      "flex items-start gap-2 text-xs p-2 rounded-md",
-                      isFinding 
-                        ? "bg-blue-50/50 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900"
-                        : "bg-muted border border-muted-foreground/10"
-                    )}
-                  >
-                    <span className={cn(
-                      "inline-block mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0",
-                      isFinding
-                        ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-                        : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
-                    )}>
-                      {sourceIndex}
-                    </span>
-                    <div className="flex-1 overflow-hidden">
-                      <div className="flex items-center gap-1.5">
-                        {isFinding && (
-                          <Badge variant="outline" className="h-4 py-0 px-1 text-[9px] bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
-                            finding
-                          </Badge>
-                        )}
-                        <a 
-                          href={source} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 dark:text-blue-400 hover:underline truncate block"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {extractDomain(source)}
-                        </a>
+              <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <ExternalLink className="h-3.5 w-3.5" />
+                Related Sources & Findings ({relevantSources.length}):
+              </h4>
+              
+              <div className="space-y-2 rounded-md border p-2 bg-muted/30">
+                {relevantSources.map(({ sourceIndex, source, content, isFinding }, i) => {
+                  const [isExpanded, setIsExpanded] = useState(content ? true : false);
+                  return (
+                    <div 
+                      key={i} 
+                      className={cn(
+                        "flex flex-col rounded-md transition-all",
+                        isFinding 
+                          ? "bg-blue-50/80 dark:bg-blue-950/30 border border-blue-100 dark:border-blue-900"
+                          : "bg-muted/50 border border-muted-foreground/10"
+                      )}
+                    >
+                      <div 
+                        className="flex items-center gap-2 p-2 cursor-pointer"
+                        onClick={() => setIsExpanded(!isExpanded)}
+                      >
+                        <span className={cn(
+                          "inline-block w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0",
+                          isFinding
+                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                            : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+                        )}>
+                          {sourceIndex}
+                        </span>
+                        
+                        <div className="flex-1 overflow-hidden">
+                          <div className="flex items-center gap-1.5">
+                            {isFinding && (
+                              <Badge variant="outline" className="h-4 py-0 px-1 text-[9px] bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                                finding
+                              </Badge>
+                            )}
+                            <a 
+                              href={source} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 dark:text-blue-400 hover:underline truncate block"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {extractDomain(source)}
+                            </a>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-1">
+                          {content && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 w-5 p-0 hover:bg-muted"
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setIsExpanded(!isExpanded);
+                              }}
+                            >
+                              {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                            </Button>
+                          )}
+                          
+                          <a
+                            href={source}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </a>
+                        </div>
                       </div>
-                      {content && (
-                        <div className="mt-1 text-muted-foreground text-xs bg-muted-foreground/5 p-1.5 rounded border border-muted-foreground/10">
-                          {content}
+                      
+                      {isExpanded && content && (
+                        <div className="px-2 pb-2 pt-1 ml-7 animate-accordion-down">
+                          <div className="text-xs text-muted-foreground bg-background p-2 rounded border">
+                            {content}
+                          </div>
                         </div>
                       )}
                     </div>
-                    <a
-                      href={source}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </a>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
               
               {/* Display search queries if this is a searching step */}
               {type === "searching" && (
                 <div className="mt-3 space-y-2">
-                  <h4 className="text-xs font-medium text-muted-foreground">Search Queries:</h4>
+                  <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                    <Search className="h-3.5 w-3.5" />
+                    Search Queries:
+                  </h4>
                   <div className="flex flex-wrap gap-2">
-                    {step.split("\n").filter(line => line.trim().length > 0 && !line.includes("Searching")).map((line, i) => (
-                      <Badge key={i} variant="outline" className="bg-muted flex items-center gap-1.5 py-1.5 px-2.5">
-                        <Search className="h-3 w-3" />
-                        <span className="text-xs">{line.trim()}</span>
+                    {step.split("\n").filter(line => line.trim().length > 0 && !line.toLowerCase().includes("searching")).map((line, i) => (
+                      <Badge key={i} variant="outline" className="bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800 flex items-center gap-1.5 py-1.5 px-2.5">
+                        <Search className="h-3 w-3 text-violet-600 dark:text-violet-400" />
+                        <span className="text-xs text-violet-800 dark:text-violet-300">{line.trim()}</span>
                       </Badge>
                     ))}
                   </div>
