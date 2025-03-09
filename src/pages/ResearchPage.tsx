@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Search, User, LogOut, FileText, X, Plus, HelpCircle, MessageSquarePlus } from "lucide-react";
 import { saveResearchHistory, getResearchHistory } from "@/services/researchService";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,6 +19,7 @@ import {
 import ReasoningPath from "@/components/research/ReasoningPath";
 import SourcesList from "@/components/research/SourcesList";
 import ResearchOutput from "@/components/research/ResearchOutput";
+import HumanApprovalDialog from "@/components/research/HumanApprovalDialog";
 
 interface ResearchHistory {
   id: string;
@@ -26,6 +27,14 @@ interface ResearchHistory {
   user_model: string;
   use_case: string;
   created_at: string;
+}
+
+interface HumanApprovalRequest {
+  call_id: string;
+  node_id: string;
+  query: string;
+  content: string;
+  approval_type: string;
 }
 
 // Cognitive style options
@@ -70,6 +79,10 @@ const ResearchPage = () => {
   const researchIdRef = useRef<string | null>(null);
   const { toast } = useToast();
 
+  // Add state for human approval
+  const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
+
   useEffect(() => {
     if (!user) {
       navigate("/");
@@ -95,6 +108,13 @@ const ResearchPage = () => {
       }
     };
   }, [user, navigate]);
+
+  // Effect to show approval dialog when a request comes in
+  useEffect(() => {
+    if (humanApprovalRequest) {
+      setShowApprovalDialog(true);
+    }
+  }, [humanApprovalRequest]);
 
   const createUserModelPayload = () => {
     return {
@@ -237,6 +257,10 @@ const ResearchPage = () => {
                     variant: "destructive",
                   });
                   setIsLoading(false);
+                } else if (data.event === "human_approval_request") {
+                  // Handle human approval request
+                  console.log("Received human approval request:", data.data);
+                  setHumanApprovalRequest(data.data);
                 }
               } catch (error) {
                 console.error("Error parsing event data:", error);
@@ -347,6 +371,72 @@ const ResearchPage = () => {
       }
     } catch (e) {
       console.error("Error parsing user model from history:", e);
+    }
+  };
+
+  const handleApproveRequest = async (callId: string, nodeId: string) => {
+    try {
+      const response = await fetch('https://timothy102--vertical-deep-research-human-approval.modal.run', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          call_id: callId,
+          node_id: nodeId,
+          approved: true,
+          reason: ''
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      toast({
+        title: "approval submitted",
+        description: "your approval has been processed",
+      });
+    } catch (error) {
+      console.error("Error submitting approval:", error);
+      toast({
+        title: "approval error",
+        description: "there was an error submitting your approval",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleRejectRequest = async (callId: string, nodeId: string, reason: string) => {
+    try {
+      const response = await fetch('https://timothy102--vertical-deep-research-human-approval.modal.run', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          call_id: callId,
+          node_id: nodeId,
+          approved: false,
+          reason: reason
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      toast({
+        title: "rejection submitted",
+        description: "your rejection has been processed",
+      });
+    } catch (error) {
+      console.error("Error submitting rejection:", error);
+      toast({
+        title: "rejection error",
+        description: "there was an error submitting your rejection",
+        variant: "destructive",
+      });
     }
   };
 
@@ -591,6 +681,21 @@ const ResearchPage = () => {
           </div>
         </main>
       </div>
+      
+      {/* Human approval dialog */}
+      {humanApprovalRequest && (
+        <HumanApprovalDialog
+          isOpen={showApprovalDialog}
+          onClose={() => setShowApprovalDialog(false)}
+          content={humanApprovalRequest.content}
+          query={humanApprovalRequest.query}
+          callId={humanApprovalRequest.call_id}
+          nodeId={humanApprovalRequest.node_id}
+          approvalType={humanApprovalRequest.approval_type}
+          onApprove={handleApproveRequest}
+          onReject={handleRejectRequest}
+        />
+      )}
     </div>
   );
 };
