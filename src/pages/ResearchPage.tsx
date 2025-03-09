@@ -447,6 +447,7 @@ const ResearchPage = () => {
                     approval_type: data.data.approval_type || "synthesis"
                   };
                   
+                  console.log("Creating toast with approval dialog for call_id:", approvalRequest.call_id);
                   toast.custom(
                     (t) => (
                       <HumanApprovalDialog
@@ -455,7 +456,10 @@ const ResearchPage = () => {
                         callId={approvalRequest.call_id}
                         nodeId={approvalRequest.node_id}
                         approvalType={approvalRequest.approval_type}
-                        onClose={() => toast.dismiss(t)}
+                        onClose={() => {
+                          console.log("Dialog onClose called, dismissing toast", t);
+                          toast.dismiss(t);
+                        }}
                         onApprove={handleApproveRequest}
                         onReject={handleRejectRequest}
                       />
@@ -466,6 +470,7 @@ const ResearchPage = () => {
                       position: "top-center"
                     }
                   );
+                  console.log("Toast created with ID:", `approval-${approvalRequest.call_id}`);
                 }
               } catch (error) {
                 console.error("Error parsing event data:", error);
@@ -606,7 +611,7 @@ const ResearchPage = () => {
 
   const handleApproveRequest = async (callId: string, nodeId: string) => {
     try {
-      console.log("Sending approval for call ID:", callId);
+      console.log("Sending approval for call ID:", callId, "node ID:", nodeId);
       const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
         method: 'POST',
         headers: {
@@ -620,12 +625,16 @@ const ResearchPage = () => {
         })
       });
       
+      console.log("Approval response status:", response.status);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Approval response error:", errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const responseData = await response.json();
-      console.log("Approval response:", responseData);
+      console.log("Approval response data:", responseData);
       
       uiToast({
         title: "approval submitted",
@@ -646,7 +655,7 @@ const ResearchPage = () => {
 
   const handleRejectRequest = async (callId: string, nodeId: string, reason: string) => {
     try {
-      console.log("Sending rejection for call ID:", callId);
+      console.log("Sending rejection for call ID:", callId, "node ID:", nodeId, "reason:", reason);
       const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
         method: 'POST',
         headers: {
@@ -660,12 +669,16 @@ const ResearchPage = () => {
         })
       });
       
+      console.log("Rejection response status:", response.status);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Rejection response error:", errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       
       const responseData = await response.json();
-      console.log("Rejection response:", responseData);
+      console.log("Rejection response data:", responseData);
       
       uiToast({
         title: "rejection submitted",
@@ -954,7 +967,7 @@ const ResearchPage = () => {
         <HumanApprovalDialog
           isOpen={showApprovalDialog}
           onClose={() => {
-            console.log("Dialog closed");
+            console.log("Dialog closed from main container");
             setShowApprovalDialog(false);
             setHumanApprovalRequest(null);
           }}

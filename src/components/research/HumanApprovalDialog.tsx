@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, XCircle, MessageSquare } from "lucide-react";
@@ -32,22 +32,29 @@ const HumanApprovalDialog = ({
   const [showReasonInput, setShowReasonInput] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  console.log("HumanApprovalDialog rendered with props:", { callId, nodeId, content });
+  useEffect(() => {
+    console.log("HumanApprovalDialog mounted with props:", { callId, nodeId, content, approvalType });
+  }, [callId, nodeId, content, approvalType]);
 
   const handleApprove = async () => {
+    console.log("Approve button clicked for callId:", callId);
     setIsSubmitting(true);
     try {
-      console.log("Approving content with callId:", callId);
+      console.log("Starting approval process for callId:", callId);
       if (onApprove) {
+        console.log("Using provided onApprove callback");
         await onApprove(callId, nodeId);
       } else {
+        console.log("Using direct API call to approval endpoint");
         await respondToApproval(callId, true);
       }
+      console.log("Approval successful");
       toast.success("Content has been approved");
     } catch (error) {
       console.error("Error approving content:", error);
       toast.error("Failed to approve content");
     } finally {
+      console.log("Approval process complete, closing dialog");
       setIsSubmitting(false);
       toast.dismiss(`approval-${callId}`);
       onClose();
@@ -55,28 +62,35 @@ const HumanApprovalDialog = ({
   };
 
   const handleStartReject = () => {
+    console.log("Starting rejection process, showing reason input");
     setShowReasonInput(true);
   };
 
   const handleCancelReject = () => {
+    console.log("Canceling rejection");
     setShowReasonInput(false);
     setRejectionReason("");
   };
 
   const handleConfirmReject = async () => {
+    console.log("Confirm reject button clicked for callId:", callId);
     setIsSubmitting(true);
     try {
-      console.log("Rejecting content with callId:", callId);
+      console.log("Rejecting content with callId:", callId, "Reason:", rejectionReason);
       if (onReject) {
+        console.log("Using provided onReject callback");
         await onReject(callId, nodeId, rejectionReason);
       } else {
+        console.log("Using direct API call to approval endpoint");
         await respondToApproval(callId, false, rejectionReason);
       }
+      console.log("Rejection successful");
       toast.success("Content has been rejected");
     } catch (error) {
       console.error("Error rejecting content:", error);
       toast.error("Failed to reject content");
     } finally {
+      console.log("Rejection process complete, closing dialog");
       setIsSubmitting(false);
       setShowReasonInput(false);
       setRejectionReason("");
@@ -85,29 +99,45 @@ const HumanApprovalDialog = ({
     }
   };
 
-  // Function to call the endpoint directly
+  // Function to call the endpoint directly with body parameters
   const respondToApproval = async (callId: string, approved: boolean, comment: string = "") => {
-    console.log("Direct API call to approval endpoint with:", { callId, approved, comment });
-    const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        call_id: callId,
-        approved: approved,
-        comment: comment
-      })
-    });
+    console.log("Making POST request to approval endpoint with body:", { call_id: callId, approved, comment });
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("API response error:", errorText);
-      throw new Error(`HTTP error! status: ${response.status}`);
+    try {
+      const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          call_id: callId,
+          approved: approved,
+          comment: comment
+        })
+      });
+      
+      console.log("API response status:", response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("API response error:", errorText);
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const responseData = await response.json();
+      console.log("API response data:", responseData);
+      return responseData;
+    } catch (error) {
+      console.error("Error in respondToApproval:", error);
+      throw error;
     }
-    
-    return await response.json();
   };
+
+  console.log("Rendering HumanApprovalDialog with state:", { 
+    showReasonInput, 
+    isSubmitting, 
+    hasRejectionReason: !!rejectionReason 
+  });
 
   return (
     <Card className="w-full max-w-md">
