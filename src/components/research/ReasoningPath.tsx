@@ -19,6 +19,7 @@ const STEP_TYPES = {
   OBJECTIVE: "objective",
   PLANNING: "planning",
   EXPLORING: "exploring",
+  PROCESSING: "processing",
   SEARCHING: "searching",
   ANALYZING: "analyzing",
   CONCLUDING: "concluding",
@@ -44,14 +45,18 @@ const ReasoningPath = ({ reasoningPath, sources, findings }: ReasoningPathProps)
     // Check for specific keywords in the step text to determine the type
     if (lowerText.includes("plan") || lowerText.includes("approach") || lowerText.includes("strategy")) {
       return STEP_TYPES.PLANNING;
+    } else if (lowerText.includes("process") || lowerText.includes("processing")) {
+      return STEP_TYPES.PROCESSING;
     } else if (lowerText.includes("search") || lowerText.includes("look up") || lowerText.includes("find")) {
       return STEP_TYPES.SEARCHING;
     } else if (lowerText.includes("analy") || lowerText.includes("examin") || lowerText.includes("review")) {
       return STEP_TYPES.ANALYZING;
     } else if (lowerText.includes("conclude") || lowerText.includes("summary") || lowerText.includes("final")) {
       return STEP_TYPES.CONCLUDING;
+    } else if (lowerText.includes("explor") || lowerText.includes("investigat")) {
+      return STEP_TYPES.EXPLORING;
     } else {
-      // Default to exploring for any other step to avoid duplicate types
+      // Default to exploring for any other step
       return STEP_TYPES.EXPLORING;
     }
   };
@@ -133,6 +138,12 @@ const ReasoningPath = ({ reasoningPath, sources, findings }: ReasoningPathProps)
                         {stepType === STEP_TYPES.EXPLORING && (
                           <Badge variant="outline" className="flex gap-1 items-center px-2 py-0 h-5 text-xs bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-900">
                             exploring
+                          </Badge>
+                        )}
+                        
+                        {stepType === STEP_TYPES.PROCESSING && (
+                          <Badge variant="outline" className="flex gap-1 items-center px-2 py-0 h-5 text-xs bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950 dark:text-teal-400 dark:border-teal-900">
+                            processing
                           </Badge>
                         )}
                         
