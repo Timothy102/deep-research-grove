@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -8,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Search, User, LogOut, FileText, X, Plus, HelpCircle, MessageSquarePlus } from "lucide-react";
 import { saveResearchHistory, getResearchHistory } from "@/services/researchService";
+import { saveResearchState, updateResearchState, getResearchState } from "@/services/researchStateService";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -21,9 +23,6 @@ import SourcesList from "@/components/research/SourcesList";
 import ResearchOutput from "@/components/research/ResearchOutput";
 import HumanApprovalDialog from "@/components/research/HumanApprovalDialog";
 import { v4 as uuidv4 } from 'uuid';
-
-// Add uuid dependency
-// Add @types/uuid for TypeScript support
 
 interface ResearchHistory {
   id: string;
@@ -167,13 +166,59 @@ const ResearchPage = () => {
   };
 
   const loadSessionData = async (sessionId: string) => {
-    // Logic to load research data for a specific session ID
-    // For now we'll leave this as a placeholder
-    // In the future, you could store and retrieve session data from localStorage or a database
-    console.log(`Loading session data for ${sessionId}`);
-    
-    // You could fetch the specific research session data from Supabase here
-    // and populate the UI with the saved data
+    try {
+      // Try to load the most recent research state for this session
+      const response = await fetch(`https://timothy102--vertical-deep-research-get-session-state.modal.run?session_id=${sessionId}`, {
+        method: 'GET'
+      });
+      
+      if (!response.ok) {
+        console.log("No existing session data found or error occurred");
+        return;
+      }
+      
+      const data = await response.json();
+      
+      // If we have valid research data for this session, populate the UI
+      if (data && data.research_id) {
+        researchIdRef.current = data.research_id;
+        
+        // If the research is completed, update the UI with the results
+        if (data.status === "completed") {
+          setResearchOutput(data.answer || "");
+          setSources(data.sources || []);
+          
+          // Convert findings from JSON if needed
+          if (data.findings) {
+            const parsedFindings = Array.isArray(data.findings) 
+              ? data.findings 
+              : (typeof data.findings === 'string' ? JSON.parse(data.findings) : []);
+            setFindings(parsedFindings);
+          }
+          
+          setReasoningPath(data.reasoning_path || []);
+          setResearchObjective(data.query || "");
+          
+          // Try to parse user model from query
+          try {
+            if (data.user_model) {
+              const userModelData = typeof data.user_model === 'string' 
+                ? JSON.parse(data.user_model) 
+                : data.user_model;
+              
+              if (userModelData.domain) setDomain(userModelData.domain);
+              if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
+              if (userModelData.cognitiveStyle) setSelectedCognitiveStyle(userModelData.cognitiveStyle);
+              if (userModelData.userContext) setUserContext(userModelData.userContext);
+            }
+          } catch (e) {
+            console.error("Error parsing user model:", e);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Error loading session data:", error);
+    }
   };
 
   const createUserModelPayload = () => {
@@ -209,19 +254,30 @@ const ResearchPage = () => {
       // Generate user model payload
       const userModelPayload = createUserModelPayload();
       
-      // Save research history and get ID
-      const savedData = await saveResearchHistory({
-        query: researchObjective, // Using research objective as the query
+      // Create a unique research ID
+      const newResearchId = uuidv4();
+      researchIdRef.current = newResearchId;
+      
+      // Save research history for backward compatibility
+      await saveResearchHistory({
+        query: researchObjective,
         user_model: JSON.stringify(userModelPayload),
         model,
       });
       
-      if (savedData && savedData[0] && savedData[0].id) {
-        researchIdRef.current = savedData[0].id;
+      // Save initial research state to our new table
+      if (currentSessionIdRef.current) {
+        await saveResearchState({
+          research_id: newResearchId,
+          session_id: currentSessionIdRef.current,
+          status: 'in_progress',
+          query: researchObjective,
+          user_model: JSON.stringify(userModelPayload)
+        });
       }
       
       // Start research with POST request
-      startResearchStream(userModelPayload);
+      startResearchStream(userModelPayload, newResearchId);
       
       // Refresh history after submission
       await loadHistory();
@@ -237,7 +293,7 @@ const ResearchPage = () => {
     }
   };
 
-  const startResearchStream = (userModelData: any) => {
+  const startResearchStream = (userModelData: any, researchId: string) => {
     // Close any existing connection
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
@@ -258,7 +314,8 @@ const ResearchPage = () => {
             research_objective: researchObjective,
             user_model: userModelData,
             model: model,
-            session_id: currentSessionIdRef.current // Include session ID in the request
+            session_id: currentSessionIdRef.current,
+            research_id: researchId // Send the research ID to backend
           })
         });
         
@@ -294,12 +351,15 @@ const ResearchPage = () => {
               try {
                 const data = JSON.parse(line.substring(6));
                 
-                // Only process events for the current session
+                // Only process events for the current session and research
                 const eventSessionId = data.session_id || currentSessionIdRef.current;
-                if (eventSessionId !== currentSessionIdRef.current) {
-                  console.warn("Received event for different session, ignoring", { 
-                    eventSessionId, 
-                    currentSessionId: currentSessionIdRef.current 
+                const eventResearchId = data.research_id || researchId;
+                
+                if (eventSessionId !== currentSessionIdRef.current || 
+                    eventResearchId !== researchId) {
+                  console.warn("Received event for different session/research, ignoring", { 
+                    eventSessionId, currentSessionId: currentSessionIdRef.current,
+                    eventResearchId, currentResearchId: researchId
                   });
                   continue;
                 }
@@ -308,35 +368,91 @@ const ResearchPage = () => {
                 if (data.event === "start") {
                   console.log("Research started");
                 } else if (data.event === "update") {
-                  setResearchOutput(prev => prev + data.data.message + "\n");
+                  const message = data.data.message || "";
+                  setResearchOutput(prev => prev + message + "\n");
+                  
+                  // Update research state in database
+                  if (currentSessionIdRef.current) {
+                    updateResearchState(researchId, currentSessionIdRef.current, {
+                      answer: researchOutput + message + "\n"
+                    }).catch(err => console.error("Error updating research state:", err));
+                  }
                 } else if (data.event === "source") {
-                  setSources(prev => [...prev, data.data.source]);
+                  const source = data.data.source || "";
+                  setSources(prev => [...prev, source]);
+                  
+                  // Update sources in database
+                  if (currentSessionIdRef.current) {
+                    updateResearchState(researchId, currentSessionIdRef.current, {
+                      sources: [...sources, source]
+                    }).catch(err => console.error("Error updating sources:", err));
+                  }
                 } else if (data.event === "finding") {
                   // Handle finding events
-                  setFindings(prev => [
-                    ...prev, 
-                    { 
-                      source: data.data.source,
-                      content: data.data.content || undefined 
-                    }
-                  ]);
+                  const finding = { 
+                    source: data.data.source || "",
+                    content: data.data.content || undefined 
+                  };
+                  
+                  setFindings(prev => [...prev, finding]);
+                  
+                  // Update findings in database
+                  if (currentSessionIdRef.current) {
+                    const updatedFindings = [...findings, finding];
+                    updateResearchState(researchId, currentSessionIdRef.current, {
+                      findings: updatedFindings
+                    }).catch(err => console.error("Error updating findings:", err));
+                  }
                 } else if (data.event === "reasoning") {
-                  setReasoningPath(prev => [...prev, data.data.step]);
+                  const step = data.data.step || "";
+                  setReasoningPath(prev => [...prev, step]);
+                  
+                  // Update reasoning path in database
+                  if (currentSessionIdRef.current) {
+                    const updatedPath = [...reasoningPath, step];
+                    updateResearchState(researchId, currentSessionIdRef.current, {
+                      reasoning_path: updatedPath
+                    }).catch(err => console.error("Error updating reasoning path:", err));
+                  }
                 } else if (data.event === "complete") {
-                  setResearchOutput(data.data.answer);
-                  setSources(data.data.sources || []);
-                  setFindings(data.data.findings || []); // Add findings from complete event
-                  setReasoningPath(data.data.reasoning_path || []);
+                  const finalAnswer = data.data.answer || "";
+                  const finalSources = data.data.sources || [];
+                  const finalFindings = data.data.findings || [];
+                  const finalReasoningPath = data.data.reasoning_path || [];
+                  
+                  setResearchOutput(finalAnswer);
+                  setSources(finalSources);
+                  setFindings(finalFindings);
+                  setReasoningPath(finalReasoningPath);
                   setIsLoading(false);
+                  
+                  // Update final state in database
+                  if (currentSessionIdRef.current) {
+                    updateResearchState(researchId, currentSessionIdRef.current, {
+                      status: 'completed',
+                      answer: finalAnswer,
+                      sources: finalSources,
+                      findings: finalFindings,
+                      reasoning_path: finalReasoningPath
+                    }).catch(err => console.error("Error updating final state:", err));
+                  }
+                  
                   // Switch to output tab when research is complete
                   setActiveTab("output");
                 } else if (data.event === "error") {
                   toast({
                     title: "research error",
-                    description: data.data.error,
+                    description: data.data.error || "Unknown error",
                     variant: "destructive",
                   });
                   setIsLoading(false);
+                  
+                  // Update error state in database
+                  if (currentSessionIdRef.current) {
+                    updateResearchState(researchId, currentSessionIdRef.current, {
+                      status: 'error',
+                    }).catch(err => console.error("Error updating error state:", err));
+                  }
                 } else if (data.event === "human_approval_request") {
                   // Handle human approval request
                   console.log("Received human approval request:", data.data);
@@ -358,8 +474,8 @@ const ResearchPage = () => {
         setIsLoading(false);
         
         // If streaming fails, try polling for research state
-        if (researchIdRef.current) {
-          pollResearchState(researchIdRef.current);
+        if (researchId && currentSessionIdRef.current) {
+          pollResearchState(researchId);
         }
       }
     };
@@ -370,8 +486,15 @@ const ResearchPage = () => {
   
   const pollResearchState = async (researchId: string) => {
     try {
-      // Use GET method for research state
-      const response = await fetch(`https://timothy102--vertical-deep-research-get-research-state.modal.run?research_id=${researchId}&session_id=${currentSessionIdRef.current}`, {
+      if (!currentSessionIdRef.current) {
+        console.error("No session ID available for polling");
+        return;
+      }
+      
+      // Use the new parameter format for research state
+      const url = `https://timothy102--vertical-deep-research-get-research-state.modal.run?research_id=${researchId}&session_id=${currentSessionIdRef.current}`;
+      
+      const response = await fetch(url, {
         method: 'GET'
       });
       
@@ -381,18 +504,28 @@ const ResearchPage = () => {
       
       const data = await response.json();
       
-      // Verify this response is for the current session
-      if (data.session_id && data.session_id !== currentSessionIdRef.current) {
-        console.warn("Received polling response for different session, ignoring");
+      // Verify this response is for the current session and research
+      if ((data.session_id && data.session_id !== currentSessionIdRef.current) ||
+          (data.research_id && data.research_id !== researchId)) {
+        console.warn("Received polling response for different session/research, ignoring");
         return;
       }
       
       if (data.status === "completed") {
         setResearchOutput(data.answer || "");
         setSources(data.sources || []);
-        setFindings(data.findings || []); // Add findings from polling response
+        
+        // Parse findings if necessary
+        if (data.findings) {
+          const parsedFindings = Array.isArray(data.findings) 
+            ? data.findings 
+            : (typeof data.findings === 'string' ? JSON.parse(data.findings) : []);
+          setFindings(parsedFindings);
+        }
+        
         setReasoningPath(data.reasoning_path || []);
         setIsLoading(false);
+        
         // Switch to output tab when polling returns complete status
         setActiveTab("output");
       } else if (data.status === "in_progress") {

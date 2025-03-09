@@ -63,6 +63,51 @@ export type Database = {
         }
         Relationships: []
       }
+      research_states: {
+        Row: {
+          answer: string | null
+          created_at: string | null
+          findings: Json | null
+          id: string
+          query: string
+          reasoning_path: string[] | null
+          research_id: string
+          session_id: string
+          sources: string[] | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string | null
+          findings?: Json | null
+          id?: string
+          query: string
+          reasoning_path?: string[] | null
+          research_id: string
+          session_id: string
+          sources?: string[] | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string | null
+          findings?: Json | null
+          id?: string
+          query?: string
+          reasoning_path?: string[] | null
+          research_id?: string
+          session_id?: string
+          sources?: string[] | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
