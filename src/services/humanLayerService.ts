@@ -12,7 +12,7 @@ const hl = humanlayer({
 interface FunctionCallStatus {
   approved: boolean;
   comment: string;
-  requested_at?: Date; // Added the missing property as optional
+  requested_at: Date; // Changed from optional to required
 }
 
 // Function to respond to approval requests
