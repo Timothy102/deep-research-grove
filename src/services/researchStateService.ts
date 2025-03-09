@@ -16,6 +16,7 @@ export interface ResearchState {
   created_at?: string;
   updated_at?: string;
   user_model?: string | Json;
+  active_tab?: string; // Added to persist active tab
 }
 
 // Save initial research state
@@ -62,6 +63,8 @@ export async function updateResearchState(
   if (!user.user) {
     throw new Error("User not authenticated");
   }
+  
+  console.log("Updating research state:", { researchId, sessionId, updates });
   
   const { data, error } = await supabase
     .from('research_states')
@@ -148,7 +151,7 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
   return result;
 }
 
-// Get the latest research state for a session (this is a new function)
+// Get the latest research state for a session
 export async function getLatestSessionState(sessionId: string): Promise<ResearchState | null> {
   try {
     const { data: user } = await supabase.auth.getUser();

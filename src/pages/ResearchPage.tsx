@@ -8,7 +8,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Search, User, LogOut, FileText, X, Plus, HelpCircle, MessageSquarePlus } from "lucide-react";
 import { saveResearchHistory, getResearchHistory } from "@/services/researchService";
-import { saveResearchState, updateResearchState, getResearchState, getLatestSessionState } from "@/services/researchStateService";
+import { 
+  saveResearchState, 
+  updateResearchState, 
+  getResearchState, 
+  getLatestSessionState 
+} from "@/services/researchStateService";
 import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -127,6 +132,14 @@ const ResearchPage = () => {
     }
   }, [humanApprovalRequest]);
 
+  useEffect(() => {
+    if (researchIdRef.current && currentSessionIdRef.current && activeTab) {
+      updateResearchState(researchIdRef.current, currentSessionIdRef.current, {
+        active_tab: activeTab
+      }).catch(err => console.error("Error updating active tab:", err));
+    }
+  }, [activeTab]);
+
   const resetResearchState = () => {
     setResearchOutput("");
     setSources([]);
@@ -166,30 +179,39 @@ const ResearchPage = () => {
       if (sessionState.research_id) {
         researchIdRef.current = sessionState.research_id;
         
-        if (sessionState.status === "completed") {
-          setResearchOutput(sessionState.answer || "");
-          setSources(sessionState.sources || []);
+        if (sessionState.active_tab) {
+          setActiveTab(sessionState.active_tab);
+        } else {
+          setActiveTab(sessionState.status === 'in_progress' ? 'reasoning' : 'output');
+        }
+        
+        setResearchObjective(sessionState.query || "");
+        setResearchOutput(sessionState.answer || "");
+        setSources(sessionState.sources || []);
+        
+        if (sessionState.findings) {
+          const parsedFindings = Array.isArray(sessionState.findings) 
+            ? sessionState.findings 
+            : (typeof sessionState.findings === 'string' ? JSON.parse(sessionState.findings) : []);
+          setFindings(parsedFindings);
+        }
+        
+        setReasoningPath(sessionState.reasoning_path || []);
+        
+        if (sessionState.user_model) {
+          const userModelData = typeof sessionState.user_model === 'string' 
+            ? JSON.parse(sessionState.user_model) 
+            : sessionState.user_model;
           
-          if (sessionState.findings) {
-            const parsedFindings = Array.isArray(sessionState.findings) 
-              ? sessionState.findings 
-              : (typeof sessionState.findings === 'string' ? JSON.parse(sessionState.findings) : []);
-            setFindings(parsedFindings);
-          }
-          
-          setReasoningPath(sessionState.reasoning_path || []);
-          setResearchObjective(sessionState.query || "");
-          
-          if (sessionState.user_model) {
-            const userModelData = typeof sessionState.user_model === 'string' 
-              ? JSON.parse(sessionState.user_model) 
-              : sessionState.user_model;
-            
-            if (userModelData.domain) setDomain(userModelData.domain);
-            if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
-            if (userModelData.cognitiveStyle) setSelectedCognitiveStyle(userModelData.cognitiveStyle);
-            if (userModelData.userContext) setUserContext(userModelData.userContext);
-          }
+          if (userModelData.domain) setDomain(userModelData.domain);
+          if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
+          if (userModelData.cognitiveStyle) setSelectedCognitiveStyle(userModelData.cognitiveStyle);
+          if (userModelData.userContext) setUserContext(userModelData.userContext);
+        }
+        
+        if (sessionState.status === 'in_progress') {
+          setIsLoading(true);
+          pollResearchState(sessionState.research_id);
         }
       }
     } catch (error) {
@@ -242,7 +264,8 @@ const ResearchPage = () => {
           session_id: currentSessionIdRef.current,
           status: 'in_progress',
           query: researchObjective,
-          user_model: JSON.stringify(userModelPayload)
+          user_model: JSON.stringify(userModelPayload),
+          active_tab: "reasoning"
         });
       }
       
@@ -477,8 +500,24 @@ const ResearchPage = () => {
         setReasoningPath(data.reasoning_path || []);
         setIsLoading(false);
         
-        setActiveTab("output");
+        if (data.active_tab) {
+          setActiveTab(data.active_tab);
+        } else if (activeTab === "reasoning") {
+          setActiveTab("output");
+        }
       } else if (data.status === "in_progress") {
+        if (data.answer) setResearchOutput(data.answer);
+        if (data.sources) setSources(data.sources);
+        
+        if (data.findings) {
+          const parsedFindings = Array.isArray(data.findings) 
+            ? data.findings 
+            : (typeof data.findings === 'string' ? JSON.parse(data.findings) : []);
+          setFindings(parsedFindings);
+        }
+        
+        if (data.reasoning_path) setReasoningPath(data.reasoning_path);
+        
         setTimeout(() => pollResearchState(researchId), 3000);
       } else if (data.status === "error") {
         toast({
@@ -810,6 +849,12 @@ const ResearchPage = () => {
                     return;
                   }
                   setActiveTab(newTab);
+                  
+                  if (researchIdRef.current && currentSessionIdRef.current) {
+                    updateResearchState(researchIdRef.current, currentSessionIdRef.current, {
+                      active_tab: newTab
+                    }).catch(err => console.error("Error updating active tab:", err));
+                  }
                 }}>
                   <TabsList className="w-full grid grid-cols-3">
                     <TabsTrigger value="reasoning" className={isLoading ? "border-b-2 border-blue-500" : ""}>
@@ -880,3 +925,4 @@ const ResearchPage = () => {
 };
 
 export default ResearchPage;
+
