@@ -1,20 +1,28 @@
 
-import { createClient } from 'humanlayer';
+import { humanlayer } from 'humanlayer';
 
 // Create the HumanLayer client
-const hlClient = createClient({
+const hl = humanlayer({
   apiKey: "hl-a-xg52uTvDVR_XQohWAXvz4cFjVIVve-DfCBSELw3KCK4",
   verbose: true, // Optional for debugging
   runId: "approval-request" // Optional identifier
 });
 
+// Interface for function call status
+interface FunctionCallStatus {
+  approved: boolean;
+  comment: string;
+}
+
 // Function to respond to approval requests
 export async function respondToApproval(callId: string, approved: boolean, comment: string = "") {
+  const status: FunctionCallStatus = {
+    approved: approved,
+    comment: comment
+  };
+
   try {
-    const response = await hlClient.backend?.functions().respond(callId, {
-      approved: approved,
-      comment: comment
-    });
+    const response = await hl.backend?.functions().respond(callId, status);
     
     return {
       call_id: response?.call_id,

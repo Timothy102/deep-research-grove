@@ -82,7 +82,7 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
     } catch (error) {
       console.error("Error rejecting content:", error);
       toast({
-        title: "error",
+        title: "rejection error",
         description: "failed to reject content",
         variant: "destructive",
       });
