@@ -228,7 +228,7 @@ const ResearchPage = () => {
         navigate(`/research/${id}`);
       }
       
-      // Fix the function call by properly passing all required arguments
+      // Fixed: Make sure we're passing all required arguments
       const response = await researchService.startResearch(
         id,
         query,

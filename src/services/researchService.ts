@@ -23,6 +23,11 @@ export interface ResearchSession {
   updated_at?: string;
 }
 
+export interface ResearchOptions {
+  userModel: string;
+  useCase: string;
+}
+
 export async function saveResearchHistory(researchData: Omit<ResearchHistoryEntry, 'user_id'>) {
   const { data: user } = await supabase.auth.getUser();
   
@@ -91,11 +96,7 @@ export async function getResearchSession(id: string): Promise<ResearchSession> {
 /**
  * Start a new research session
  */
-export async function startResearch(
-  id: string, 
-  query: string, 
-  options: { userModel: string; useCase: string }
-): Promise<ResearchSession> {
+export async function startResearch(id: string, query: string, options: ResearchOptions): Promise<ResearchSession> {
   // This is a placeholder implementation - replace with actual API call
   console.log(`Starting research session ${id} with query: ${query}`);
   console.log('Options:', options);
