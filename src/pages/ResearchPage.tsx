@@ -7,7 +7,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Search, User, LogOut, FileText, X, Plus, HelpCircle, MessageSquarePlus } from "lucide-react";
+import { 
+  Loader2, 
+  Search, 
+  User, 
+  LogOut, 
+  FileText, 
+  X, 
+  Plus, 
+  HelpCircle, 
+  MessageSquarePlus,
+  LayoutGrid,
+  Menu,
+  History
+} from "lucide-react";
 import { saveResearchHistory, getResearchHistory } from "@/services/researchService";
 import { 
   saveResearchState, 
@@ -27,6 +40,7 @@ import ReasoningPath from "@/components/research/ReasoningPath";
 import SourcesList from "@/components/research/SourcesList";
 import ResearchOutput from "@/components/research/ResearchOutput";
 import HumanApprovalDialog from "@/components/research/HumanApprovalDialog";
+import HistorySidebar from "@/components/research/HistorySidebar";
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from "sonner";
 
@@ -74,6 +88,7 @@ const ResearchPage = () => {
   const { sessionId } = useParams<{ sessionId: string }>();
   const [researchObjective, setResearchObjective] = useState("");
   const [userContext, setUserContext] = useState("");
+  const [showSidebar, setShowSidebar] = useState(false);
 
   const [domain, setDomain] = useState("");
   const [expertiseLevel, setExpertiseLevel] = useState("intermediate");
@@ -97,10 +112,11 @@ const ResearchPage = () => {
 
   useEffect(() => {
     if (!user) {
-      navigate("/");
+      navigate("/auth");
       return;
     }
     
+    // If there's no sessionId, create a new one but don't navigate to it
     if (!sessionId) {
       const newSessionId = uuidv4();
       navigate(`/research/${newSessionId}`, { replace: true });
@@ -605,6 +621,7 @@ const ResearchPage = () => {
   const handleNewChat = () => {
     const newSessionId = uuidv4();
     navigate(`/research/${newSessionId}`);
+    setShowSidebar(false);
   };
 
   const loadHistoryItem = (item: ResearchHistory) => {
@@ -622,6 +639,7 @@ const ResearchPage = () => {
       
       if (userModelData.session_id && userModelData.session_id !== currentSessionIdRef.current) {
         navigate(`/research/${userModelData.session_id}`);
+        setShowSidebar(false);
         return;
       }
     } catch (e) {
@@ -719,8 +737,25 @@ const ResearchPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="py-4 px-6 border-b flex items-center justify-between">
+      <HistorySidebar
+        open={showSidebar}
+        onClose={() => setShowSidebar(false)}
+        history={history}
+        activeSessionId={currentSessionIdRef.current}
+        onHistoryItemClick={loadHistoryItem}
+        onNewChat={handleNewChat}
+      />
+      
+      <header className="py-4 px-6 border-b flex items-center justify-between bg-background">
         <div className="flex items-center space-x-2">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setShowSidebar(true)}
+            className="mr-2"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600"></div>
           <a href="/" className="no-underline">
             <span className="font-display font-semibold text-xl">deepresearch</span>
@@ -734,61 +769,44 @@ const ResearchPage = () => {
             className="flex items-center gap-1"
           >
             <MessageSquarePlus className="h-4 w-4" />
-            new chat
+            <span className="hidden sm:inline">new</span> chat
           </Button>
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={() => navigate("/profile")}
-            className="flex items-center gap-2"
+            className="flex items-center gap-1"
           >
             <User className="h-4 w-4" />
-            profile
+            <span className="hidden sm:inline">profile</span>
           </Button>
           <Button 
             variant="ghost" 
             size="sm" 
             onClick={handleLogout}
-            className="flex items-center gap-2"
+            className="flex items-center gap-1"
           >
             <LogOut className="h-4 w-4" />
-            logout
+            <span className="hidden sm:inline">logout</span>
           </Button>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-64 border-r p-4 overflow-y-auto hidden md:block">
-          <h3 className="font-semibold mb-4 flex items-center">
-            <FileText className="h-4 w-4 mr-2" />
-            research history
-          </h3>
-          
-          {history.length === 0 ? (
-            <p className="text-sm text-muted-foreground">no history yet</p>
-          ) : (
-            <div className="space-y-2">
-              {history.map((item) => (
-                <Card 
-                  key={item.id} 
-                  className="cursor-pointer hover:bg-secondary/50"
-                  onClick={() => loadHistoryItem(item)}
-                >
-                  <CardContent className="p-3">
-                    <p className="text-sm font-medium truncate">{item.query}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(item.created_at).toLocaleString()}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </aside>
-
-        <main className="flex-1 p-6 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-2xl font-bold mb-6">deep research</h1>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold">Deep Research</h1>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowSidebar(true)}
+                className="flex md:hidden items-center gap-1"
+              >
+                <History className="h-4 w-4" />
+                History
+              </Button>
+            </div>
             
             <div className="space-y-6 mb-8">              
               <div className="space-y-2">
@@ -839,26 +857,28 @@ const ResearchPage = () => {
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-1">your domain/field</label>
-                <Input
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                  placeholder="e.g. computer science, medicine, finance..."
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">expertise level</label>
-                <select
-                  value={expertiseLevel}
-                  onChange={(e) => setExpertiseLevel(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md bg-background text-sm"
-                >
-                  {expertiseLevels.map(level => (
-                    <option key={level} value={level}>{level}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">your domain/field</label>
+                  <Input
+                    value={domain}
+                    onChange={(e) => setDomain(e.target.value)}
+                    placeholder="e.g. computer science, medicine, finance..."
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">expertise level</label>
+                  <select
+                    value={expertiseLevel}
+                    onChange={(e) => setExpertiseLevel(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-md bg-background text-sm"
+                  >
+                    {expertiseLevels.map(level => (
+                      <option key={level} value={level}>{level}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               
               <div>

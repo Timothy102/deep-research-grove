@@ -3,14 +3,25 @@ import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/auth/AuthContext";
+import { v4 as uuidv4 } from 'uuid';
 
 const LandingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const handleGetStarted = () => {
+    if (user) {
+      // Create a new research session and navigate to it
+      const newSessionId = uuidv4();
+      navigate(`/research/${newSessionId}`);
+    } else {
+      navigate("/auth");
+    }
+  };
+
   return (
-    <div className="min-h-screen flex flex-col font-sans">
-      <header className="py-4 px-6 flex items-center justify-between">
+    <div className="min-h-screen flex flex-col font-sans bg-gradient-to-b from-background to-background/95">
+      <header className="py-4 px-6 flex items-center justify-between backdrop-blur-sm border-b border-border/40">
         <div className="flex items-center space-x-2">
           <a href="/" className="no-underline flex items-center">
             <img 
@@ -23,7 +34,7 @@ const LandingPage = () => {
         </div>
         <div className="flex items-center space-x-4">
           <Button 
-            onClick={() => navigate("/auth")} 
+            onClick={() => user ? navigate(`/research/${uuidv4()}`) : navigate("/auth")} 
             variant="outline"
             className="text-sm"
           >
@@ -33,11 +44,39 @@ const LandingPage = () => {
         </div>
       </header>
 
-      <main className="flex-1 max-w-2xl mx-auto px-4 py-16">
-        <div className="space-y-6 text-left">
+      <main className="flex-1 flex flex-col items-center justify-center px-4 py-16">
+        <div className="max-w-2xl mx-auto space-y-8 text-center mb-8">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
+            AI-Powered<br/>
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">Deep Research</span>
+          </h1>
           
+          <p className="text-xl text-muted-foreground">
+            Discover deeper insights, make better decisions
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+            <Button 
+              size="lg" 
+              onClick={handleGetStarted}
+              className="px-8"
+            >
+              Get Started
+            </Button>
+            <Button 
+              variant="outline" 
+              size="lg"
+              onClick={() => window.open("https://twitter.com/cvetko_tim", "_blank")}
+              className="px-8"
+            >
+              Follow on Twitter
+            </Button>
+          </div>
+        </div>
+        
+        <div className="space-y-6 text-left max-w-2xl mx-auto mt-16">
           <p className="text-base">
-            deep research sucks.
+            Deep research requires a precise approach.
           </p>
           
           <p className="text-base">
@@ -59,16 +98,16 @@ const LandingPage = () => {
           </p>
           
           <p className="text-base">
-            we're working with a selected few to launch their personal deep researchers. if you want us to build your personalized deep research agent, <a href="mailto:tim@timcvetko.com" className="font-medium">drop us a line.</a>
+            We're working with a selected few to launch their personal deep researchers. If you want us to build your personalized deep research agent, <a href="mailto:tim@timcvetko.com" className="font-medium hover:underline">drop us a line.</a>
           </p>
 
           <p className="text-base">
-            you can go ahead and try the raw version right now for <a href="/auth" onClick={(e) => {e.preventDefault(); navigate("/auth");}} className="text-blue-500 hover:underline font-medium">free</a>
+            you can go ahead and try the raw version right now for <button onClick={handleGetStarted} className="text-blue-500 hover:underline font-medium bg-transparent border-none p-0 cursor-pointer">free</button>
           </p>
           
           <div className="pt-4">
             <p className="text-sm">
-              you can reach me via <a href="https://x.com/cvetko_tim" className="font-medium">twitter</a> or email at{" "}
+              you can reach me via <a href="https://x.com/cvetko_tim" className="font-medium hover:underline">twitter</a> or email at{" "}
               <span className="font-medium">tim@timcvetko.com</span>.
             </p>
             
@@ -76,7 +115,6 @@ const LandingPage = () => {
               built by tim
             </p>
           </div>
-          
         </div>
       </main>
     </div>
