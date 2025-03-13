@@ -229,8 +229,12 @@ const ResearchPage = () => {
         navigate(`/research/${id}`);
       }
       
-      // The error is here - we need to pass an object with userModel and useCase as the second argument
-      const response = await researchService.startResearch(id, query, { userModel, useCase });
+      // This is the line with the error - ensure we're passing the options object correctly
+      const response = await researchService.startResearch(
+        id, 
+        query, 
+        { userModel, useCase }
+      );
       
       if (response) {
         setSession({
