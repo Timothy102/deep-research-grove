@@ -57,7 +57,8 @@ const ResearchPage = () => {
   const [approvalQuery, setApprovalQuery] = useState('');
   // Initialize with empty array of the correct type
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [isMobile] = useIsMobile();
+  // Fix: useIsMobile returns a boolean, not an array
+  const isMobile = useIsMobile();
   const [maxSteps, setMaxSteps] = useState<number>(25);
   const reasoningPathRef = useRef<HTMLDivElement>(null);
 
