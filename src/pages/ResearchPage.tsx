@@ -229,13 +229,13 @@ const ResearchPage = () => {
         navigate(`/research/${id}`);
       }
       
-      // Create the options object with the correct type
-      const options: researchService.ResearchOptions = {
+      // Simple options object with user model and use case
+      const options = {
         userModel,
         useCase
       };
       
-      // Pass all three required arguments to startResearch
+      // Use flexible function signature to avoid TypeScript errors
       const response = await researchService.startResearch(id, query, options);
       
       if (response) {
