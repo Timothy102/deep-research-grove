@@ -11,23 +11,6 @@ export interface ResearchHistoryEntry {
   created_at?: string;
 }
 
-export interface ResearchSession {
-  id: string;
-  query: string;
-  output?: string;
-  reasoning_path?: string[];
-  sources?: any[];
-  human_approval_requested?: boolean;
-  status: 'pending' | 'in_progress' | 'completed' | 'error';
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface ResearchOptions {
-  userModel: string;
-  useCase: string;
-}
-
 export async function saveResearchHistory(researchData: Omit<ResearchHistoryEntry, 'user_id'>) {
   const { data: user } = await supabase.auth.getUser();
   
@@ -70,78 +53,4 @@ export async function getResearchHistory() {
   }
   
   return data || [];
-}
-
-/**
- * Get a research session by ID
- */
-export async function getResearchSession(id: string): Promise<ResearchSession> {
-  // This is a placeholder implementation - replace with actual API call
-  console.log(`Getting research session ${id}`);
-  
-  // Simulating API response
-  return {
-    id,
-    query: "Sample research query",
-    output: "Sample research output",
-    reasoning_path: ["Initial research", "Finding sources", "Analyzing data", "Drawing conclusions"],
-    sources: ["https://example.com/source1", "https://example.com/source2"],
-    human_approval_requested: false,
-    status: 'completed',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
-}
-
-/**
- * Start a new research session - function overloads to handle different argument patterns
- */
-export async function startResearch(query: string): Promise<ResearchSession>;
-export async function startResearch(id: string, query: string, options?: Partial<ResearchOptions>): Promise<ResearchSession>;
-export async function startResearch(arg1: string, arg2?: string, options?: Partial<ResearchOptions>): Promise<ResearchSession> {
-  if (!arg2) {
-    // Called with just query
-    const id = crypto.randomUUID();
-    console.log(`Starting research session ${id} with query: ${arg1}`);
-    
-    // Simulating API response
-    return {
-      id,
-      query: arg1,
-      status: 'in_progress',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-  } else {
-    // Called with id and query
-    console.log(`Starting research session ${arg1} with query: ${arg2}`);
-    if (options) console.log('Options:', options);
-    
-    // Simulating API response
-    return {
-      id: arg1,
-      query: arg2,
-      status: 'in_progress',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-  }
-}
-
-/**
- * Alternative function to start research with explicit ID parameter
- * This function exists as a fallback in case the overloaded function doesn't work
- */
-export async function startResearchWithId(id: string, query: string, options?: Partial<ResearchOptions>): Promise<ResearchSession> {
-  console.log(`Starting research session ${id} with query: ${query}`);
-  console.log('Options:', options);
-  
-  // Simulating API response
-  return {
-    id,
-    query,
-    status: 'in_progress',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
 }

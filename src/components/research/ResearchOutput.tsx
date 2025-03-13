@@ -4,13 +4,11 @@ import { Copy, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ResearchOutputProps {
-  query?: string;
   output: string;
-  isLoading?: boolean;
-  reasoningPathRef?: React.RefObject<HTMLDivElement>;
+  isLoading?: boolean; // Added the isLoading property to the interface
 }
 
-const ResearchOutput = ({ query, output, isLoading = false, reasoningPathRef }: ResearchOutputProps) => {
+const ResearchOutput = ({ output, isLoading = false }: ResearchOutputProps) => {
   const [copied, setCopied] = useState(false);
   
   const copyToClipboard = async () => {
@@ -23,7 +21,7 @@ const ResearchOutput = ({ query, output, isLoading = false, reasoningPathRef }: 
     }
   };
   
-  if (!output && !isLoading) {
+  if (!output) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <p>Research output will appear here after reasoning is complete...</p>
@@ -33,26 +31,23 @@ const ResearchOutput = ({ query, output, isLoading = false, reasoningPathRef }: 
   
   return (
     <div className="relative">
-      {!isLoading && (
-        <div className="absolute top-3 right-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={copyToClipboard}
-            className="h-8 w-8 p-0 rounded-full bg-background/80 backdrop-blur-sm"
-          >
-            {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          </Button>
-        </div>
-      )}
+      <div className="absolute top-3 right-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={copyToClipboard}
+          className="h-8 w-8 p-0 rounded-full bg-background/80 backdrop-blur-sm"
+        >
+          {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+        </Button>
+      </div>
       <div className="p-4 whitespace-pre-wrap text-sm rounded-md border">
-        {isLoading ? (
+        {isLoading && (
           <div className="flex justify-center items-center py-4">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : (
-          output
         )}
+        {output}
       </div>
     </div>
   );

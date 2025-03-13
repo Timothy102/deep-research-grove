@@ -16,7 +16,6 @@ interface HumanApprovalDialogProps {
   onApprove?: (callId: string, nodeId: string) => Promise<void>;
   onReject?: (callId: string, nodeId: string, reason: string) => Promise<void>;
   isOpen?: boolean;
-  session?: any; // Added session prop to match usage in ResearchPage
 }
 
 const HumanApprovalDialog = ({
@@ -28,8 +27,7 @@ const HumanApprovalDialog = ({
   onClose,
   onApprove,
   onReject,
-  isOpen,
-  session
+  isOpen
 }: HumanApprovalDialogProps) => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [showReasonInput, setShowReasonInput] = useState(false);
@@ -196,7 +194,7 @@ const HumanApprovalDialog = ({
           <div>
             <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Query</h4>
             <div className="text-sm p-3 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
-              {session?.query || query}
+              {query}
             </div>
           </div>
           
