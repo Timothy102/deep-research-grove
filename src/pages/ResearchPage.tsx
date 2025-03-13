@@ -2,18 +2,18 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthContext';
 import { ResearchForm } from '@/components/research/ResearchForm';
-import { ResearchOutput } from '@/components/research/ResearchOutput';
-import { ReasoningPath } from '@/components/research/ReasoningPath';
-import { SourcesList } from '@/components/research/SourcesList';
-import { HistorySidebar } from '@/components/research/HistorySidebar';
+import ResearchOutput from '@/components/research/ResearchOutput';
+import ReasoningPath from '@/components/research/ReasoningPath';
+import SourcesList from '@/components/research/SourcesList';
+import HistorySidebar from '@/components/research/HistorySidebar';
 import { ProgressIndicator } from '@/components/research/ProgressIndicator';
-import { HumanApprovalDialog } from '@/components/research/HumanApprovalDialog';
+import HumanApprovalDialog from '@/components/research/HumanApprovalDialog';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { researchService } from '@/services/researchService';
-import { researchStateService, type ResearchOptions } from '@/services/researchStateService';
+import * as researchService from '@/services/researchService';
+import * as researchStateService from '@/services/researchStateService';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { useMobile } from '@/hooks/use-mobile';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { v4 as uuidv4 } from 'uuid';
 import { startResearchWithCorrectParams } from '@/services/researchUtils';
@@ -46,8 +46,8 @@ const ResearchPage = () => {
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
   const [approvalQuery, setApprovalQuery] = useState('');
   const [history, setHistory] = useState<string[]>([]);
-  const [isMobile] = useMobile();
-	const [maxSteps, setMaxSteps] = useState<number>(25);
+  const [isMobile] = useIsMobile();
+  const [maxSteps, setMaxSteps] = useState<number>(25);
   const reasoningPathRef = useRef<HTMLDivElement>(null);
 
   const { query, reasoning, sources, isLoading, progress, requireHumanApproval } = researchData;
@@ -95,7 +95,7 @@ const ResearchPage = () => {
 
   const handleApprovalResponse = useCallback(async (approved: boolean) => {
     setIsApprovalDialogOpen(false);
-    setIsLoading(true);
+    setResearchData(prev => ({ ...prev, isLoading: true }));
   
     try {
       const continueResearch = async () => {
@@ -116,7 +116,7 @@ const ResearchPage = () => {
       console.error('Approval response error:', error);
       toast.error('An error occurred while processing the approval response.');
     } finally {
-      setIsLoading(false);
+      setResearchData(prev => ({ ...prev, isLoading: false }));
     }
   }, [sessionId]);
 
@@ -124,14 +124,14 @@ const ResearchPage = () => {
     setResearchData(prev => ({ ...prev, requireHumanApproval: value }));
   };
 
-	const handleMaxStepsChange = (value: number) => {
-		setMaxSteps(value);
+  const handleMaxStepsChange = (value: number) => {
+    setMaxSteps(value);
     setResearchData(prev => ({ ...prev, maxSteps: value }));
   };
 
   const handleStartResearch = useCallback(async (query: string) => {
     try {
-      setIsLoading(true);
+      setResearchData(prev => ({ ...prev, isLoading: true }));
       setActiveTab('results');
       
       const id = sessionId || uuidv4();
@@ -139,7 +139,7 @@ const ResearchPage = () => {
         navigate(`/research/${id}`, { replace: true });
       }
       
-      const options: ResearchOptions = {
+      const options = {
         userId: user?.id,
         requireHumanApproval: requireHumanApproval,
         maxSteps: parseInt(maxSteps.toString()),
@@ -162,7 +162,7 @@ const ResearchPage = () => {
       console.error('Research error:', error);
       toast.error('An error occurred during research');
     } finally {
-      setIsLoading(false);
+      setResearchData(prev => ({ ...prev, isLoading: false }));
     }
   }, [sessionId, navigate, user?.id, requireHumanApproval, maxSteps, handleProgressUpdate]);
 
@@ -192,7 +192,7 @@ const ResearchPage = () => {
       </header>
 
       <main className="container mx-auto flex flex-col flex-1 h-full">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1">
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'query' | 'results' | 'history')} className="flex flex-col flex-1">
           <div className="border-b">
             <TabsList className="mx-4">
               <TabsTrigger value="query">Query</TabsTrigger>
@@ -205,19 +205,19 @@ const ResearchPage = () => {
             <div className={`flex-1 p-4 ${isMobile ? '' : 'border-r'}`}>
               <TabsContent value="query" className="outline-none">
                 <ResearchForm
-                  initialQuery={query}
+                  query={query}
                   isLoading={isLoading}
                   requireHumanApproval={requireHumanApproval}
                   maxSteps={maxSteps}
                   onRequireApprovalChange={handleRequireApprovalChange}
-									onMaxStepsChange={handleMaxStepsChange}
+                  onMaxStepsChange={handleMaxStepsChange}
                   onSubmit={handleStartResearch}
                 />
               </TabsContent>
 
               <TabsContent value="results" className="flex flex-col h-full outline-none">
-                {isLoading && <ProgressIndicator progress={progress} />}
-                <ResearchOutput query={query} reasoning={reasoning} sources={sources} reasoningPathRef={reasoningPathRef} />
+                {isLoading && <ProgressIndicator isLoading={isLoading} currentStage={`Researching (${progress}%)`} />}
+                <ResearchOutput query={query} isLoading={isLoading} output="" reasoningPathRef={reasoningPathRef} />
               </TabsContent>
 
               <TabsContent value="history" className="outline-none">
@@ -252,6 +252,10 @@ const ResearchPage = () => {
         <HumanApprovalDialog
           isOpen={isApprovalDialogOpen}
           query={approvalQuery}
+          content=""
+          callId=""
+          nodeId=""
+          approvalType=""
           onApprove={() => handleApprovalResponse(true)}
           onReject={() => handleApprovalResponse(false)}
           onClose={() => setIsApprovalDialogOpen(false)}

@@ -1,6 +1,5 @@
 
-import { researchService } from './researchService';
-import type { ResearchOptions } from './researchStateService';
+import * as researchService from './researchService';
 
 /**
  * Helper function to start research with the appropriate parameters
@@ -8,7 +7,7 @@ import type { ResearchOptions } from './researchStateService';
 export const startResearchWithCorrectParams = async (
   id: string,
   query: string,
-  options: ResearchOptions,
+  options: any,
   sessionId?: string
 ) => {
   if (sessionId) {
