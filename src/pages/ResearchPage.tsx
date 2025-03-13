@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthContext';
@@ -239,11 +238,11 @@ const ResearchPage = () => {
       let response;
       
       if (sessionId) {
-        // When sessionId exists, use three parameters
+        // When sessionId exists, use the id, query, and options
         response = await researchService.startResearch(id, query, options);
       } else {
-        // When no sessionId, use just the query
-        response = await researchService.startResearch(query);
+        // When no sessionId, create a new session with the query and options
+        response = await researchService.startResearchWithId(id, query, options);
       }
       
       if (response) {
