@@ -91,7 +91,11 @@ export async function getResearchSession(id: string): Promise<ResearchSession> {
 /**
  * Start a new research session
  */
-export async function startResearch(id: string, query: string, options: any): Promise<ResearchSession> {
+export async function startResearch(
+  id: string, 
+  query: string, 
+  options: { userModel: string; useCase: string }
+): Promise<ResearchSession> {
   // This is a placeholder implementation - replace with actual API call
   console.log(`Starting research session ${id} with query: ${query}`);
   console.log('Options:', options);

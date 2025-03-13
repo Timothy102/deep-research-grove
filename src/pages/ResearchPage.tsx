@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthContext';
@@ -228,7 +229,7 @@ const ResearchPage = () => {
         navigate(`/research/${id}`);
       }
       
-      // Start the research process - fix: Add the required second parameter as an object
+      // The error is here - we need to pass an object with userModel and useCase as the second argument
       const response = await researchService.startResearch(id, query, { userModel, useCase });
       
       if (response) {
