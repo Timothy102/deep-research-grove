@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 
 interface ResearchFormProps {
-  query: string;
+  initialQuery?: string;
   isLoading?: boolean;
   requireHumanApproval: boolean;
   maxSteps: number;
@@ -19,7 +19,7 @@ interface ResearchFormProps {
 }
 
 export const ResearchForm = ({ 
-  query: initialQuery = "", 
+  initialQuery = "", 
   isLoading = false,
   requireHumanApproval,
   maxSteps,
@@ -30,6 +30,11 @@ export const ResearchForm = ({
   const [query, setQuery] = useState(initialQuery);
   const [userModel, setUserModel] = useState("");
   const [useCase, setUseCase] = useState("");
+
+  // Update the query when initialQuery changes
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

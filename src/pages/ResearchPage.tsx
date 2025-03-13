@@ -173,7 +173,7 @@ const ResearchPage = () => {
       const options = {
         userId: user?.id,
         requireHumanApproval: requireHumanApproval,
-        maxSteps: parseInt(maxSteps.toString()),
+        maxSteps: maxSteps,
         onProgress: handleProgressUpdate,
       };
       
@@ -189,15 +189,14 @@ const ResearchPage = () => {
           use_case: ''
         };
         
-        // Since response may not have reasoning/sources/progress directly (ResearchSession type),
-        // use placeholder values or extract what's available
+        // Since response may not have reasoning directly, check if it exists
+        const reasoningPath = response.reasoning_path || [];
+        
         setResearchData(prev => ({
           ...prev,
           query: query,
-          // Use empty arrays if these properties don't exist
-          reasoning: response.reasoning_path || [],
+          reasoning: reasoningPath,
           sources: [],
-          // Use 100 as a placeholder for completion
           progress: 100,
           isLoading: false
         }));
@@ -251,7 +250,7 @@ const ResearchPage = () => {
             <div className={`flex-1 p-4 ${isMobile ? '' : 'border-r'}`}>
               <TabsContent value="query" className="outline-none">
                 <ResearchForm
-                  query={query}
+                  initialQuery={query}
                   isLoading={isLoading}
                   requireHumanApproval={requireHumanApproval}
                   maxSteps={maxSteps}
@@ -291,9 +290,14 @@ const ResearchPage = () => {
               <div className="w-64 p-4 border-l">
                 <HistorySidebar
                   history={history}
-                  onHistoryClick={handleHistoryClick}
-                  isOpen={isHistoryOpen}
-                  onToggle={toggleHistorySidebar}
+                  onHistoryItemClick={handleHistoryClick}
+                  open={isHistoryOpen}
+                  onClose={toggleHistorySidebar}
+                  onNewChat={() => {
+                    setResearchData(prev => ({ ...prev, query: '', reasoning: [], sources: [] }));
+                    setActiveTab('query');
+                  }}
+                  activeSessionId={sessionId}
                 />
               </div>
             )}
