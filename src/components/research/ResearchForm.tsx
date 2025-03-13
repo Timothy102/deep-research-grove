@@ -18,6 +18,8 @@ export const ResearchForm = ({ onSubmit, isLoading = false }: ResearchFormProps)
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
+    
+    // Pass all three parameters to onSubmit
     onSubmit(query, userModel, useCase);
   };
 

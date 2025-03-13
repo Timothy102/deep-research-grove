@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthContext';
@@ -228,12 +229,13 @@ const ResearchPage = () => {
         navigate(`/research/${id}`);
       }
       
-      // Fixed: Make sure we're passing all required arguments
-      const response = await researchService.startResearch(
-        id,
-        query,
-        { userModel, useCase }
-      );
+      // Ensure we're passing all required arguments in the correct format
+      const options: researchService.ResearchOptions = {
+        userModel,
+        useCase
+      };
+      
+      const response = await researchService.startResearch(id, query, options);
       
       if (response) {
         setSession({
