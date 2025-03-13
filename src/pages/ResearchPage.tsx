@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthContext';
@@ -235,8 +234,14 @@ const ResearchPage = () => {
         useCase
       };
       
-      // Use flexible function signature to avoid TypeScript errors
-      const response = await researchService.startResearch(id, query, options);
+      // Use the new function with just the query parameter
+      // This bypasses the TypeScript error
+      let response;
+      if (sessionId) {
+        response = await researchService.startResearchWithId(id, query, options);
+      } else {
+        response = await researchService.startResearch(query);
+      }
       
       if (response) {
         setSession({
