@@ -18,13 +18,13 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { v4 as uuidv4 } from 'uuid';
-import { ReasoningPath } from '@/components/research/ReasoningPath';
+import ReasoningPath from '@/components/research/ReasoningPath';
 import ResearchForm from '@/components/research/ResearchForm';
-import { ResearchResults } from '@/components/research/ResearchResults';
-import { ResearchOutput } from '@/components/research/ResearchOutput';
-import { HumanApprovalDialog } from '@/components/research/HumanApprovalDialog';
-import { ProgressIndicator } from '@/components/research/ProgressIndicator';
-import { SourcesList } from '@/components/research/SourcesList';
+import ResearchResults from '@/components/research/ResearchResults';
+import ResearchOutput from '@/components/research/ResearchOutput';
+import HumanApprovalDialog from '@/components/research/HumanApprovalDialog';
+import ProgressIndicator from '@/components/research/ProgressIndicator';
+import SourcesList from '@/components/research/SourcesList';
 import HistorySidebar from '@/components/research/HistorySidebar';
 
 // Import services
@@ -206,7 +206,7 @@ const ResearchPage = () => {
     setIsPolling(false);
   };
 
-  const handleStartResearch = async (query: string, options: any) => {
+  const handleStartResearch = async (query: string, userModel: string, useCase: string) => {
     try {
       setIsLoadingResults(true);
       
@@ -230,7 +230,7 @@ const ResearchPage = () => {
       }
       
       // Start the research process
-      const response = await researchService.startResearch(id, query, options);
+      const response = await researchService.startResearch(id, query, { userModel, useCase });
       
       if (response) {
         setSession({
@@ -327,7 +327,7 @@ const ResearchPage = () => {
           
           {session?.status && (
             <Badge variant={
-              session.status === 'completed' ? 'success' : 
+              session.status === 'completed' ? 'default' : 
               session.status === 'error' ? 'destructive' : 
               'outline'
             } className="ml-2">
@@ -379,7 +379,7 @@ const ResearchPage = () => {
           <div className={`${session ? 'w-1/2 border-r' : 'w-full'} flex flex-col overflow-hidden bg-background/60`}>
             {!session && (
               <div className="flex-1 p-6 flex flex-col items-center justify-center max-w-2xl mx-auto w-full">
-                <ResearchForm onSubmit={handleStartResearch} />
+                <ResearchForm onSubmit={handleStartResearch} isLoading={isLoadingResults} />
               </div>
             )}
             
@@ -388,7 +388,7 @@ const ResearchPage = () => {
                 {/* Progress indicator */}
                 {isSessionInProgress && (
                   <div className="p-4 bg-muted/30">
-                    <ProgressIndicator />
+                    <ProgressIndicator isLoading={true} />
                   </div>
                 )}
                 
@@ -403,7 +403,7 @@ const ResearchPage = () => {
                 {/* Sources Panel */}
                 <div className="p-4 h-1/3 overflow-auto">
                   <h2 className="text-lg font-medium mb-4">Sources</h2>
-                  <SourcesList sources={sources} isLoading={isLoadingResults} />
+                  <SourcesList sources={sources} />
                 </div>
               </div>
             )}
@@ -444,6 +444,11 @@ const ResearchPage = () => {
           onApprove={() => handleHumanApproval(true)}
           onReject={() => handleHumanApproval(false)}
           session={session}
+          content=""
+          query=""
+          callId=""
+          nodeId=""
+          approvalType=""
         />
       )}
     </div>

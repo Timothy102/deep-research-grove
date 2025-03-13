@@ -23,3 +23,18 @@ export const respondToApproval = async (callId: string, approved: boolean, comme
   
   return await response.json();
 };
+
+/**
+ * Submit human approval decision for a research session
+ */
+export const submitHumanApproval = async (sessionId: string, approved: boolean) => {
+  // This is a placeholder implementation - replace with actual API call
+  console.log(`Submitting human approval for session ${sessionId}: ${approved}`);
+  
+  // Simulating API response
+  return {
+    success: true,
+    sessionId,
+    approved
+  };
+};

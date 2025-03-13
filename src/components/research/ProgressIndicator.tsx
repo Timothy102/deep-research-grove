@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 
-type ProgressIndicatorProps = {
+export type ProgressIndicatorProps = {
   isLoading: boolean;
   currentStage?: string;
   events?: string[];
@@ -51,3 +51,5 @@ export const ProgressIndicator = ({
     </div>
   );
 };
+
+export default ProgressIndicator;

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 
 interface ResearchOutputProps {
   output: string;
-  isLoading?: boolean; // Added the isLoading property to the interface
+  isLoading?: boolean;
 }
 
 const ResearchOutput = ({ output, isLoading = false }: ResearchOutputProps) => {
@@ -21,7 +21,7 @@ const ResearchOutput = ({ output, isLoading = false }: ResearchOutputProps) => {
     }
   };
   
-  if (!output) {
+  if (!output && !isLoading) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <p>Research output will appear here after reasoning is complete...</p>
@@ -31,23 +31,26 @@ const ResearchOutput = ({ output, isLoading = false }: ResearchOutputProps) => {
   
   return (
     <div className="relative">
-      <div className="absolute top-3 right-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={copyToClipboard}
-          className="h-8 w-8 p-0 rounded-full bg-background/80 backdrop-blur-sm"
-        >
-          {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-        </Button>
-      </div>
+      {!isLoading && (
+        <div className="absolute top-3 right-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={copyToClipboard}
+            className="h-8 w-8 p-0 rounded-full bg-background/80 backdrop-blur-sm"
+          >
+            {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          </Button>
+        </div>
+      )}
       <div className="p-4 whitespace-pre-wrap text-sm rounded-md border">
-        {isLoading && (
+        {isLoading ? (
           <div className="flex justify-center items-center py-4">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : (
+          output
         )}
-        {output}
       </div>
     </div>
   );

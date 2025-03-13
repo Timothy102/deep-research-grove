@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 
-type ResearchFormProps = {
+interface ResearchFormProps {
   onSubmit: (query: string, userModel: string, useCase: string) => void;
-  isLoading: boolean;
-};
+  isLoading?: boolean;
+}
 
-export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
+export const ResearchForm = ({ onSubmit, isLoading = false }: ResearchFormProps) => {
   const [query, setQuery] = useState("");
   const [userModel, setUserModel] = useState("");
   const [useCase, setUseCase] = useState("");
@@ -66,3 +66,5 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
     </form>
   );
 };
+
+export default ResearchForm;
