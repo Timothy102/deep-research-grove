@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthContext';
@@ -6,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { History, Menu, PanelRight, X, PanelLeft, PlusCircle } from 'lucide-react';
+import { History, Menu, PanelRight, X, PlusCircle, PanelLeft } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -229,7 +228,7 @@ const ResearchPage = () => {
         navigate(`/research/${id}`);
       }
       
-      // Start the research process
+      // Start the research process - fix: Add the required second parameter as an object
       const response = await researchService.startResearch(id, query, { userModel, useCase });
       
       if (response) {
@@ -439,7 +438,7 @@ const ResearchPage = () => {
       {/* Human Approval Dialog */}
       {showApprovalDialog && session && (
         <HumanApprovalDialog
-          open={showApprovalDialog}
+          isOpen={showApprovalDialog}
           onClose={() => setShowApprovalDialog(false)}
           onApprove={() => handleHumanApproval(true)}
           onReject={() => handleHumanApproval(false)}

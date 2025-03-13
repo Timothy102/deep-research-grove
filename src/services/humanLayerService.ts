@@ -28,13 +28,20 @@ export const respondToApproval = async (callId: string, approved: boolean, comme
  * Submit human approval decision for a research session
  */
 export const submitHumanApproval = async (sessionId: string, approved: boolean) => {
-  // This is a placeholder implementation - replace with actual API call
-  console.log(`Submitting human approval for session ${sessionId}: ${approved}`);
+  console.log(`[${new Date().toISOString()}] Submitting human approval for session ${sessionId}: ${approved}`);
   
-  // Simulating API response
-  return {
-    success: true,
-    sessionId,
-    approved
-  };
+  try {
+    // This is a placeholder implementation - in a real app, we would call an actual API endpoint
+    // For now, we'll simulate a successful response
+    await new Promise(resolve => setTimeout(resolve, 500)); // Simulating network delay
+    
+    return {
+      success: true,
+      sessionId,
+      approved
+    };
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Error in submitHumanApproval:`, error);
+    throw error;
+  }
 };
