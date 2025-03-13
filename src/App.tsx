@@ -32,6 +32,7 @@ function AppRoutes() {
     // Save current path to localStorage whenever it changes
     const saveCurrentPath = () => {
       const currentPath = window.location.pathname;
+      // Only save paths that aren't the root or auth page
       if (currentPath !== '/' && !currentPath.includes('/auth')) {
         console.log(`[${new Date().toISOString()}] 📍 Saving current path:`, currentPath);
         localStorage.setItem('lastPath', currentPath);
@@ -64,8 +65,12 @@ function AppRoutes() {
     return null;
   }
 
-  // Redirect to saved path if we're at the root and have a saved path
-  if (window.location.pathname === '/' && lastPath && lastPath !== '/') {
+  // The key change: Don't automatically redirect from the root to lastPath
+  // Only redirect if explicitly requested with a query parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const shouldRedirect = urlParams.get('redirect') === 'true';
+  
+  if (window.location.pathname === '/' && lastPath && lastPath !== '/' && shouldRedirect) {
     console.log(`[${new Date().toISOString()}] 🔄 Redirecting to last path:`, lastPath);
     return <Navigate to={lastPath} replace />;
   }
