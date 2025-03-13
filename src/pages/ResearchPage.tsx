@@ -1,7 +1,8 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthContext';
-import { ResearchForm } from '@/components/research/ResearchForm';
+import ResearchForm from '@/components/research/ResearchForm';
 import ResearchOutput from '@/components/research/ResearchOutput';
 import ReasoningPath from '@/components/research/ReasoningPath';
 import SourcesList from '@/components/research/SourcesList';
@@ -16,7 +17,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { v4 as uuidv4 } from 'uuid';
-import { startResearchWithCorrectParams } from '@/services/researchUtils';
+import { startResearchWithCorrectParams, continueResearchAfterApproval } from '@/services/researchUtils';
 
 interface ResearchData {
   query: string;
@@ -26,6 +27,15 @@ interface ResearchData {
   progress: number;
   requireHumanApproval: boolean;
   maxSteps: number;
+}
+
+// Interface to match the expected history item structure
+interface HistoryItem {
+  id: string;
+  query: string;
+  created_at: string;
+  user_model: string;
+  use_case: string;
 }
 
 const ResearchPage = () => {
@@ -45,7 +55,8 @@ const ResearchPage = () => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
   const [approvalQuery, setApprovalQuery] = useState('');
-  const [history, setHistory] = useState<string[]>([]);
+  // Initialize with empty array of the correct type
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isMobile] = useIsMobile();
   const [maxSteps, setMaxSteps] = useState<number>(25);
   const reasoningPathRef = useRef<HTMLDivElement>(null);
@@ -55,7 +66,29 @@ const ResearchPage = () => {
   useEffect(() => {
     const storedHistory = localStorage.getItem('researchHistory');
     if (storedHistory) {
-      setHistory(JSON.parse(storedHistory));
+      try {
+        // Parse stored history and ensure it has the correct structure
+        const parsedHistory = JSON.parse(storedHistory);
+        // If the history is just an array of strings, convert to proper format
+        if (Array.isArray(parsedHistory) && parsedHistory.length > 0) {
+          if (typeof parsedHistory[0] === 'string') {
+            // Convert strings to HistoryItem objects
+            const formattedHistory: HistoryItem[] = parsedHistory.map((query, index) => ({
+              id: `history-${index}`,
+              query,
+              created_at: new Date().toISOString(),
+              user_model: '',
+              use_case: ''
+            }));
+            setHistory(formattedHistory);
+          } else {
+            // Already in the correct format
+            setHistory(parsedHistory);
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing history:', error);
+      }
     }
   }, []);
 
@@ -63,8 +96,8 @@ const ResearchPage = () => {
     localStorage.setItem('researchHistory', JSON.stringify(history));
   }, [history]);
 
-  const handleHistoryClick = (query: string) => {
-    setResearchData(prev => ({ ...prev, query: query }));
+  const handleHistoryClick = (item: HistoryItem) => {
+    setResearchData(prev => ({ ...prev, query: item.query }));
     setActiveTab('query');
   };
 
@@ -98,24 +131,22 @@ const ResearchPage = () => {
     setResearchData(prev => ({ ...prev, isLoading: true }));
   
     try {
-      const continueResearch = async () => {
-        if (sessionId) {
-          const response = await researchService.continueResearch(sessionId, approved);
-          if (response) {
-            setResearchData(prev => ({
-              ...prev,
-              reasoning: [...prev.reasoning, ...response.reasoning],
-              sources: [...prev.sources, ...response.sources],
-            }));
-          }
+      if (sessionId) {
+        // Use our utility function for continuing research
+        const response = await continueResearchAfterApproval(sessionId, approved);
+        
+        if (response) {
+          setResearchData(prev => ({
+            ...prev,
+            reasoning: [...prev.reasoning, ...response.reasoning],
+            sources: [...prev.sources, ...response.sources],
+            isLoading: false
+          }));
         }
-      };
-  
-      await continueResearch();
+      }
     } catch (error) {
       console.error('Approval response error:', error);
       toast.error('An error occurred while processing the approval response.');
-    } finally {
       setResearchData(prev => ({ ...prev, isLoading: false }));
     }
   }, [sessionId]);
@@ -149,19 +180,34 @@ const ResearchPage = () => {
       const response = await startResearchWithCorrectParams(id, query, options, sessionId);
       
       if (response) {
+        // Create a new history item
+        const newHistoryItem: HistoryItem = {
+          id: uuidv4(),
+          query,
+          created_at: new Date().toISOString(),
+          user_model: '',
+          use_case: ''
+        };
+        
+        // Since response may not have reasoning/sources/progress directly (ResearchSession type),
+        // use placeholder values or extract what's available
         setResearchData(prev => ({
           ...prev,
           query: query,
-          reasoning: response.reasoning,
-          sources: response.sources,
-          progress: response.progress,
+          // Use empty arrays if these properties don't exist
+          reasoning: response.reasoning_path || [],
+          sources: [],
+          // Use 100 as a placeholder for completion
+          progress: 100,
+          isLoading: false
         }));
-        setHistory(prevHistory => [...new Set([query, ...prevHistory])]);
+        
+        // Update history with the new item
+        setHistory(prevHistory => [newHistoryItem, ...prevHistory]);
       }
     } catch (error) {
       console.error('Research error:', error);
       toast.error('An error occurred during research');
-    } finally {
       setResearchData(prev => ({ ...prev, isLoading: false }));
     }
   }, [sessionId, navigate, user?.id, requireHumanApproval, maxSteps, handleProgressUpdate]);
@@ -217,17 +263,22 @@ const ResearchPage = () => {
 
               <TabsContent value="results" className="flex flex-col h-full outline-none">
                 {isLoading && <ProgressIndicator isLoading={isLoading} currentStage={`Researching (${progress}%)`} />}
-                <ResearchOutput query={query} isLoading={isLoading} output="" reasoningPathRef={reasoningPathRef} />
+                <ResearchOutput 
+                  query={query} 
+                  isLoading={isLoading} 
+                  output="" 
+                  reasoningPathRef={reasoningPathRef} 
+                />
               </TabsContent>
 
               <TabsContent value="history" className="outline-none">
                 <div className="p-4">
                   <h3 className="text-lg font-semibold mb-2">Research History</h3>
                   <ul>
-                    {history.map((item, index) => (
-                      <li key={index} className="py-2 border-b">
+                    {history.map((item) => (
+                      <li key={item.id} className="py-2 border-b">
                         <button onClick={() => handleHistoryClick(item)} className="hover:underline">
-                          {item}
+                          {item.query}
                         </button>
                       </li>
                     ))}

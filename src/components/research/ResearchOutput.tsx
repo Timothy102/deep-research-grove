@@ -4,11 +4,13 @@ import { Copy, CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ResearchOutputProps {
+  query?: string;
   output: string;
   isLoading?: boolean;
+  reasoningPathRef?: React.RefObject<HTMLDivElement>;
 }
 
-const ResearchOutput = ({ output, isLoading = false }: ResearchOutputProps) => {
+const ResearchOutput = ({ query, output, isLoading = false, reasoningPathRef }: ResearchOutputProps) => {
   const [copied, setCopied] = useState(false);
   
   const copyToClipboard = async () => {

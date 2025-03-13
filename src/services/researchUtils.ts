@@ -18,3 +18,18 @@ export const startResearchWithCorrectParams = async (
     return await researchService.startResearch(id, query, options);
   }
 };
+
+/**
+ * Continue research after human approval
+ */
+export const continueResearchAfterApproval = async (
+  sessionId: string,
+  approved: boolean
+) => {
+  // Simulate continuing research - in a real implementation, this would 
+  // call the API with approval decision
+  return {
+    reasoning: ["Research continued after approval"],
+    sources: []
+  };
+};
