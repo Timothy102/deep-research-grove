@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthContext';
@@ -229,10 +228,10 @@ const ResearchPage = () => {
         navigate(`/research/${id}`);
       }
       
-      // This is the line with the error - ensure we're passing the options object correctly
+      // Fix the function call by properly passing all required arguments
       const response = await researchService.startResearch(
-        id, 
-        query, 
+        id,
+        query,
         { userModel, useCase }
       );
       
