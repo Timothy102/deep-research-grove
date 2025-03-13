@@ -47,8 +47,7 @@ const LandingPage = () => {
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-16">
         <div className="max-w-2xl mx-auto space-y-8 text-center mb-8">
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-            AI-Powered<br/>
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">Deep Research</span>
+            Deep research sucks
           </h1>
           
           <p className="text-xl text-muted-foreground">
