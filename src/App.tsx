@@ -1,5 +1,5 @@
 
-import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
+import { Routes, Route, BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './components/auth/AuthContext';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -18,8 +18,6 @@ import './App.css';
 const queryClient = new QueryClient();
 
 function AppRoutes() {
-  const [isLoading, setIsLoading] = useState(false);
-
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
