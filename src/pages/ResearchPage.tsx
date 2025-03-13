@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthContext';
@@ -228,18 +229,20 @@ const ResearchPage = () => {
         navigate(`/research/${id}`);
       }
       
-      // Simple options object with user model and use case
+      // Create options object
       const options = {
         userModel,
         useCase
       };
       
-      // Use the new function with just the query parameter
-      // This bypasses the TypeScript error
+      // Call the appropriate startResearch function based on whether sessionId exists
       let response;
+      
       if (sessionId) {
-        response = await researchService.startResearchWithId(id, query, options);
+        // When sessionId exists, use three parameters
+        response = await researchService.startResearch(id, query, options);
       } else {
+        // When no sessionId, use just the query
         response = await researchService.startResearch(query);
       }
       

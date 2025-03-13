@@ -94,24 +94,43 @@ export async function getResearchSession(id: string): Promise<ResearchSession> {
 }
 
 /**
- * Start a new research session with a single query argument and optional options
+ * Start a new research session - function overloads to handle different argument patterns
  */
-export async function startResearch(query: string): Promise<ResearchSession> {
-  const id = crypto.randomUUID();
-  console.log(`Starting research session ${id} with query: ${query}`);
-  
-  // Simulating API response
-  return {
-    id,
-    query,
-    status: 'in_progress',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString()
-  };
+export async function startResearch(query: string): Promise<ResearchSession>;
+export async function startResearch(id: string, query: string, options?: Partial<ResearchOptions>): Promise<ResearchSession>;
+export async function startResearch(arg1: string, arg2?: string, options?: Partial<ResearchOptions>): Promise<ResearchSession> {
+  if (!arg2) {
+    // Called with just query
+    const id = crypto.randomUUID();
+    console.log(`Starting research session ${id} with query: ${arg1}`);
+    
+    // Simulating API response
+    return {
+      id,
+      query: arg1,
+      status: 'in_progress',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  } else {
+    // Called with id and query
+    console.log(`Starting research session ${arg1} with query: ${arg2}`);
+    if (options) console.log('Options:', options);
+    
+    // Simulating API response
+    return {
+      id: arg1,
+      query: arg2,
+      status: 'in_progress',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+  }
 }
 
 /**
- * Start a new research session with id and query
+ * Alternative function to start research with explicit ID parameter
+ * This function exists as a fallback in case the overloaded function doesn't work
  */
 export async function startResearchWithId(id: string, query: string, options?: Partial<ResearchOptions>): Promise<ResearchSession> {
   console.log(`Starting research session ${id} with query: ${query}`);
