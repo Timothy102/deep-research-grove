@@ -97,11 +97,11 @@ export async function getResearchSession(id: string): Promise<ResearchSession> {
  * Start a new research session
  * @param id - The research session ID
  * @param query - The research query
- * @param options - Research options object containing userModel and useCase
+ * @param options - Additional options for the research session
  */
 export async function startResearch(
   id: string, 
-  query: string, 
+  query: string,
   options: ResearchOptions
 ): Promise<ResearchSession> {
   // This is a placeholder implementation - replace with actual API call

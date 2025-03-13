@@ -229,12 +229,13 @@ const ResearchPage = () => {
         navigate(`/research/${id}`);
       }
       
-      // Ensure we're passing all required arguments in the correct format
+      // Create the options object with the correct type
       const options: researchService.ResearchOptions = {
         userModel,
         useCase
       };
       
+      // Pass all three required arguments to startResearch
       const response = await researchService.startResearch(id, query, options);
       
       if (response) {
