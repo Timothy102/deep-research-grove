@@ -46,8 +46,8 @@ const LandingPage = () => {
 
       <main className="flex-1 flex flex-col items-center justify-center px-4 py-16">
         <div className="max-w-2xl mx-auto space-y-8 text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-            Deep research sucks
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight lowercase">
+            deep research sucks
           </h1>
           
           <p className="text-xl text-muted-foreground">
