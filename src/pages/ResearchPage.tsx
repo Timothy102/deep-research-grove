@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -7,8 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Search, User, LogOut, FileText, X, Plus, HelpCircle, MessageSquarePlus } from "lucide-react";
-import { saveResearchHistory, getResearchHistory } from "@/services/researchService";
+import { Loader2, Search, User, LogOut, FileText, X, Plus, HelpCircle, MessageSquarePlus, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { 
+  saveResearchHistory, 
+  getResearchHistory, 
+  groupResearchHistoryByDate,
+  ResearchHistoryEntry 
+} from "@/services/researchService";
 import { 
   saveResearchState, 
   updateResearchState, 
@@ -26,9 +30,11 @@ import {
 import ReasoningPath from "@/components/research/ReasoningPath";
 import SourcesList from "@/components/research/SourcesList";
 import ResearchOutput from "@/components/research/ResearchOutput";
+import ResearchHistorySidebar from "@/components/research/ResearchHistorySidebar";
 import HumanApprovalDialog from "@/components/research/HumanApprovalDialog";
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from "sonner";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 interface ResearchHistory {
   id: string;
@@ -86,14 +92,23 @@ const ResearchPage = () => {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [reasoningPath, setReasoningPath] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("reasoning");
-  const [history, setHistory] = useState<ResearchHistory[]>([]);
+  const [history, setHistory] = useState<ResearchHistoryEntry[]>([]);
+  const [groupedHistory, setGroupedHistory] = useState<any[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
   const { toast: uiToast } = useToast();
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
+
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     if (!user) {
@@ -121,6 +136,13 @@ const ResearchPage = () => {
       }
     };
   }, [user, navigate, sessionId]);
+
+  useEffect(() => {
+    if (history.length > 0) {
+      const grouped = groupResearchHistoryByDate(history);
+      setGroupedHistory(grouped);
+    }
+  }, [history]);
 
   useEffect(() => {
     if (humanApprovalRequest) {
@@ -156,7 +178,7 @@ const ResearchPage = () => {
   const loadHistory = async () => {
     try {
       const historyData = await getResearchHistory();
-      setHistory(historyData as ResearchHistory[]);
+      setHistory(historyData as ResearchHistoryEntry[]);
     } catch (error) {
       console.error("Error loading history:", error);
     }
@@ -607,7 +629,7 @@ const ResearchPage = () => {
     navigate(`/research/${newSessionId}`);
   };
 
-  const loadHistoryItem = (item: ResearchHistory) => {
+  const loadHistoryItem = (item: ResearchHistoryEntry) => {
     setResearchObjective(item.query);
     
     try {
@@ -717,6 +739,10 @@ const ResearchPage = () => {
     }
   };
 
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="py-4 px-6 border-b flex items-center justify-between">
@@ -758,37 +784,32 @@ const ResearchPage = () => {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-64 border-r p-4 overflow-y-auto hidden md:block">
-          <h3 className="font-semibold mb-4 flex items-center">
-            <FileText className="h-4 w-4 mr-2" />
-            research history
-          </h3>
-          
-          {history.length === 0 ? (
-            <p className="text-sm text-muted-foreground">no history yet</p>
-          ) : (
-            <div className="space-y-2">
-              {history.map((item) => (
-                <Card 
-                  key={item.id} 
-                  className="cursor-pointer hover:bg-secondary/50"
-                  onClick={() => loadHistoryItem(item)}
-                >
-                  <CardContent className="p-3">
-                    <p className="text-sm font-medium truncate">{item.query}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {new Date(item.created_at).toLocaleString()}
-                    </p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </aside>
+        {sidebarOpen && (
+          <aside className="w-64 border-r overflow-y-auto hidden md:block">
+            <ResearchHistorySidebar 
+              history={groupedHistory}
+              onHistoryItemClick={loadHistoryItem}
+            />
+          </aside>
+        )}
 
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-2xl font-bold mb-6">deep research</h1>
+            <div className="flex justify-between items-center mb-6">
+              <h1 className="text-2xl font-bold">deep research</h1>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="md:flex hidden"
+                onClick={toggleSidebar}
+              >
+                {sidebarOpen ? (
+                  <PanelLeftClose className="h-4 w-4" />
+                ) : (
+                  <PanelLeftOpen className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
             
             <div className="space-y-6 mb-8">              
               <div className="space-y-2">
