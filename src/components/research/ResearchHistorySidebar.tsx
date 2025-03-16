@@ -1,8 +1,7 @@
 
 import React from 'react';
-import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Calendar, Clock, History } from "lucide-react";
+import { History, Clock } from "lucide-react";
 import { ResearchHistoryEntry, ResearchHistoryGroup } from '@/services/researchService';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -38,31 +37,28 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
       </h3>
       
       <ScrollArea className="flex-1">
-        <div className="px-4 pb-4 space-y-6">
+        <div className="px-4 pb-4">
           {history.map((group) => (
-            <div key={group.label} className="space-y-2">
-              <h4 className="text-sm font-medium text-muted-foreground flex items-center mb-2">
-                <Calendar className="h-3.5 w-3.5 mr-1.5" />
+            <div key={group.label} className="mb-6">
+              <h4 className="text-sm font-medium text-muted-foreground mb-2">
                 {group.label}
               </h4>
               
               <div className="space-y-2">
                 {group.items.map((item) => (
-                  <Card 
+                  <div 
                     key={item.id} 
-                    className="cursor-pointer hover:bg-secondary/50 transition-colors"
+                    className="cursor-pointer hover:bg-secondary/50 transition-colors p-3 rounded-md border border-border"
                     onClick={() => onHistoryItemClick(item)}
                   >
-                    <CardContent className="p-3">
-                      <p className="text-sm font-medium truncate">{item.query}</p>
-                      {item.created_at && (
-                        <p className="text-xs text-muted-foreground mt-1 flex items-center">
-                          <Clock className="h-3 w-3 mr-1" />
-                          {format(new Date(item.created_at), 'h:mm a')}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
+                    <p className="text-sm font-medium">{item.query}</p>
+                    {item.created_at && (
+                      <p className="text-xs text-muted-foreground mt-1 flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {format(new Date(item.created_at), 'h:mm a')}
+                      </p>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
