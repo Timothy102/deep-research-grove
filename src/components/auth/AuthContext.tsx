@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { createClient, Session, SupabaseClient } from "@supabase/supabase-js";
+import { Session } from "@supabase/supabase-js";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 // Define types
 type AuthContextType = {
   session: Session | null;
   user: any | null;
-  supabase: SupabaseClient;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -17,15 +17,10 @@ type AuthContextType = {
 // Create the context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Supabase client
-const supabaseUrl = "https://icpaknsdfozkbyqzpvdm.supabase.co";
-const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImljcGFrbnNkZm96a2J5cXpwdmRtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5MDQ4MzcsImV4cCI6MjA1NjQ4MDgzN30.2yxoPryjdl_DoikWyt5to66m3aDKwthOxUdX4wPmGi8";
-
 // Provider component
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [supabase] = useState(() => createClient(supabaseUrl, supabaseAnonKey));
   const [user, setUser] = useState<any | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [supabase, toast]);
+  }, [toast]);
 
   // Sign in
   const signIn = async (email: string, password: string) => {
@@ -194,7 +189,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const value = {
     session,
     user,
-    supabase,
     signIn,
     signUp,
     signOut,

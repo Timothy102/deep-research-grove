@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, User, LogOut, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Brain } from "lucide-react";
+import { Loader2, Search, User, LogOut, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Brain, FileText } from "lucide-react";
 import { 
   saveResearchHistory, 
   getResearchHistory, 
@@ -24,6 +24,7 @@ import ResearchOutput from "@/components/research/ResearchOutput";
 import ResearchHistorySidebar from "@/components/research/ResearchHistorySidebar";
 import HumanApprovalDialog from "@/components/research/HumanApprovalDialog";
 import UserModelOnboarding from "@/components/onboarding/UserModelOnboarding";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from "sonner";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -80,6 +81,13 @@ const ResearchPage = () => {
   const [groupedHistory, setGroupedHistory] = useState<any[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
+  const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
+  const [researchObjective, setResearchObjective] = useState("");
+  const [domain, setDomain] = useState("");
+  const [expertiseLevel, setExpertiseLevel] = useState("");
+  const [userContext, setUserContext] = useState("");
+  const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("");
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
