@@ -2,18 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { 
-  Loader2, 
-  Search, 
-  User, 
-  LogOut, 
-  MessageSquarePlus, 
-  PanelLeftClose, 
-  PanelLeftOpen, 
-  Brain,
-  FileText
-} from "lucide-react";
+import { Loader2, Search, User, LogOut, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Brain } from "lucide-react";
 import { 
   saveResearchHistory, 
   getResearchHistory, 
@@ -91,14 +80,6 @@ const ResearchPage = () => {
   const [groupedHistory, setGroupedHistory] = useState<any[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [researchObjective, setResearchObjective] = useState("");
-  const [domain, setDomain] = useState("");
-  const [expertiseLevel, setExpertiseLevel] = useState("intermediate");
-  const [userContext, setUserContext] = useState("");
-  const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("systematic");
-  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
-  const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
-  
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);

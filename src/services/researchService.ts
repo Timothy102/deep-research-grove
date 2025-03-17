@@ -9,7 +9,6 @@ export interface ResearchHistoryEntry {
   user_model?: string;
   use_case?: string;
   model?: string;
-  user_model_id?: string;
   created_at?: string;
 }
 

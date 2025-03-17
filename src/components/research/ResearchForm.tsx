@@ -1,8 +1,9 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Brain } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { 
   Select, 
   SelectContent, 
@@ -11,7 +12,6 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { useNavigate } from "react-router-dom";
 import { UserModel, getUserModels, getDefaultUserModel } from "@/services/userModelService";
 
 type ResearchFormProps = {
@@ -20,9 +20,9 @@ type ResearchFormProps = {
 };
 
 export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
-  const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [currentUnderstanding, setCurrentUnderstanding] = useState("");
+  const [userModel, setUserModel] = useState("");
+  const [useCase, setUseCase] = useState("");
   const [userModels, setUserModels] = useState<UserModel[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>("");
   const [isLoadingModels, setIsLoadingModels] = useState(false);
@@ -55,7 +55,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
-    onSubmit(query, currentUnderstanding, "", selectedModelId);
+    onSubmit(query, userModel, useCase, selectedModelId);
   };
 
   const getSelectedModelDetails = () => {
@@ -72,12 +72,10 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="research-objective">Research Objective</Label>
         <Textarea
-          id="research-objective"
-          placeholder="Explain your research objective strongly and explain what would be your ideal outcome"
+          placeholder="Enter your research query..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="min-h-24 resize-none"
@@ -85,19 +83,8 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
         />
       </div>
       
-      <div className="space-y-2">
-        <Label htmlFor="current-understanding">Current Understanding</Label>
-        <Textarea
-          id="current-understanding"
-          placeholder="Explain in your own words what you already know about this topic. Use 2-5 sentences."
-          value={currentUnderstanding}
-          onChange={(e) => setCurrentUnderstanding(e.target.value)}
-          className="min-h-20 resize-none"
-        />
-      </div>
-      
-      <div className="flex items-center justify-between">
-        <div className="space-y-2 flex-1 mr-4">
+      {userModels.length > 0 && (
+        <div className="space-y-2">
           <Label htmlFor="model-select">Research Model</Label>
           <Select 
             value={selectedModelId} 
@@ -113,54 +100,50 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
                   {model.name} {model.is_default ? "(Default)" : ""}
                 </SelectItem>
               ))}
+              <SelectItem value="">None (Custom)</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-        
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => navigate("/models")}
-          className="self-end"
-        >
-          <Brain className="mr-2 h-4 w-4" />
-          Manage Models
-        </Button>
-      </div>
-      
-      {selectedModelId && (
-        <div className="text-sm text-muted-foreground mt-1 bg-muted/40 p-3 rounded-md">
-          {getSelectedModelDetails() && (
-            <>
-              <span className="font-medium">Selected model: </span>
-              {getSelectedModelDetails()?.domain}, {getSelectedModelDetails()?.expertise_level} level,{" "}
-              {getSelectedModelDetails()?.cognitive_style} cognitive style
-              {getSelectedModelDetails()?.included_sources && 
-               getSelectedModelDetails()?.included_sources.length > 0 && 
-               `, ${getSelectedModelDetails()?.included_sources.length} trusted sources`}
-            </>
+          
+          {selectedModelId && (
+            <div className="text-sm text-muted-foreground mt-1">
+              {getSelectedModelDetails() && (
+                <>
+                  <span className="font-medium">Model details: </span>
+                  {getSelectedModelDetails()?.domain}, {getSelectedModelDetails()?.expertise_level} level,
+                  {getSelectedModelDetails()?.cognitive_style} cognitive style
+                  {getSelectedModelDetails()?.included_sources && 
+                   getSelectedModelDetails()?.included_sources.length > 0 && 
+                   `, ${getSelectedModelDetails()?.included_sources.length} sources`}
+                </>
+              )}
+            </div>
           )}
         </div>
       )}
       
-      {userModels.length === 0 && (
-        <div className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-md">
-          You haven't created any research models yet. 
-          <Button 
-            variant="link" 
-            className="px-1 h-auto text-amber-600" 
-            onClick={() => navigate("/models")}
-          >
-            Create one now
-          </Button>
-          to personalize your research experience.
+      {!selectedModelId && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Input
+              placeholder="User model (e.g. entrepreneur, researcher)"
+              value={userModel}
+              onChange={(e) => setUserModel(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Input
+              placeholder="Use case (e.g. market research, academic)"
+              value={useCase}
+              onChange={(e) => setUseCase(e.target.value)}
+            />
+          </div>
         </div>
       )}
       
       <Button 
         type="submit" 
         className="w-full transition-all duration-300 hover:scale-[1.02]" 
-        disabled={isLoading || !query.trim() || (!selectedModelId && userModels.length > 0)}
+        disabled={isLoading || !query.trim()}
       >
         {isLoading ? (
           <>
