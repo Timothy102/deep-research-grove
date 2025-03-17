@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export type UserModelSourcePriority = {
@@ -27,12 +26,15 @@ export async function createUserModel(model: Omit<UserModel, 'user_id'>): Promis
     throw new Error("User not authenticated");
   }
   
+  const modelToInsert = {
+    ...model,
+    user_id: user.user.id,
+    source_priorities: model.source_priorities ? JSON.stringify(model.source_priorities) : null
+  };
+  
   const { data, error } = await supabase
     .from('user_models')
-    .insert({
-      ...model,
-      user_id: user.user.id
-    })
+    .insert(modelToInsert)
     .select();
     
   if (error) {
@@ -40,7 +42,7 @@ export async function createUserModel(model: Omit<UserModel, 'user_id'>): Promis
     throw error;
   }
   
-  return data && data.length > 0 ? data[0] : null;
+  return data && data.length > 0 ? parseUserModel(data[0]) : null;
 }
 
 export async function getUserModels(): Promise<UserModel[]> {
@@ -61,7 +63,7 @@ export async function getUserModels(): Promise<UserModel[]> {
     throw error;
   }
   
-  return data || [];
+  return data ? data.map(model => parseUserModel(model)) : [];
 }
 
 export async function getUserModelById(id: string): Promise<UserModel | null> {
@@ -83,7 +85,7 @@ export async function getUserModelById(id: string): Promise<UserModel | null> {
     throw error;
   }
   
-  return data;
+  return data ? parseUserModel(data) : null;
 }
 
 export async function updateUserModel(id: string, updates: Partial<UserModel>): Promise<UserModel | null> {
@@ -93,9 +95,14 @@ export async function updateUserModel(id: string, updates: Partial<UserModel>): 
     throw new Error("User not authenticated");
   }
   
+  const updatesToApply = {
+    ...updates,
+    source_priorities: updates.source_priorities ? JSON.stringify(updates.source_priorities) : undefined
+  };
+  
   const { data, error } = await supabase
     .from('user_models')
-    .update(updates)
+    .update(updatesToApply)
     .eq('id', id)
     .eq('user_id', user.user.id)
     .select();
@@ -105,7 +112,22 @@ export async function updateUserModel(id: string, updates: Partial<UserModel>): 
     throw error;
   }
   
-  return data && data.length > 0 ? data[0] : null;
+  return data && data.length > 0 ? parseUserModel(data[0]) : null;
+}
+
+function parseUserModel(model: any): UserModel {
+  try {
+    return {
+      ...model,
+      source_priorities: model.source_priorities ? JSON.parse(model.source_priorities) : []
+    };
+  } catch (error) {
+    console.error("Error parsing source_priorities:", error);
+    return {
+      ...model,
+      source_priorities: []
+    };
+  }
 }
 
 export async function deleteUserModel(id: string): Promise<void> {
@@ -134,7 +156,6 @@ export async function setDefaultUserModel(id: string): Promise<void> {
     throw new Error("User not authenticated");
   }
   
-  // First remove default status from all models
   const { error: clearError } = await supabase
     .from('user_models')
     .update({ is_default: false })
@@ -145,7 +166,6 @@ export async function setDefaultUserModel(id: string): Promise<void> {
     throw clearError;
   }
   
-  // Set the new default model
   const { error } = await supabase
     .from('user_models')
     .update({ is_default: true })
