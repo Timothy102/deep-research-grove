@@ -74,6 +74,7 @@ const ResearchPage = () => {
   const [userContext, setUserContext] = useState("");
   const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("");
   const [selectedLLM, setSelectedLLM] = useState("claude-3.5-sonnet");
+  const [rawData, setRawData] = useState<Record<string, string>>({});
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
@@ -337,6 +338,20 @@ const ResearchPage = () => {
                 const eventType = data.event || data.type;
                 console.log(`[${new Date().toISOString()}] 📊 Processing event type:`, eventType, data);
                 
+                if (data.data && data.data.node_id) {
+                  const nodeId = data.data.node_id;
+                  const rawEventData = JSON.stringify(data, null, 2);
+                  
+                  setRawData(prev => {
+                    const existingData = prev[nodeId] || '';
+                    const updatedData = existingData 
+                      ? `${existingData}\n${rawEventData}`
+                      : rawEventData;
+                    
+                    return { ...prev, [nodeId]: updatedData };
+                  });
+                }
+                
                 if (eventType === "start") {
                   console.log("Research started");
                   setActiveTab("reasoning");
@@ -378,6 +393,22 @@ const ResearchPage = () => {
                   }
                 } else if (eventType === "reasoning") {
                   const step = data.data.step || "";
+                  
+                  const nodeIdMatch = step.match(/Node ID:?\s*([a-zA-Z0-9_-]+)/i) || 
+                                    step.match(/node\s+(\d+)|#(\d+)/i);
+                  if (nodeIdMatch) {
+                    const nodeId = nodeIdMatch[1] || nodeIdMatch[2];
+                    const rawDataString = JSON.stringify(data, null, 2);
+                    
+                    setRawData(prev => {
+                      const existing = prev[nodeId] || '';
+                      return {
+                        ...prev,
+                        [nodeId]: existing ? `${existing}\n${rawDataString}` : rawDataString
+                      };
+                    });
+                  }
+                  
                   if (step.toLowerCase().includes("synthesizing") && reasoningPath.length > 0 && reasoningPath.length % 5 === 0) {
                     const syntheticRequest = {
                       call_id: `synthetic-${researchId}-${reasoningPath.length}`,
@@ -819,6 +850,7 @@ const ResearchPage = () => {
                       findings={findings}
                       isLoading={isLoading}
                       isActive={isLoading}
+                      rawData={rawData}
                     />
                   </TabsContent>
                   
@@ -830,6 +862,7 @@ const ResearchPage = () => {
                     <ResearchOutput 
                       output={researchOutput} 
                       isLoading={isLoading}
+                      rawFindings={Object.values(rawData).join('\n\n')}
                     />
                   </TabsContent>
                 </Tabs>
@@ -865,4 +898,3 @@ const ResearchPage = () => {
 };
 
 export default ResearchPage;
-
