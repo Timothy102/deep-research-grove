@@ -1,6 +1,5 @@
-
 import { useState } from "react";
-import { ChevronDown, ChevronRight, ExternalLink, Search, CheckCircle2, ArrowRight, Clock, BrainCircuit, Book, Lightbulb, FileText } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, Search, CheckCircle2, ArrowRight, Clock, BrainCircuit, Book, Lightbulb, FileText, Database } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -30,7 +29,7 @@ interface ReasoningPathProps {
   isLoading?: boolean;
 }
 
-// This function now returns consistent colors for each step type, ensuring persistence
+// This function returns consistent colors for each step type, ensuring persistence
 const getStepType = (step: string): { type: string; color: string; icon: React.ReactNode; label: string } => {
   const stepLower = step.toLowerCase();
   
@@ -79,8 +78,8 @@ const getStepType = (step: string): { type: string; color: string; icon: React.R
   } else {
     return { 
       type: "step", 
-      color: "bg-gray-100 text-gray-800 dark:bg-gray-800/90 dark:text-gray-300 border-gray-300 dark:border-gray-700", 
-      icon: <ArrowRight className="h-4 w-4" />,
+      color: "bg-blue-50 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200 border-blue-200 dark:border-blue-800", 
+      icon: <ArrowRight className="h-4 w-4 text-blue-600 dark:text-blue-400" />,
       label: "processing"
     };
   }
@@ -181,6 +180,73 @@ const findRelevantSources = (
   }
   
   return relevantSources;
+};
+
+const findRelevantFindings = (
+  step: string,
+  findings: Finding[] = [],
+  nodeId?: string
+): Finding[] => {
+  if (!findings || findings.length === 0) return [];
+  
+  // If we have a nodeId, prioritize findings with that nodeId
+  if (nodeId) {
+    const nodeFindings = findings.filter(f => f.node_id === nodeId);
+    if (nodeFindings.length > 0) return nodeFindings;
+  }
+  
+  // Otherwise, try to match findings based on content
+  const stepLower = step.toLowerCase();
+  
+  // If this is a search step, try to find findings with matching queries
+  if (stepLower.includes("search")) {
+    const searchFindings: Finding[] = [];
+    const searchQueries = extractSearchQueries(step);
+    
+    if (searchQueries.length > 0) {
+      searchQueries.forEach(query => {
+        findings.forEach(finding => {
+          if (finding.query && 
+              query.toLowerCase().includes(finding.query.toLowerCase()) && 
+              !searchFindings.includes(finding)) {
+            searchFindings.push(finding);
+          }
+        });
+      });
+    }
+    
+    if (searchFindings.length > 0) return searchFindings;
+  }
+  
+  // Try to find findings with domain names mentioned in the step
+  return findings.filter(finding => {
+    try {
+      const url = new URL(finding.source);
+      const domain = url.hostname.replace('www.', '');
+      return stepLower.includes(domain.split('.')[0]);
+    } catch {
+      return false;
+    }
+  });
+};
+
+const extractSearchQueries = (step: string): string[] => {
+  // Split by line breaks and filter out any lines with typical prefixes
+  const lines = step.split('\n');
+  const queries = new Set<string>();
+  
+  lines.forEach(line => {
+    const trimmedLine = line.trim();
+    if (trimmedLine && 
+        !trimmedLine.toLowerCase().includes("searching") && 
+        !trimmedLine.toLowerCase().includes("looking up") &&
+        !trimmedLine.toLowerCase().includes("search query") &&
+        !trimmedLine.toLowerCase().includes("node id")) {
+      queries.add(trimmedLine);
+    }
+  });
+  
+  return Array.from(queries);
 };
 
 const extractDomain = (url: string): string => {
@@ -295,7 +361,7 @@ const AllSourcesAndFindings = ({ sources = [], findings = [] }: { sources: strin
       <CollapsibleTrigger asChild>
         <Button variant="ghost" size="sm" className="w-full flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
+            <Database className="h-4 w-4" />
             <span>All Sources & Findings ({sources.length + findings.length})</span>
           </span>
           {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -347,33 +413,56 @@ const AllSourcesAndFindings = ({ sources = [], findings = [] }: { sources: strin
   );
 };
 
-// New component to display findings for a reasoning step
-const FindingsList = ({ findings = [], nodeId }: { findings: Finding[], nodeId?: string }) => {
+const FindingsList = ({ findings = [], step = "" }: { 
+  findings: Finding[], 
+  step?: string 
+}) => {
   if (!findings || findings.length === 0) return null;
   
-  // Filter findings that match the nodeId if provided
-  const relevantFindings = nodeId 
-    ? findings.filter(finding => finding.node_id === nodeId)
-    : findings;
-  
-  if (relevantFindings.length === 0) return null;
-  
   return (
-    <div className="mt-3 space-y-2">
-      <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-        <Book className="h-3.5 w-3.5" />
-        Findings discovered ({relevantFindings.length}):
+    <div className="mt-3">
+      <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+        <Database className="h-3.5 w-3.5" />
+        Findings discovered:
       </h4>
       <div className="rounded-md border p-2 bg-blue-50/30 dark:bg-blue-950/20">
-        {relevantFindings.map((finding, idx) => (
-          <div key={idx} className="mb-2 last:mb-0">
+        <div className="space-y-1">
+          {findings.map((finding, idx) => (
             <SourceItem
+              key={idx}
               source={finding.source}
               content={finding.content}
               sourceIndex={idx + 1}
               isFinding={true}
             />
-          </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SearchQueries = ({ step }: { step: string }) => {
+  const queries = extractSearchQueries(step);
+  
+  if (queries.length === 0) return null;
+  
+  return (
+    <div className="mt-3">
+      <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+        <Search className="h-3.5 w-3.5" />
+        Search Queries:
+      </h4>
+      <div className="flex flex-wrap gap-2">
+        {queries.map((query, i) => (
+          <Badge 
+            key={i} 
+            variant="outline" 
+            className="bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800 flex items-center gap-1.5 py-1.5 px-2.5"
+          >
+            <Search className="h-3 w-3 text-violet-600 dark:text-violet-400" />
+            <span className="text-xs text-violet-800 dark:text-violet-300">{query}</span>
+          </Badge>
         ))}
       </div>
     </div>
@@ -384,15 +473,13 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
   const [expanded, setExpanded] = useState(defaultExpanded || index === 0);
   const { type, color, icon, label } = getStepType(step);
   
-  const relevantSources = findRelevantSources(step, sources, findings);
-  
-  // Extract node ID from the step if available (assuming format like "Node ID: xyz")
   const nodeIdMatch = step.match(/Node ID:?\s*([a-zA-Z0-9_-]+)/i);
   const nodeId = nodeIdMatch ? nodeIdMatch[1] : undefined;
   
-  // Find findings that match this step's node ID
-  const stepFindings = findings.filter(f => f.node_id === nodeId);
-  const hasFindingsForStep = stepFindings.length > 0;
+  const relevantFindings = findRelevantFindings(step, findings, nodeId);
+  const hasFindingsForStep = relevantFindings.length > 0;
+  
+  const relevantSources = findRelevantSources(step, sources, findings);
   
   let formattedStep = step;
   
@@ -402,6 +489,8 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
 
   const isLastStep = isActive && index === sources.length - 1;
 
+  const isSearchStep = type === "searching";
+
   return (
     <div className="mb-3 animate-fade-in">
       <div 
@@ -409,7 +498,8 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
           "flex items-start space-x-2 p-3 rounded-md border transition-all duration-200",
           expanded 
             ? `shadow-sm border-l-4 ${color.split(' ')[0]}` 
-            : `border-l-4 ${color.split(' ')[0]} hover:bg-gray-50 dark:hover:bg-gray-900/30`
+            : `border-l-4 ${color.split(' ')[0]} hover:bg-gray-50 dark:hover:bg-gray-900/30`,
+          hasFindingsForStep && "ring-1 ring-blue-200 dark:ring-blue-800"
         )}
         role="button"
         onClick={() => setExpanded(!expanded)}
@@ -453,7 +543,7 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
             
             {hasFindingsForStep && (
               <Badge variant="outline" className="font-normal text-xs bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
-                {stepFindings.length} finding{stepFindings.length !== 1 ? 's' : ''}
+                {relevantFindings.length} finding{relevantFindings.length !== 1 ? 's' : ''}
               </Badge>
             )}
           </div>
@@ -468,16 +558,19 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
             <p className="mb-2">{formattedStep}</p>
           </div>
           
-          {/* Display findings specific to this step */}
-          {hasFindingsForStep && (
-            <FindingsList findings={stepFindings} nodeId={nodeId} />
+          {isSearchStep && (
+            <SearchQueries step={step} />
           )}
           
-          {relevantSources.length > 0 && (
+          {hasFindingsForStep && (
+            <FindingsList findings={relevantFindings} step={step} />
+          )}
+          
+          {relevantSources.length > 0 && !isSearchStep && (
             <div className="space-y-2 mt-3">
               <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                 <ExternalLink className="h-3.5 w-3.5" />
-                Related Sources & Findings ({relevantSources.length}):
+                Related Sources:
               </h4>
               
               <div className="space-y-2 rounded-md border p-2 bg-muted/30">
@@ -489,23 +582,6 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
                     sourceIndex={sourceIndex}
                     isFinding={isFinding}
                   />
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {type === "searching" && (
-            <div className="mt-3 space-y-2">
-              <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
-                <Search className="h-3.5 w-3.5" />
-                Search Queries:
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {step.split("\n").filter(line => line.trim().length > 0 && !line.toLowerCase().includes("searching")).map((line, i) => (
-                  <Badge key={i} variant="outline" className="bg-violet-50 border-violet-200 dark:bg-violet-950/30 dark:border-violet-800 flex items-center gap-1.5 py-1.5 px-2.5">
-                    <Search className="h-3 w-3 text-violet-600 dark:text-violet-400" />
-                    <span className="text-xs text-violet-800 dark:text-violet-300">{line.trim()}</span>
-                  </Badge>
                 ))}
               </div>
             </div>
