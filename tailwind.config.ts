@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -111,8 +110,37 @@ export default {
 				'scale-in': 'scale-in 0.2s ease-out',
 				'scale-out': 'scale-out 0.2s ease-out',
 				pulse: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
+			},
+			opacity: {
+				'15': '0.15',
+				'30': '0.3',
+				'40': '0.4',
+				'80': '0.8',
+			},
+			backgroundColor: {
+				'gray-800-40': 'rgba(31, 41, 55, 0.4)',
+				'gray-800-30': 'rgba(31, 41, 55, 0.3)',
+				'blue-950-30': 'rgba(23, 37, 84, 0.3)',
+				'violet-900-30': 'rgba(76, 29, 149, 0.3)',
+				'amber-900-30': 'rgba(120, 53, 15, 0.3)',
+				'emerald-900-30': 'rgba(6, 78, 59, 0.3)',
+				'blue-900-30': 'rgba(30, 58, 138, 0.3)',
+				'indigo-900-30': 'rgba(49, 46, 129, 0.3)',
+				'sky-900-30': 'rgba(12, 74, 110, 0.3)',
 			}
 		}
 	},
 	plugins: [require("tailwindcss-animate")],
+	safelist: [
+		'hover:bg-gray-800-40',
+		'bg-gray-800-40',
+		'bg-gray-800-30',
+		'bg-blue-950-30',
+		'bg-violet-900-30',
+		'bg-amber-900-30',
+		'bg-emerald-900-30',
+		'bg-blue-900-30',
+		'bg-indigo-900-30',
+		'bg-sky-900-30',
+	]
 } satisfies Config;

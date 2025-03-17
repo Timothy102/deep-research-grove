@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
@@ -80,7 +79,7 @@
   }
   
   .glass-morphism {
-    @apply backdrop-blur-md bg-white\/20 dark:bg-gray-950\/20 border border-white\/30 dark:border-white\/10 shadow-lg;
+    @apply backdrop-blur-md bg-opacity-20 bg-white dark:bg-opacity-20 dark:bg-gray-950 border border-opacity-30 border-white dark:border-opacity-10 dark:border-white shadow-lg;
   }
   
   .neo-morphism {
@@ -140,50 +139,50 @@
 
 /* Dark mode specific overrides for step cards */
 .dark .source-item {
-  @apply hover:bg-gray-800\/40;
+  @apply hover:bg-gray-800-40;
 }
 
 .dark .bg-muted\/50 {
-  @apply bg-gray-800\/40;
+  @apply bg-gray-800-40;
 }
 
 .dark .bg-muted\/30 {
-  @apply bg-gray-800\/30;
+  @apply bg-gray-800-30;
 }
 
 .dark .bg-blue-50\/30 {
-  @apply bg-blue-950\/30;
+  @apply bg-blue-950-30;
 }
 
 .dark .bg-blue-50\/80 {
-  @apply bg-blue-950\/30;
+  @apply bg-blue-950-30;
 }
 
 /* Dark mode fixes for reasoning path */
 .dark .bg-violet-100 {
-  @apply bg-violet-900\/30 text-violet-300 border-violet-700;
+  @apply bg-violet-900-30 text-violet-300 border-violet-700;
 }
 
 .dark .bg-amber-100 {
-  @apply bg-amber-900\/30 text-amber-300 border-amber-700;
+  @apply bg-amber-900-30 text-amber-300 border-amber-700;
 }
 
 .dark .bg-emerald-100 {
-  @apply bg-emerald-900\/30 text-emerald-300 border-emerald-700;
+  @apply bg-emerald-900-30 text-emerald-300 border-emerald-700;
 }
 
 .dark .bg-blue-100 {
-  @apply bg-blue-900\/30 text-blue-300 border-blue-700;
+  @apply bg-blue-900-30 text-blue-300 border-blue-700;
 }
 
 .dark .bg-indigo-100 {
-  @apply bg-indigo-900\/30 text-indigo-300 border-indigo-700;
+  @apply bg-indigo-900-30 text-indigo-300 border-indigo-700;
 }
 
 .dark .bg-sky-100 {
-  @apply bg-sky-900\/30 text-sky-300 border-sky-700;
+  @apply bg-sky-900-30 text-sky-300 border-sky-700;
 }
 
 .dark .bg-gray-100 {
-  @apply bg-gray-800\/40 text-gray-300 border-gray-700;
+  @apply bg-gray-800-40 text-gray-300 border-gray-700;
 }
