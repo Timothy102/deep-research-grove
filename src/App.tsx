@@ -12,6 +12,7 @@ import ResearchPage from './pages/ResearchPage';
 import ProfilePage from './pages/ProfilePage';
 import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
+import UserModelsPage from './pages/UserModelsPage';
 import NotFound from './pages/NotFound';
 import './App.css';
 
@@ -81,6 +82,7 @@ function AppRoutes() {
       <Route path="/auth" element={<AuthPage />} />
       <Route path="/research/:sessionId?" element={<ResearchPage />} />
       <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/models" element={<UserModelsPage />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

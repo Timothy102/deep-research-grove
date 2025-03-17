@@ -15,6 +15,7 @@ export type Database = {
           created_at: string | null
           email: string
           id: string
+          onboarding_completed: boolean | null
           updated_at: string | null
         }
         Insert: {
@@ -22,6 +23,7 @@ export type Database = {
           created_at?: string | null
           email: string
           id: string
+          onboarding_completed?: boolean | null
           updated_at?: string | null
         }
         Update: {
@@ -29,6 +31,7 @@ export type Database = {
           created_at?: string | null
           email?: string
           id?: string
+          onboarding_completed?: boolean | null
           updated_at?: string | null
         }
         Relationships: []
@@ -42,6 +45,7 @@ export type Database = {
           use_case: string | null
           user_id: string
           user_model: string | null
+          user_model_id: string | null
         }
         Insert: {
           created_at?: string | null
@@ -51,6 +55,7 @@ export type Database = {
           use_case?: string | null
           user_id: string
           user_model?: string | null
+          user_model_id?: string | null
         }
         Update: {
           created_at?: string | null
@@ -60,8 +65,17 @@ export type Database = {
           use_case?: string | null
           user_id?: string
           user_model?: string | null
+          user_model_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "research_history_user_model_id_fkey"
+            columns: ["user_model_id"]
+            isOneToOne: false
+            referencedRelation: "user_models"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       research_states: {
         Row: {
@@ -111,6 +125,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_models: {
+        Row: {
+          cognitive_style: string
+          created_at: string | null
+          domain: string
+          expertise_level: string
+          id: string
+          included_sources: string[] | null
+          is_default: boolean | null
+          name: string
+          source_priorities: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cognitive_style: string
+          created_at?: string | null
+          domain: string
+          expertise_level: string
+          id?: string
+          included_sources?: string[] | null
+          is_default?: boolean | null
+          name: string
+          source_priorities?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cognitive_style?: string
+          created_at?: string | null
+          domain?: string
+          expertise_level?: string
+          id?: string
+          included_sources?: string[] | null
+          is_default?: boolean | null
+          name?: string
+          source_priorities?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -123,6 +179,7 @@ export type Database = {
           created_at: string | null
           email: string
           id: string
+          onboarding_completed: boolean | null
           updated_at: string | null
         }[]
       }

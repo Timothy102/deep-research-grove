@@ -2,11 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Search, User, LogOut, FileText, X, Plus, HelpCircle, MessageSquarePlus, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Loader2, Search, User, LogOut, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Brain } from "lucide-react";
 import { 
   saveResearchHistory, 
   getResearchHistory, 
@@ -19,19 +15,15 @@ import {
   getResearchState, 
   getLatestSessionState 
 } from "@/services/researchStateService";
+import { getUserOnboardingStatus, UserModel, getUserModelById } from "@/services/userModelService";
 import { useToast } from "@/hooks/use-toast";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { ResearchForm } from "@/components/research/ResearchForm";
 import ReasoningPath from "@/components/research/ReasoningPath";
 import SourcesList from "@/components/research/SourcesList";
 import ResearchOutput from "@/components/research/ResearchOutput";
 import ResearchHistorySidebar from "@/components/research/ResearchHistorySidebar";
 import HumanApprovalDialog from "@/components/research/HumanApprovalDialog";
+import UserModelOnboarding from "@/components/onboarding/UserModelOnboarding";
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from "sonner";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -78,14 +70,6 @@ const ResearchPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
-  const [researchObjective, setResearchObjective] = useState("");
-  const [userContext, setUserContext] = useState("");
-
-  const [domain, setDomain] = useState("");
-  const [expertiseLevel, setExpertiseLevel] = useState("intermediate");
-  const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("general");
-
-  const [model, setModel] = useState("claude-3.5-sonnet");
   const [isLoading, setIsLoading] = useState(false);
   const [researchOutput, setResearchOutput] = useState("");
   const [sources, setSources] = useState<string[]>([]);
@@ -95,20 +79,12 @@ const ResearchPage = () => {
   const [history, setHistory] = useState<ResearchHistoryEntry[]>([]);
   const [groupedHistory, setGroupedHistory] = useState<any[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
   const { toast: uiToast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
-
-  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
-  const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
-
-  useEffect(() => {
-    if (isMobile) {
-      setSidebarOpen(false);
-    }
-  }, [isMobile]);
 
   useEffect(() => {
     if (!user) {
@@ -124,10 +100,9 @@ const ResearchPage = () => {
     
     currentSessionIdRef.current = sessionId;
     
+    checkOnboardingStatus();
     resetResearchState();
-    
     loadHistory();
-    
     loadSessionData(sessionId);
     
     return () => {
@@ -137,29 +112,16 @@ const ResearchPage = () => {
     };
   }, [user, navigate, sessionId]);
 
-  useEffect(() => {
-    if (history.length > 0) {
-      const grouped = groupResearchHistoryByDate(history);
-      setGroupedHistory(grouped);
+  const checkOnboardingStatus = async () => {
+    try {
+      const completed = await getUserOnboardingStatus();
+      if (!completed) {
+        setShowOnboarding(true);
+      }
+    } catch (error) {
+      console.error("Error checking onboarding status:", error);
     }
-  }, [history]);
-
-  useEffect(() => {
-    if (humanApprovalRequest) {
-      console.log(`[${new Date().toISOString()}] 🔔 Setting approval dialog to open:`, humanApprovalRequest);
-      setShowApprovalDialog(true);
-    } else {
-      setShowApprovalDialog(false);
-    }
-  }, [humanApprovalRequest]);
-
-  useEffect(() => {
-    if (researchIdRef.current && currentSessionIdRef.current && activeTab) {
-      updateResearchState(researchIdRef.current, currentSessionIdRef.current, {
-        active_tab: activeTab
-      }).catch(err => console.error("Error updating active tab:", err));
-    }
-  }, [activeTab]);
+  };
 
   const resetResearchState = () => {
     setResearchOutput("");
@@ -206,30 +168,6 @@ const ResearchPage = () => {
           setActiveTab(sessionState.status === 'in_progress' ? 'reasoning' : 'output');
         }
         
-        setResearchObjective(sessionState.query || "");
-        setResearchOutput(sessionState.answer || "");
-        setSources(sessionState.sources || []);
-        
-        if (sessionState.findings) {
-          const parsedFindings = Array.isArray(sessionState.findings) 
-            ? sessionState.findings 
-            : (typeof sessionState.findings === 'string' ? JSON.parse(sessionState.findings) : []);
-          setFindings(parsedFindings);
-        }
-        
-        setReasoningPath(sessionState.reasoning_path || []);
-        
-        if (sessionState.user_model) {
-          const userModelData = typeof sessionState.user_model === 'string' 
-            ? JSON.parse(sessionState.user_model) 
-            : sessionState.user_model;
-          
-          if (userModelData.domain) setDomain(userModelData.domain);
-          if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
-          if (userModelData.cognitiveStyle) setSelectedCognitiveStyle(userModelData.cognitiveStyle);
-          if (userModelData.userContext) setUserContext(userModelData.userContext);
-        }
-        
         if (sessionState.status === 'in_progress') {
           setIsLoading(true);
           pollResearchState(sessionState.research_id);
@@ -240,20 +178,8 @@ const ResearchPage = () => {
     }
   };
 
-  const createUserModelPayload = () => {
-    return {
-      user_id: user?.id || "anonymous",
-      name: user?.email || "anonymous",
-      domain: domain,
-      expertise_level: expertiseLevel,
-      cognitiveStyle: selectedCognitiveStyle,
-      userContext: userContext,
-      session_id: currentSessionIdRef.current
-    };
-  };
-
-  const handleResearch = async () => {
-    if (!researchObjective.trim()) {
+  const handleResearch = async (query: string, userModelText: string, useCase: string, selectedModelId?: string) => {
+    if (!query.trim()) {
       uiToast({
         title: "objective required",
         description: "please enter a research objective",
@@ -270,15 +196,52 @@ const ResearchPage = () => {
     setActiveTab("reasoning");
     
     try {
-      const userModelPayload = createUserModelPayload();
+      let userModelPayload: any = {};
+      
+      if (selectedModelId) {
+        try {
+          const model = await getUserModelById(selectedModelId);
+          if (model) {
+            userModelPayload = {
+              user_id: user?.id || "anonymous",
+              name: user?.email || "anonymous",
+              domain: model.domain,
+              expertise_level: model.expertise_level,
+              cognitiveStyle: model.cognitive_style,
+              included_sources: model.included_sources || [],
+              source_priorities: model.source_priorities || [],
+              session_id: currentSessionIdRef.current,
+              model_id: model.id
+            };
+          }
+        } catch (err) {
+          console.error("Error fetching user model:", err);
+          userModelPayload = {
+            user_id: user?.id || "anonymous",
+            name: user?.email || "anonymous",
+            userModel: userModelText,
+            useCase: useCase,
+            session_id: currentSessionIdRef.current
+          };
+        }
+      } else {
+        userModelPayload = {
+          user_id: user?.id || "anonymous",
+          name: user?.email || "anonymous",
+          userModel: userModelText,
+          useCase: useCase,
+          session_id: currentSessionIdRef.current
+        };
+      }
       
       const newResearchId = uuidv4();
       researchIdRef.current = newResearchId;
       
       await saveResearchHistory({
-        query: researchObjective,
+        query: query,
         user_model: JSON.stringify(userModelPayload),
-        model,
+        use_case: useCase,
+        user_model_id: selectedModelId
       });
       
       if (currentSessionIdRef.current) {
@@ -286,14 +249,14 @@ const ResearchPage = () => {
           research_id: newResearchId,
           session_id: currentSessionIdRef.current,
           status: 'in_progress',
-          query: researchObjective,
+          query: query,
           user_model: JSON.stringify(userModelPayload),
           active_tab: "reasoning",
           reasoning_path: initialReasoningPath
         });
       }
       
-      startResearchStream(userModelPayload, newResearchId);
+      startResearchStream(userModelPayload, newResearchId, query);
       
       await loadHistory();
       
@@ -308,7 +271,7 @@ const ResearchPage = () => {
     }
   };
 
-  const startResearchStream = (userModelData: any, researchId: string) => {
+  const startResearchStream = (userModelData: any, researchId: string, query: string) => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
@@ -323,9 +286,9 @@ const ResearchPage = () => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            research_objective: researchObjective,
+            research_objective: query,
             user_model: userModelData,
-            model: model,
+            model: "claude-3.5-sonnet",
             session_id: currentSessionIdRef.current,
             research_id: researchId,
             user_id: user?.id
@@ -411,11 +374,8 @@ const ResearchPage = () => {
                     }).catch(err => console.error("Error updating findings:", err));
                   }
                 } else if (eventType === "reasoning") {
-                  // Check if this is a synthesis step that needs approval
                   const step = data.data.step || "";
                   if (step.toLowerCase().includes("synthesizing") && reasoningPath.length > 0 && reasoningPath.length % 5 === 0) {
-                    // Create a demo approval request every 5th step when synthesizing
-                    console.log(`[${new Date().toISOString()}] 🔄 Creating synthetic approval request at reasoning step:`, reasoningPath.length);
                     const syntheticRequest = {
                       call_id: `synthetic-${researchId}-${reasoningPath.length}`,
                       node_id: `${reasoningPath.length}`,
@@ -477,7 +437,6 @@ const ResearchPage = () => {
                 } else if (eventType === "human_approval_request") {
                   console.log(`[${new Date().toISOString()}] 📝 Received human approval request:`, data.data);
                   
-                  // Create the approval request object
                   const approvalRequest = {
                     call_id: data.data.call_id,
                     node_id: data.data.node_id,
@@ -489,7 +448,6 @@ const ResearchPage = () => {
                   console.log(`[${new Date().toISOString()}] 🆔 Setting approval request with ID:`, approvalRequest.call_id);
                   setHumanApprovalRequest(approvalRequest);
                   
-                  // Also create a toast notification as a backup way to show the dialog
                   toast.custom(
                     (t) => (
                       <HumanApprovalDialog
@@ -743,6 +701,8 @@ const ResearchPage = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
+  if (!user) return null;
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="py-4 px-6 border-b flex items-center justify-between">
@@ -761,6 +721,15 @@ const ResearchPage = () => {
           >
             <MessageSquarePlus className="h-4 w-4" />
             new chat
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate("/models")}
+            className="flex items-center gap-1"
+          >
+            <Brain className="h-4 w-4" />
+            models
           </Button>
           <Button 
             variant="ghost" 
@@ -811,126 +780,11 @@ const ResearchPage = () => {
               </Button>
             </div>
             
-            <div className="space-y-6 mb-8">              
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <label className="block text-sm font-medium">research objective</label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-5 w-5">
-                        <HelpCircle className="h-4 w-4" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80 p-4">
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm">what is a research objective?</h4>
-                        <p className="text-xs text-muted-foreground">
-                          explain why you're interested in this query:
-                          <ul className="list-disc pl-4 mt-1">
-                            <li>why does this question interest you?</li>
-                            <li>what do you hope to learn from the answer?</li>
-                            <li>is this for curiosity, work, or academic research?</li>
-                          </ul>
-                        </p>
-                        <div className="mt-2 p-2 bg-muted rounded-md">
-                          <p className="text-xs italic">{exampleObjective}</p>
-                        </div>
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                
-                <p className="text-sm text-muted-foreground">What do you want to research?</p>
-                
-                <Textarea
-                  value={researchObjective}
-                  onChange={(e) => setResearchObjective(e.target.value)}
-                  placeholder="explain your research objective strongly and explain what would be your ideal outcome"
-                  className="min-h-[100px]"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">current understanding</label>
-                <Textarea
-                  value={userContext}
-                  onChange={(e) => setUserContext(e.target.value)}
-                  placeholder="explain in your own words what you already know about this topic. Use 2-5 sentences."
-                  className="min-h-[80px]"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">your domain/field</label>
-                <Input
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                  placeholder="e.g. computer science, medicine, finance..."
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">expertise level</label>
-                <select
-                  value={expertiseLevel}
-                  onChange={(e) => setExpertiseLevel(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md bg-background text-sm"
-                >
-                  {expertiseLevels.map(level => (
-                    <option key={level} value={level}>{level}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">cognitive style</label>
-                <RadioGroup 
-                  value={selectedCognitiveStyle} 
-                  onValueChange={setSelectedCognitiveStyle}
-                  className="grid grid-cols-2 md:grid-cols-3 gap-2"
-                >
-                  {cognitiveStyles.map((style) => (
-                    <div key={style.id} className="flex items-center space-x-2">
-                      <RadioGroupItem value={style.id} id={`cognitive-${style.id}`} />
-                      <Label htmlFor={`cognitive-${style.id}`} className="text-sm">
-                        {style.label}
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">model</label>
-                <select
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md bg-background text-sm"
-                >
-                  <option value="claude-3.5-sonnet">claude 3.5 sonnet</option>
-                  <option value="gemini-2.0-flash">gemini 2.0 flash</option>
-                  <option value="deepseek-ai/DeepSeek-R1">deepseek r1</option>
-                  <option value="gpt4-turbo">gpt-4 turbo</option>
-                </select>
-              </div>
-              
-              <Button 
-                onClick={handleResearch} 
-                disabled={isLoading || !researchObjective.trim()}
-                className="w-full h-12"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    researching...
-                  </>
-                ) : (
-                  <>
-                    <Search className="mr-2 h-4 w-4" />
-                    start research
-                  </>
-                )}
-              </Button>
+            <div className="space-y-6 mb-8">
+              <ResearchForm 
+                onSubmit={handleResearch}
+                isLoading={isLoading}
+              />
             </div>
             
             {(researchOutput || sources.length > 0 || reasoningPath.length > 0) && (
@@ -978,6 +832,11 @@ const ResearchPage = () => {
           </div>
         </main>
       </div>
+      
+      <UserModelOnboarding 
+        isOpen={showOnboarding} 
+        onClose={() => setShowOnboarding(false)} 
+      />
       
       {showApprovalDialog && humanApprovalRequest && (
         <HumanApprovalDialog

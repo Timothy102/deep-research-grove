@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Brain } from "lucide-react";
 
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
@@ -53,6 +53,24 @@ const ProfilePage = () => {
               ID: {user?.id.substring(0, 8)}...
             </p>
           </div>
+        </CardContent>
+      </Card>
+      
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Research Settings</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-muted-foreground">
+            Manage your research models to personalize your research experience.
+          </p>
+          <Button 
+            onClick={() => navigate("/models")} 
+            className="flex items-center gap-2"
+          >
+            <Brain className="h-4 w-4" />
+            Manage Research Models
+          </Button>
         </CardContent>
       </Card>
       
