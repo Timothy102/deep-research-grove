@@ -1,8 +1,9 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, HelpCircle } from "lucide-react";
+import { Loader2, HelpCircle, Info } from "lucide-react";
 import { 
   Select, 
   SelectContent, 
@@ -18,6 +19,19 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 const exampleObjective = `I was always interested as to why life needs to exist. Which biological/thermodynamical processes were in play that explain why we need to survive? My objective comes from curiosity, I'd love to understand the fundamentals behind this research objective. Feel free to synthesize more than one theory.`;
 
@@ -84,7 +98,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
   };
 
   const llmOptions = [
-    { value: "claude-3.5-sonnet", label: "claude 3.5 sonnet" },
+    { value: "claude-3.5-sonnet", label: "claude 3.5 sonnet (auto)" },
     { value: "claude-3-opus", label: "claude 3 opus" },
     { value: "claude-3-haiku", label: "claude 3 haiku" },
     { value: "deepseek-coder", label: "deepseek coder" },
@@ -101,41 +115,26 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
             <Label htmlFor="research-objective" className="text-base font-medium lowercase">
               research objective
             </Label>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="p-0 h-auto"
-                    onClick={() => setShowExample(!showExample)}
-                    type="button"
-                  >
-                    <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="lowercase">click to see an example research objective</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="p-0 h-auto"
+                  type="button"
+                >
+                  <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-sm lowercase">example research objective</h4>
+                  <p className="text-sm text-muted-foreground">{exampleObjective}</p>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowExample(!showExample)}
-            className="text-sm text-muted-foreground hover:text-foreground lowercase"
-          >
-            {showExample ? "hide example" : "show example"}
-          </Button>
         </div>
-        
-        {showExample && (
-          <div className="rounded-md bg-muted p-4 text-sm text-muted-foreground">
-            {exampleObjective}
-          </div>
-        )}
         
         <Textarea
           id="research-objective"
@@ -145,6 +144,9 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
           className="min-h-24 resize-none"
           required
         />
+        <p className="text-xs text-muted-foreground mt-1 lowercase">
+          enter a clear research question or objective you want to explore
+        </p>
       </div>
 
       {/* Current Understanding Section */}
@@ -159,13 +161,16 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
           onChange={(e) => setCurrentUnderstanding(e.target.value)}
           className="min-h-20 resize-none"
         />
+        <p className="text-xs text-muted-foreground mt-1 lowercase">
+          what do you already know about this topic? explain in 2-5 sentences
+        </p>
       </div>
 
       {/* Model Selection Section */}
       <div className="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label htmlFor="research-model" className="text-base font-medium lowercase">
-            research model
+            user model
           </Label>
           <Select 
             value={selectedModelId || "custom"} 
@@ -173,7 +178,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
             disabled={isLoadingModels}
           >
             <SelectTrigger id="research-model" className="w-full">
-              <SelectValue placeholder="select a research model" className="lowercase" />
+              <SelectValue placeholder="select a user model" className="lowercase" />
             </SelectTrigger>
             <SelectContent>
               {userModels.map(model => (
@@ -188,6 +193,9 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
               <SelectItem value="custom" className="lowercase">none (custom)</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground mt-1 lowercase">
+            choose your user model to guide the research approach
+          </p>
           
           {selectedModelId && (
             <div className="text-sm text-muted-foreground mt-1 bg-muted p-2 rounded lowercase">
@@ -229,6 +237,9 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
               ))}
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground mt-1 lowercase">
+            llm (default: auto which is claude-3.5-sonnet)
+          </p>
         </div>
       </div>
       
