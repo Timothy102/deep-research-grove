@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, isToday, isYesterday, parseISO } from "date-fns";
 
@@ -10,6 +9,12 @@ export interface ResearchHistoryEntry {
   use_case: string;
   created_at?: string;
   user_model_id?: string;
+}
+
+export interface ResearchHistoryGroup {
+  date: string;
+  label: string;
+  items: ResearchHistoryEntry[];
 }
 
 export async function saveResearchHistory(
@@ -85,8 +90,8 @@ export function formatHistoryDate(dateString: string): string {
   }
 }
 
-export function groupResearchHistoryByDate(history: ResearchHistoryEntry[]): any[] {
-  const groupedHistory = history.reduce((groups: any, item) => {
+export function groupResearchHistoryByDate(history: ResearchHistoryEntry[]): ResearchHistoryGroup[] {
+  const groupedHistory = history.reduce((groups: Record<string, ResearchHistoryEntry[]>, item) => {
     if (!item.created_at) return groups;
     
     const dateString = formatHistoryDate(item.created_at);
@@ -101,6 +106,7 @@ export function groupResearchHistoryByDate(history: ResearchHistoryEntry[]): any
   
   return Object.keys(groupedHistory).map(date => ({
     date,
+    label: date,
     items: groupedHistory[date]
   }));
 }

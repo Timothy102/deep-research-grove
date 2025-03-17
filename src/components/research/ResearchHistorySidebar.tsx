@@ -42,7 +42,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
       <ScrollArea className="flex-1">
         <div className="px-4 pb-4">
           {history.map((group) => (
-            <div key={group.label} className="mb-6">
+            <div key={group.date} className="mb-6">
               <h4 className="text-sm font-medium text-muted-foreground mb-2">
                 {group.label}
               </h4>
