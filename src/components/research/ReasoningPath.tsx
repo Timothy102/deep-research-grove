@@ -9,6 +9,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 interface Finding {
   source: string;
   content?: string;
+  node_id?: string;
+  query?: string;
 }
 
 interface ReasoningStepProps {
@@ -345,11 +347,52 @@ const AllSourcesAndFindings = ({ sources = [], findings = [] }: { sources: strin
   );
 };
 
+// New component to display findings for a reasoning step
+const FindingsList = ({ findings = [], nodeId }: { findings: Finding[], nodeId?: string }) => {
+  if (!findings || findings.length === 0) return null;
+  
+  // Filter findings that match the nodeId if provided
+  const relevantFindings = nodeId 
+    ? findings.filter(finding => finding.node_id === nodeId)
+    : findings;
+  
+  if (relevantFindings.length === 0) return null;
+  
+  return (
+    <div className="mt-3 space-y-2">
+      <h4 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+        <Book className="h-3.5 w-3.5" />
+        Findings discovered ({relevantFindings.length}):
+      </h4>
+      <div className="rounded-md border p-2 bg-blue-50/30 dark:bg-blue-950/20">
+        {relevantFindings.map((finding, idx) => (
+          <div key={idx} className="mb-2 last:mb-0">
+            <SourceItem
+              source={finding.source}
+              content={finding.content}
+              sourceIndex={idx + 1}
+              isFinding={true}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpanded = false, isActive = false }: ReasoningStepProps) => {
   const [expanded, setExpanded] = useState(defaultExpanded || index === 0);
   const { type, color, icon, label } = getStepType(step);
   
   const relevantSources = findRelevantSources(step, sources, findings);
+  
+  // Extract node ID from the step if available (assuming format like "Node ID: xyz")
+  const nodeIdMatch = step.match(/Node ID:?\s*([a-zA-Z0-9_-]+)/i);
+  const nodeId = nodeIdMatch ? nodeIdMatch[1] : undefined;
+  
+  // Find findings that match this step's node ID
+  const stepFindings = findings.filter(f => f.node_id === nodeId);
+  const hasFindingsForStep = stepFindings.length > 0;
   
   let formattedStep = step;
   
@@ -407,6 +450,12 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
                 {relevantSources.length} source{relevantSources.length !== 1 ? 's' : ''}
               </Badge>
             )}
+            
+            {hasFindingsForStep && (
+              <Badge variant="outline" className="font-normal text-xs bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                {stepFindings.length} finding{stepFindings.length !== 1 ? 's' : ''}
+              </Badge>
+            )}
           </div>
           
           <p className="text-sm">{formattedStep}</p>
@@ -418,6 +467,11 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
           <div className="text-sm text-muted-foreground">
             <p className="mb-2">{formattedStep}</p>
           </div>
+          
+          {/* Display findings specific to this step */}
+          {hasFindingsForStep && (
+            <FindingsList findings={stepFindings} nodeId={nodeId} />
+          )}
           
           {relevantSources.length > 0 && (
             <div className="space-y-2 mt-3">

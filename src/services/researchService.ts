@@ -18,6 +18,13 @@ export interface ResearchHistoryGroup {
   items: ResearchHistoryEntry[];
 }
 
+export interface Finding {
+  source: string;
+  content?: string;
+  node_id?: string;
+  query?: string;
+}
+
 export async function saveResearchHistory(
   entry: Omit<ResearchHistoryEntry, "user_id">
 ): Promise<ResearchHistoryEntry | null> {

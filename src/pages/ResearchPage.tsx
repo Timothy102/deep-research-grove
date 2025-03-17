@@ -48,6 +48,8 @@ interface HumanApprovalRequest {
 interface Finding {
   source: string;
   content?: string;
+  node_id?: string;
+  query?: string;
 }
 
 const ResearchPage = () => {
@@ -357,10 +359,14 @@ const ResearchPage = () => {
                     }).catch(err => console.error("Error updating sources:", err));
                   }
                 } else if (eventType === "finding") {
-                  const finding = { 
+                  const finding: Finding = { 
                     source: data.data.source || "",
-                    content: data.data.content || undefined 
+                    content: data.data.content || undefined,
+                    node_id: data.data.node_id || undefined,
+                    query: data.data.query || undefined
                   };
+                  
+                  console.log(`[${new Date().toISOString()}] 📑 Received finding:`, finding);
                   
                   setFindings(prev => [...prev, finding]);
                   
@@ -809,7 +815,10 @@ const ResearchPage = () => {
                   <TabsContent value="reasoning">
                     <ReasoningPath 
                       reasoningPath={reasoningPath} 
+                      sources={sources}
+                      findings={findings}
                       isLoading={isLoading}
+                      isActive={isLoading}
                     />
                   </TabsContent>
                   
@@ -856,3 +865,4 @@ const ResearchPage = () => {
 };
 
 export default ResearchPage;
+
