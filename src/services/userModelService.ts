@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export type UserModelSourcePriority = {
@@ -197,7 +198,7 @@ export async function getDefaultUserModel(): Promise<UserModel | null> {
     throw error;
   }
   
-  return data;
+  return data ? parseUserModel(data) : null;
 }
 
 export async function updateUserOnboardingStatus(completed: boolean): Promise<void> {
