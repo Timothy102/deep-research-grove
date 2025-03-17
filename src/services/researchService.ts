@@ -1,5 +1,6 @@
+
 import { supabase } from "@/integrations/supabase/client";
-import { format, addDays, isToday, isYesterday, parseISO } from "date-fns";
+import { format, isToday, isYesterday, parseISO, subDays, isThisWeek, isThisYear } from "date-fns";
 
 export interface ResearchHistoryEntry {
   id?: string;
@@ -23,7 +24,8 @@ export async function saveResearchHistory(
   try {
     const { data: userData } = await supabase.auth.getUser();
     
-    if (!userData.user) {
+    if (!userData?.user?.id) {
+      console.log("User not authenticated or ID not available");
       throw new Error("User not authenticated");
     }
     
@@ -47,11 +49,12 @@ export async function saveResearchHistory(
   }
 }
 
-export async function getResearchHistory(): Promise<ResearchHistoryEntry[]> {
+export async function getResearchHistory(limit = 20): Promise<ResearchHistoryEntry[]> {
   try {
     const { data: userData } = await supabase.auth.getUser();
     
-    if (!userData.user) {
+    if (!userData?.user?.id) {
+      console.log("User not authenticated or ID not available");
       throw new Error("User not authenticated");
     }
     
@@ -59,7 +62,8 @@ export async function getResearchHistory(): Promise<ResearchHistoryEntry[]> {
       .from("research_history")
       .select("*")
       .eq("user_id", userData.user.id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(limit);
     
     if (error) {
       console.error("Error fetching research history:", error);
@@ -91,22 +95,37 @@ export function formatHistoryDate(dateString: string): string {
 }
 
 export function groupResearchHistoryByDate(history: ResearchHistoryEntry[]): ResearchHistoryGroup[] {
-  const groupedHistory = history.reduce((groups: Record<string, ResearchHistoryEntry[]>, item) => {
-    if (!item.created_at) return groups;
-    
-    const dateString = formatHistoryDate(item.created_at);
-    
-    if (!groups[dateString]) {
-      groups[dateString] = [];
-    }
-    
-    groups[dateString].push(item);
-    return groups;
-  }, {});
+  // Initialize groups
+  const groups: Record<string, ResearchHistoryEntry[]> = {
+    "Today": [],
+    "This Week": [],
+    "This Year": [],
+    "Older": []
+  };
   
-  return Object.keys(groupedHistory).map(date => ({
-    date,
-    label: date,
-    items: groupedHistory[date]
-  }));
+  // Sort history items into groups
+  history.forEach(item => {
+    if (!item.created_at) return;
+    
+    const date = parseISO(item.created_at);
+    
+    if (isToday(date)) {
+      groups["Today"].push(item);
+    } else if (isThisWeek(date, { weekStartsOn: 1 }) && !isToday(date)) {
+      groups["This Week"].push(item);
+    } else if (isThisYear(date) && !isThisWeek(date, { weekStartsOn: 1 })) {
+      groups["This Year"].push(item);
+    } else {
+      groups["Older"].push(item);
+    }
+  });
+  
+  // Convert to array format and filter out empty groups
+  return Object.entries(groups)
+    .filter(([_, items]) => items.length > 0)
+    .map(([label, items]) => ({
+      date: label.toLowerCase(),
+      label,
+      items
+    }));
 }

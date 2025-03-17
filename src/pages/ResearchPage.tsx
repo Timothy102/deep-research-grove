@@ -131,8 +131,10 @@ const ResearchPage = () => {
 
   const loadHistory = async () => {
     try {
-      const historyData = await getResearchHistory();
+      const historyData = await getResearchHistory(20); // Limit to 20 items
       setHistory(historyData as ResearchHistoryEntry[]);
+      const grouped = groupResearchHistoryByDate(historyData);
+      setGroupedHistory(grouped);
     } catch (error) {
       console.error("Error loading history:", error);
     }

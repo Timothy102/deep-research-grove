@@ -75,7 +75,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                       }}
                     >
                       <div className="flex items-start justify-between">
-                        <p className="text-sm font-medium">{item.query}</p>
+                        <p className="text-sm font-medium truncate">{item.query}</p>
                         {sessionId && (
                           <MessageSquare className="h-3 w-3 ml-2 flex-shrink-0 text-primary/70" />
                         )}
