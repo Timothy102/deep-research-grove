@@ -2,8 +2,9 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ExternalLink, Copy, CheckCircle2 } from "lucide-react";
+import { ExternalLink, Copy, CheckCircle2, MessageSquare } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useNavigate } from "react-router-dom";
 
 export type Finding = {
   content: string;
@@ -16,6 +17,7 @@ export type ResearchResult = {
   sources: string[];
   reasoning_path: string[];
   confidence: number;
+  session_id?: string;
 };
 
 const SourcesList = ({ sources }: { sources: string[] }) => {
@@ -106,6 +108,7 @@ const ResearchAnswer = ({ answer }: { answer: string }) => {
 
 const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const resultRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (result && resultRef.current) {
@@ -121,10 +124,29 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
     );
   }
 
+  const handleSessionClick = () => {
+    if (result.session_id) {
+      navigate(`/research/${result.session_id}`);
+    }
+  };
+
   return (
     <div ref={resultRef} className="animate-fade-in">
       <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-1">Research Results</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold mb-1">Research Results</h2>
+          {result.session_id && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="flex items-center gap-1 text-primary"
+              onClick={handleSessionClick}
+            >
+              <MessageSquare className="h-4 w-4" />
+              <span>View Session</span>
+            </Button>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">Query: {result.query}</p>
       </div>
 

@@ -24,6 +24,20 @@ export async function saveResearchHistory(researchData: Omit<ResearchHistoryEntr
     throw new Error("User not authenticated");
   }
   
+  // Ensure user_model has session_id if it exists as a JSON string
+  if (researchData.user_model && typeof researchData.user_model === 'string') {
+    try {
+      const userModel = JSON.parse(researchData.user_model);
+      if (!userModel.session_id && userModel.session_id !== null) {
+        // If there's no session_id, add a default one
+        console.warn("No session_id found in user_model, will be added by server");
+      }
+      // No need to modify, it will be handled by the server
+    } catch (e) {
+      console.error("Error parsing user_model:", e);
+    }
+  }
+  
   const { data, error } = await supabase
     .from('research_history')
     .insert({
@@ -59,6 +73,39 @@ export async function getResearchHistory() {
   }
   
   return data || [];
+}
+
+// Get research history for a specific session
+export async function getSessionResearchHistory(sessionId: string) {
+  const { data: user } = await supabase.auth.getUser();
+  
+  if (!user.user) {
+    throw new Error("User not authenticated");
+  }
+  
+  const { data, error } = await supabase
+    .from('research_history')
+    .select('*')
+    .eq('user_id', user.user.id)
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error("Error fetching research history:", error);
+    throw error;
+  }
+  
+  // Filter to only include items from the specified session
+  return (data || []).filter(item => {
+    try {
+      if (item.user_model) {
+        const userModel = JSON.parse(item.user_model);
+        return userModel.session_id === sessionId;
+      }
+    } catch (e) {
+      console.error("Error parsing user_model:", e);
+    }
+    return false;
+  });
 }
 
 export function groupResearchHistoryByDate(historyItems: ResearchHistoryEntry[]): ResearchHistoryGroup[] {
