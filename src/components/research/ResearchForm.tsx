@@ -203,13 +203,13 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
           </Select>
         </div>
         
-        {/* LLM Model Selection */}
+        {/* LLM Selection */}
         <div className="space-y-2">
           <Label htmlFor="llm-model" className="text-base font-medium lowercase">
-            llm model
+            LLM
           </Label>
           <p className="text-xs text-muted-foreground lowercase mb-1.5">
-            select the llm to use for this research
+            select the LLM to use for this research
           </p>
           <Select 
             value={selectedLLM} 
