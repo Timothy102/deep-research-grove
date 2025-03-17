@@ -33,6 +33,12 @@ interface ReasoningPathProps {
   rawData?: Record<string, string>;
 }
 
+interface FindingsListProps {
+  findings: Finding[];
+  nodeId?: string;
+  step?: string;
+}
+
 const getStepType = (step: string): { type: string; color: string; icon: React.ReactNode; label: string } => {
   const stepLower = step.toLowerCase();
   
@@ -421,11 +427,7 @@ const AllSourcesAndFindings = ({ sources = [], findings = [] }: { sources: strin
   );
 };
 
-const FindingsList = ({ findings = [], nodeId?: string, step?: string }: { 
-  findings: Finding[], 
-  nodeId?: string,
-  step?: string 
-}) => {
+const FindingsList = ({ findings = [], nodeId, step }: FindingsListProps) => {
   if (!findings || findings.length === 0) return null;
   
   return (
