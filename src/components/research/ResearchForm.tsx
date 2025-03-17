@@ -47,7 +47,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
   const [useCase, setUseCase] = useState("");
   const [userModels, setUserModels] = useState<UserModel[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>("");
-  const [selectedLLM, setSelectedLLM] = useState("claude-3.5-sonnet");
+  const [selectedLLM, setSelectedLLM] = useState("auto");
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [showExample, setShowExample] = useState(false);
 
@@ -215,7 +215,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
             onValueChange={setSelectedLLM}
           >
             <SelectTrigger id="llm-model" className="w-full">
-              <SelectValue placeholder="select an llm model" className="lowercase" />
+              <SelectValue placeholder="auto" className="lowercase" />
             </SelectTrigger>
             <SelectContent>
               {llmOptions.map(option => (
