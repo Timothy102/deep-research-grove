@@ -98,7 +98,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
   };
 
   const llmOptions = [
-    { value: "claude-3.5-sonnet", label: "claude 3.5 sonnet (auto)" },
+    { value: "claude-3.5-sonnet", label: "auto" },
     { value: "claude-3-opus", label: "claude 3 opus" },
     { value: "claude-3-haiku", label: "claude 3 haiku" },
     { value: "deepseek-coder", label: "deepseek coder" },
@@ -136,6 +136,10 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
           </div>
         </div>
         
+        <p className="text-xs text-muted-foreground lowercase mb-1.5">
+          enter a clear research question or objective you want to explore
+        </p>
+        
         <Textarea
           id="research-objective"
           placeholder="What do you want to research? Be specific about your objectives and desired outcomes."
@@ -144,9 +148,6 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
           className="min-h-24 resize-none"
           required
         />
-        <p className="text-xs text-muted-foreground mt-1 lowercase">
-          enter a clear research question or objective you want to explore
-        </p>
       </div>
 
       {/* Current Understanding Section */}
@@ -154,6 +155,9 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
         <Label htmlFor="current-understanding" className="text-base font-medium lowercase">
           current understanding
         </Label>
+        <p className="text-xs text-muted-foreground lowercase mb-1.5">
+          what do you already know about this topic? explain in 2-5 sentences
+        </p>
         <Textarea
           id="current-understanding"
           placeholder="What do you already know about this topic? Explain in 2-5 sentences."
@@ -161,9 +165,6 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
           onChange={(e) => setCurrentUnderstanding(e.target.value)}
           className="min-h-20 resize-none"
         />
-        <p className="text-xs text-muted-foreground mt-1 lowercase">
-          what do you already know about this topic? explain in 2-5 sentences
-        </p>
       </div>
 
       {/* Model Selection Section */}
@@ -172,6 +173,9 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
           <Label htmlFor="research-model" className="text-base font-medium lowercase">
             user model
           </Label>
+          <p className="text-xs text-muted-foreground lowercase mb-1.5">
+            choose your user model to guide the research approach
+          </p>
           <Select 
             value={selectedModelId || "custom"} 
             onValueChange={handleModelChange}
@@ -193,24 +197,6 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
               <SelectItem value="custom" className="lowercase">none (custom)</SelectItem>
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground mt-1 lowercase">
-            choose your user model to guide the research approach
-          </p>
-          
-          {selectedModelId && (
-            <div className="text-sm text-muted-foreground mt-1 bg-muted p-2 rounded lowercase">
-              {getSelectedModelDetails() && (
-                <>
-                  <span className="font-medium">model details: </span>
-                  {getSelectedModelDetails()?.domain}, {getSelectedModelDetails()?.expertise_level} level,{" "}
-                  {getSelectedModelDetails()?.cognitive_style} cognitive style
-                  {getSelectedModelDetails()?.included_sources && 
-                   getSelectedModelDetails()?.included_sources.length > 0 && 
-                   `, ${getSelectedModelDetails()?.included_sources.length} sources`}
-                </>
-              )}
-            </div>
-          )}
         </div>
         
         {/* LLM Model Selection */}
@@ -218,6 +204,9 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
           <Label htmlFor="llm-model" className="text-base font-medium lowercase">
             llm model
           </Label>
+          <p className="text-xs text-muted-foreground lowercase mb-1.5">
+            llm (default: auto)
+          </p>
           <Select 
             value={selectedLLM} 
             onValueChange={setSelectedLLM}
@@ -237,9 +226,6 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-muted-foreground mt-1 lowercase">
-            llm (default: auto which is claude-3.5-sonnet)
-          </p>
         </div>
       </div>
       

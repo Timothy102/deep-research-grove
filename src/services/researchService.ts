@@ -36,12 +36,16 @@ export async function saveResearchHistory(
       throw new Error("User not authenticated");
     }
     
+    // Ensure user_model_id is valid or null
+    const validatedEntry = {
+      ...entry,
+      user_id: userData.user.id,
+      user_model_id: entry.user_model_id || null
+    };
+    
     const { data, error } = await supabase
       .from("research_history")
-      .insert({
-        ...entry,
-        user_id: userData.user.id
-      })
+      .insert(validatedEntry)
       .select();
     
     if (error) {
