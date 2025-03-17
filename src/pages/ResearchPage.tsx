@@ -71,6 +71,7 @@ const ResearchPage = () => {
   const [expertiseLevel, setExpertiseLevel] = useState("");
   const [userContext, setUserContext] = useState("");
   const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("");
+  const [selectedLLM, setSelectedLLM] = useState("claude-3.5-sonnet");
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
@@ -282,7 +283,7 @@ const ResearchPage = () => {
           body: JSON.stringify({
             research_objective: query,
             user_model: userModelData,
-            model: "claude-3.5-sonnet",
+            model: selectedLLM,
             session_id: currentSessionIdRef.current,
             research_id: researchId,
             user_id: user?.id
@@ -703,7 +704,7 @@ const ResearchPage = () => {
         <div className="flex items-center space-x-2">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600"></div>
           <a href="/" className="no-underline">
-            <span className="font-display font-semibold text-xl">deepresearch</span>
+            <span className="font-display font-semibold text-xl lowercase">deepresearch</span>
           </a>
         </div>
         <div className="flex items-center space-x-4">
@@ -711,7 +712,7 @@ const ResearchPage = () => {
             variant="outline" 
             size="sm" 
             onClick={handleNewChat}
-            className="flex items-center gap-1"
+            className="flex items-center gap-1 lowercase"
           >
             <MessageSquarePlus className="h-4 w-4" />
             new chat
@@ -720,7 +721,7 @@ const ResearchPage = () => {
             variant="ghost" 
             size="sm" 
             onClick={() => navigate("/models")}
-            className="flex items-center gap-1"
+            className="flex items-center gap-1 lowercase"
           >
             <Brain className="h-4 w-4" />
             models
@@ -729,7 +730,7 @@ const ResearchPage = () => {
             variant="ghost" 
             size="sm" 
             onClick={() => navigate("/profile")}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 lowercase"
           >
             <User className="h-4 w-4" />
             profile
@@ -738,7 +739,7 @@ const ResearchPage = () => {
             variant="ghost" 
             size="sm" 
             onClick={handleLogout}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 lowercase"
           >
             <LogOut className="h-4 w-4" />
             logout
@@ -759,7 +760,7 @@ const ResearchPage = () => {
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-4xl mx-auto">
             <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold">deep research</h1>
+              <h1 className="text-2xl font-bold lowercase">deep research</h1>
               <Button
                 variant="ghost"
                 size="sm"

@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, HelpCircle } from "lucide-react";
+import { Loader2, HelpCircle, QuestionCircle } from "lucide-react";
 import { 
   Select, 
   SelectContent, 
@@ -34,6 +34,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
   const [useCase, setUseCase] = useState("");
   const [userModels, setUserModels] = useState<UserModel[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>("");
+  const [selectedLLM, setSelectedLLM] = useState("claude-3.5-sonnet");
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [showExample, setShowExample] = useState(false);
 
@@ -83,14 +84,23 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
     setSelectedModelId(value === "custom" ? "" : value);
   };
 
+  const llmOptions = [
+    { value: "claude-3.5-sonnet", label: "claude 3.5 sonnet" },
+    { value: "claude-3-opus", label: "claude 3 opus" },
+    { value: "claude-3-haiku", label: "claude 3 haiku" },
+    { value: "deepseek-coder", label: "deepseek coder" },
+    { value: "mixtral-8x7b", label: "mixtral 8x7b" },
+    { value: "llama-3", label: "llama 3" }
+  ];
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Research Objective Section */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Label htmlFor="research-objective" className="text-base font-semibold">
-              Research Objective
+            <Label htmlFor="research-objective" className="text-base font-medium lowercase">
+              research objective
             </Label>
             <TooltipProvider>
               <Tooltip>
@@ -106,7 +116,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Click to see an example research objective</p>
+                  <p className="lowercase">click to see an example research objective</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -116,9 +126,9 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
             variant="ghost"
             size="sm"
             onClick={() => setShowExample(!showExample)}
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="text-sm text-muted-foreground hover:text-foreground lowercase"
           >
-            {showExample ? "Hide Example" : "Show Example"}
+            {showExample ? "hide example" : "show example"}
           </Button>
         </div>
         
@@ -140,8 +150,8 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
 
       {/* Current Understanding Section */}
       <div className="space-y-2">
-        <Label htmlFor="current-understanding" className="text-base font-semibold">
-          Current Understanding
+        <Label htmlFor="current-understanding" className="text-base font-medium lowercase">
+          current understanding
         </Label>
         <Textarea
           id="current-understanding"
@@ -152,87 +162,88 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
         />
       </div>
 
-      {/* Research Configuration Section */}
-      <div className="space-y-4 rounded-lg border p-4">
-        <h3 className="font-semibold">Research Configuration</h3>
-        
-        {userModels.length > 0 && (
-          <div className="space-y-2">
-            <Label htmlFor="model-select">Research Model</Label>
-            <Select 
-              value={selectedModelId || "custom"} 
-              onValueChange={handleModelChange}
-              disabled={isLoadingModels}
-            >
-              <SelectTrigger id="model-select" className="w-full">
-                <SelectValue placeholder="Select a research model" />
-              </SelectTrigger>
-              <SelectContent>
-                {userModels.map(model => (
-                  <SelectItem 
-                    key={model.id} 
-                    value={model.id || `model-${Date.now()}`}
-                    className="truncate"
-                  >
-                    {model.name} {model.is_default ? "(Default)" : ""}
-                  </SelectItem>
-                ))}
-                <SelectItem value="custom">None (Custom)</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {selectedModelId && (
-              <div className="text-sm text-muted-foreground mt-1 bg-muted p-2 rounded">
-                {getSelectedModelDetails() && (
-                  <>
-                    <span className="font-medium">Model details: </span>
-                    {getSelectedModelDetails()?.domain}, {getSelectedModelDetails()?.expertise_level} level,{" "}
-                    {getSelectedModelDetails()?.cognitive_style} cognitive style
-                    {getSelectedModelDetails()?.included_sources && 
-                     getSelectedModelDetails()?.included_sources.length > 0 && 
-                     `, ${getSelectedModelDetails()?.included_sources.length} sources`}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-        
-        {!selectedModelId && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="user-model">User Profile</Label>
-              <Input
-                id="user-model"
-                placeholder="e.g. entrepreneur, researcher"
-                value={userModel}
-                onChange={(e) => setUserModel(e.target.value)}
-              />
+      {/* Model Selection Section */}
+      <div className="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="research-model" className="text-base font-medium lowercase">
+            research model
+          </Label>
+          <Select 
+            value={selectedModelId || "custom"} 
+            onValueChange={handleModelChange}
+            disabled={isLoadingModels}
+          >
+            <SelectTrigger id="research-model" className="w-full">
+              <SelectValue placeholder="select a research model" className="lowercase" />
+            </SelectTrigger>
+            <SelectContent>
+              {userModels.map(model => (
+                <SelectItem 
+                  key={model.id} 
+                  value={model.id || `model-${Date.now()}`}
+                  className="lowercase whitespace-normal"
+                >
+                  {model.name?.toLowerCase()} {model.is_default ? "(default)" : ""}
+                </SelectItem>
+              ))}
+              <SelectItem value="custom" className="lowercase">none (custom)</SelectItem>
+            </SelectContent>
+          </Select>
+          
+          {selectedModelId && (
+            <div className="text-sm text-muted-foreground mt-1 bg-muted p-2 rounded lowercase">
+              {getSelectedModelDetails() && (
+                <>
+                  <span className="font-medium">model details: </span>
+                  {getSelectedModelDetails()?.domain}, {getSelectedModelDetails()?.expertise_level} level,{" "}
+                  {getSelectedModelDetails()?.cognitive_style} cognitive style
+                  {getSelectedModelDetails()?.included_sources && 
+                   getSelectedModelDetails()?.included_sources.length > 0 && 
+                   `, ${getSelectedModelDetails()?.included_sources.length} sources`}
+                </>
+              )}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="use-case">Use Case</Label>
-              <Input
-                id="use-case"
-                placeholder="e.g. market research, academic"
-                value={useCase}
-                onChange={(e) => setUseCase(e.target.value)}
-              />
-            </div>
-          </div>
-        )}
+          )}
+        </div>
+        
+        {/* LLM Model Selection */}
+        <div className="space-y-2">
+          <Label htmlFor="llm-model" className="text-base font-medium lowercase">
+            llm model
+          </Label>
+          <Select 
+            value={selectedLLM} 
+            onValueChange={setSelectedLLM}
+          >
+            <SelectTrigger id="llm-model" className="w-full">
+              <SelectValue placeholder="select an llm model" className="lowercase" />
+            </SelectTrigger>
+            <SelectContent>
+              {llmOptions.map(option => (
+                <SelectItem 
+                  key={option.value} 
+                  value={option.value}
+                  className="lowercase"
+                >
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       
       <Button 
         type="submit" 
-        className="w-full transition-all duration-300 hover:scale-[1.02]" 
+        className="w-full transition-all duration-300 hover:scale-[1.02] lowercase" 
         disabled={isLoading || !query.trim()}
       >
         {isLoading ? (
           <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Researching...
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> researching...
           </>
         ) : (
-          "Start Research"
+          "start research"
         )}
       </Button>
     </form>
