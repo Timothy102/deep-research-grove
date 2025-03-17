@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Search, CheckCircle2, ArrowRight, Clock, BrainCircuit, Book, Lightbulb, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -27,55 +28,56 @@ interface ReasoningPathProps {
   isLoading?: boolean;
 }
 
+// This function now returns consistent colors for each step type, ensuring persistence
 const getStepType = (step: string): { type: string; color: string; icon: React.ReactNode; label: string } => {
   const stepLower = step.toLowerCase();
   
   if (stepLower.includes("search") || stepLower.includes("looking up")) {
     return { 
       type: "searching", 
-      color: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-300 border-violet-200 dark:border-violet-800", 
+      color: "bg-violet-100 text-violet-800 dark:bg-violet-900/80 dark:text-violet-300 border-violet-300 dark:border-violet-700", 
       icon: <Search className="h-4 w-4 text-violet-600 dark:text-violet-400" />,
       label: "searching"
     };
   } else if (stepLower.includes("reason") || stepLower.includes("analyz") || stepLower.includes("evaluat") || stepLower.includes("compar")) {
     return { 
       type: "reasoning", 
-      color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300 border-amber-200 dark:border-amber-800", 
+      color: "bg-amber-100 text-amber-800 dark:bg-amber-900/80 dark:text-amber-300 border-amber-300 dark:border-amber-700", 
       icon: <BrainCircuit className="h-4 w-4 text-amber-600 dark:text-amber-400" />,
       label: "reasoning"
     };
   } else if (stepLower.includes("synthe") || stepLower.includes("combin") || stepLower.includes("integrat") || stepLower.includes("summar")) {
     return { 
       type: "synthesizing", 
-      color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800", 
+      color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/80 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700", 
       icon: <Lightbulb className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />,
       label: "synthesizing"
     };
   } else if (stepLower.includes("read") || stepLower.includes("review")) {
     return { 
       type: "reading", 
-      color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 border-blue-200 dark:border-blue-800", 
+      color: "bg-blue-100 text-blue-800 dark:bg-blue-900/80 dark:text-blue-300 border-blue-300 dark:border-blue-700", 
       icon: <Book className="h-4 w-4 text-blue-600 dark:text-blue-400" />,
       label: "reading"
     };
   } else if (stepLower.includes("objective")) {
     return { 
       type: "objective", 
-      color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800", 
+      color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/80 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700", 
       icon: <CheckCircle2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />,
       label: "setting objective"
     };
   } else if (stepLower.includes("planning") || stepLower.includes("starting")) {
     return { 
       type: "planning", 
-      color: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-300 border-sky-200 dark:border-sky-800", 
+      color: "bg-sky-100 text-sky-800 dark:bg-sky-900/80 dark:text-sky-300 border-sky-300 dark:border-sky-700", 
       icon: <Clock className="h-4 w-4 text-sky-600 dark:text-sky-400" />,
       label: "planning"
     };
   } else {
     return { 
       type: "step", 
-      color: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700", 
+      color: "bg-gray-100 text-gray-800 dark:bg-gray-800/90 dark:text-gray-300 border-gray-300 dark:border-gray-700", 
       icon: <ArrowRight className="h-4 w-4" />,
       label: "processing"
     };
@@ -362,7 +364,9 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
       <div 
         className={cn(
           "flex items-start space-x-2 p-3 rounded-md border transition-all duration-200",
-          expanded ? `shadow-sm border-l-4 ${color.split(' ')[0]}` : "hover:bg-gray-50 dark:hover:bg-gray-900"
+          expanded 
+            ? `shadow-sm border-l-4 ${color.split(' ')[0]}` 
+            : `border-l-4 ${color.split(' ')[0]} hover:bg-gray-50 dark:hover:bg-gray-900/30`
         )}
         role="button"
         onClick={() => setExpanded(!expanded)}
