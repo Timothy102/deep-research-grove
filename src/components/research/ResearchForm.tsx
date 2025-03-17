@@ -98,12 +98,15 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
   };
 
   const llmOptions = [
-    { value: "claude-3.5-sonnet", label: "auto" },
-    { value: "claude-3-opus", label: "claude 3 opus" },
-    { value: "claude-3-haiku", label: "claude 3 haiku" },
-    { value: "deepseek-coder", label: "deepseek coder" },
-    { value: "mixtral-8x7b", label: "mixtral 8x7b" },
-    { value: "llama-3", label: "llama 3" }
+    { value: "auto", label: "auto (default)" },
+    { value: "o3-mini", label: "o3-mini" },
+    { value: "o1", label: "o1" },
+    { value: "gpt4-turbo", label: "gpt4-turbo" },
+    { value: "claude-3.5-sonnet", label: "claude-3.5-sonnet" },
+    { value: "gemini-2.0-flash-lite-preview-02-05", label: "gemini-2.0-flash-lite" },
+    { value: "gemini-2.0-flash", label: "gemini-2.0-flash" },
+    { value: "gemini-2.0-flash-thinking-exp-01-21", label: "gemini-2.0-flash-thinking" },
+    { value: "deepseek-ai/DeepSeek-R1", label: "deepseek-r1" }
   ];
 
   return (
@@ -205,7 +208,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
             llm model
           </Label>
           <p className="text-xs text-muted-foreground lowercase mb-1.5">
-            llm (default: auto)
+            select the llm to use for this research
           </p>
           <Select 
             value={selectedLLM} 
