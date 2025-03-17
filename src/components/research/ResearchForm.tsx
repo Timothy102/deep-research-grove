@@ -170,8 +170,9 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
         />
       </div>
 
-      {/* Model Selection Section */}
-      <div className="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Model Selection Grid - Two Columns Side by Side */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* User Model Selection */}
         <div className="space-y-2">
           <Label htmlFor="research-model" className="text-base font-medium lowercase">
             user model
