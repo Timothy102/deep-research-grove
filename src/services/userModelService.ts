@@ -20,6 +20,32 @@ export interface UserModel {
   updated_at?: string;
 }
 
+// Helper function to parse JSON safely
+const parseJson = <T>(jsonString: string | null | undefined, fallback: T): T => {
+  if (!jsonString) return fallback;
+  try {
+    return JSON.parse(jsonString) as T;
+  } catch (e) {
+    console.error("Error parsing JSON:", e);
+    return fallback;
+  }
+};
+
+// Helper function to parse a UserModel from the database
+const parseUserModel = (data: any): UserModel => {
+  if (!data) return {} as UserModel;
+  
+  return {
+    ...data,
+    // Ensure source_priorities is properly parsed from JSON if it's a string
+    source_priorities: typeof data.source_priorities === 'string' 
+      ? parseJson<UserModelSourcePriority[]>(data.source_priorities, [])
+      : data.source_priorities || [],
+    // Ensure included_sources is always an array
+    included_sources: data.included_sources || []
+  };
+};
+
 export async function createUserModel(model: Omit<UserModel, 'user_id'>): Promise<UserModel | null> {
   const { data: user } = await supabase.auth.getUser();
   
@@ -40,7 +66,7 @@ export async function createUserModel(model: Omit<UserModel, 'user_id'>): Promis
     throw error;
   }
   
-  return data && data.length > 0 ? data[0] : null;
+  return data && data.length > 0 ? parseUserModel(data[0]) : null;
 }
 
 export async function getUserModels(): Promise<UserModel[]> {
@@ -61,7 +87,7 @@ export async function getUserModels(): Promise<UserModel[]> {
     throw error;
   }
   
-  return data || [];
+  return (data || []).map(model => parseUserModel(model));
 }
 
 export async function getUserModelById(id: string): Promise<UserModel | null> {
@@ -83,7 +109,7 @@ export async function getUserModelById(id: string): Promise<UserModel | null> {
     throw error;
   }
   
-  return data;
+  return data ? parseUserModel(data) : null;
 }
 
 export async function updateUserModel(id: string, updates: Partial<UserModel>): Promise<UserModel | null> {
@@ -105,7 +131,7 @@ export async function updateUserModel(id: string, updates: Partial<UserModel>): 
     throw error;
   }
   
-  return data && data.length > 0 ? data[0] : null;
+  return data && data.length > 0 ? parseUserModel(data[0]) : null;
 }
 
 export async function deleteUserModel(id: string): Promise<void> {
@@ -177,7 +203,7 @@ export async function getDefaultUserModel(): Promise<UserModel | null> {
     throw error;
   }
   
-  return data;
+  return data ? parseUserModel(data) : null;
 }
 
 export async function updateUserOnboardingStatus(completed: boolean): Promise<void> {

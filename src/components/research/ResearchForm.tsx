@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +23,7 @@ import {
 const exampleObjective = `I was always interested as to why life needs to exist. Which biological/thermodynamical processes were in play that explain why we need to survive? My objective comes from curiosity, I'd love to understand the fundamentals behind this research objective. Feel free to synthesize more than one theory.`;
 
 type ResearchFormProps = {
-  onSubmit: (query: string, userModel: string, useCase: string, selectedModelId?: string) => void;
+  onSubmit: (query: string, userModel: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => void;
   isLoading: boolean;
 };
 
@@ -62,7 +63,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
-    onSubmit(query, userModel, useCase, selectedModelId);
+    onSubmit(query, userModel, useCase, selectedModelId, currentUnderstanding);
   };
 
   const getSelectedModelDetails = () => {
@@ -151,7 +152,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
         />
       </div>
 
-      {/* Model Selection Section */}
+      {/* Research Configuration Section */}
       <div className="space-y-4 rounded-lg border p-4">
         <h3 className="font-semibold">Research Configuration</h3>
         
@@ -171,6 +172,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
                   <SelectItem 
                     key={model.id} 
                     value={model.id || `model-${Date.now()}`}
+                    className="truncate"
                   >
                     {model.name} {model.is_default ? "(Default)" : ""}
                   </SelectItem>
@@ -184,7 +186,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
                 {getSelectedModelDetails() && (
                   <>
                     <span className="font-medium">Model details: </span>
-                    {getSelectedModelDetails()?.domain}, {getSelectedModelDetails()?.expertise_level} level,
+                    {getSelectedModelDetails()?.domain}, {getSelectedModelDetails()?.expertise_level} level,{" "}
                     {getSelectedModelDetails()?.cognitive_style} cognitive style
                     {getSelectedModelDetails()?.included_sources && 
                      getSelectedModelDetails()?.included_sources.length > 0 && 

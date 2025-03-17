@@ -50,23 +50,6 @@ interface Finding {
   content?: string;
 }
 
-const cognitiveStyles = [
-  { id: "systematic", label: "systematic" },
-  { id: "general", label: "general" },
-  { id: "first-principles", label: "first-principles" },
-  { id: "creative", label: "creative" },
-  { id: "practical", label: "practical applier" },
-];
-
-const expertiseLevels = [
-  "beginner",
-  "intermediate",
-  "advanced",
-  "expert"
-];
-
-const exampleObjective = `I was always interested as to why life needs to exist. Which biological/thermodynamical processes were in play for why we need to survive? My objective comes from curiosity, I'd love to understand the fundamentals behind this research objective. Feel free to synthesize more than one theory.`;
-
 const ResearchPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -186,7 +169,7 @@ const ResearchPage = () => {
     }
   };
 
-  const handleResearch = async (query: string, userModelText: string, useCase: string, selectedModelId?: string) => {
+  const handleResearch = async (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => {
     if (!query.trim()) {
       uiToast({
         title: "objective required",
@@ -219,7 +202,8 @@ const ResearchPage = () => {
               included_sources: model.included_sources || [],
               source_priorities: model.source_priorities || [],
               session_id: currentSessionIdRef.current,
-              model_id: model.id
+              model_id: model.id,
+              currentUnderstanding: currentUnderstanding
             };
           }
         } catch (err) {
@@ -229,7 +213,8 @@ const ResearchPage = () => {
             name: user?.email || "anonymous",
             userModel: userModelText,
             useCase: useCase,
-            session_id: currentSessionIdRef.current
+            session_id: currentSessionIdRef.current,
+            currentUnderstanding: currentUnderstanding
           };
         }
       } else {
@@ -238,7 +223,8 @@ const ResearchPage = () => {
           name: user?.email || "anonymous",
           userModel: userModelText,
           useCase: useCase,
-          session_id: currentSessionIdRef.current
+          session_id: currentSessionIdRef.current,
+          currentUnderstanding: currentUnderstanding
         };
       }
       
