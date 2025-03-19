@@ -1,14 +1,27 @@
+
 import { useState, useEffect } from "react";
 import { ResearchForm } from "./ResearchForm";
 import ReasoningPath from "./ReasoningPath";
 import ResearchOutput from "./ResearchOutput";
 import SourcesList from "./SourcesList";
 import { NodeExplorationGraph } from "./NodeExplorationGraph";
-import ResearchResults from "./ResearchResults"; // Changed from named import to default import
+import ResearchResults from "./ResearchResults"; 
 import ResearchHistorySidebar from "./ResearchHistorySidebar";
 import { ProgressIndicator } from "./ProgressIndicator";
 import HumanApprovalDialog from "./HumanApprovalDialog";
 import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarProvider,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+import { ChevronLeft, ChevronRight, LayoutGrid, List, Network } from "lucide-react";
 
 // Define the interface for research session state and events
 interface ResearchSessionState {
@@ -55,7 +68,7 @@ const researchService = {
 };
 
 export const ResearchContainer = () => {
-  const [showSidebar, setShowSidebar] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [currentStage, setCurrentStage] = useState<string | undefined>();
   const [events, setEvents] = useState<string[]>([]);
@@ -132,17 +145,28 @@ export const ResearchContainer = () => {
 
   return (
     <div className="relative flex h-full">
-      {showSidebar && (
-        <div className="w-80 border-r border-border">
-          <ResearchHistorySidebar 
-            history={[]} 
-            onHistoryItemClick={() => {}} 
-          />
-        </div>
-      )}
+      {/* History Sidebar - Left side */}
+      <div className={`${showSidebar ? 'w-80' : 'w-0'} border-r border-border transition-all duration-300 overflow-hidden`}>
+        <ResearchHistorySidebar 
+          history={[]} 
+          onHistoryItemClick={() => {}} 
+        />
+      </div>
       
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="p-4 border-b">
+          <div className="flex items-center gap-2 mb-2">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setShowSidebar(!showSidebar)}
+              className="h-8 w-8"
+            >
+              {showSidebar ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </Button>
+            <h1 className="text-xl font-semibold">Research Agent</h1>
+          </div>
+          
           <ResearchForm 
             onSubmit={handleResearchSubmit} 
             isLoading={isLoading}
@@ -174,35 +198,60 @@ export const ResearchContainer = () => {
                   <ResearchResults result={mockResult} />
                 </div>
               ) : (
-                <div className="grid grid-cols-4 gap-4 p-4 h-full">
-                  <div className="col-span-1 border rounded-md p-4 overflow-auto">
-                    <h3 className="font-medium text-lg mb-4">Research Path</h3>
-                    <ReasoningPath 
-                      reasoningPath={[]} 
-                      sources={[]} 
-                      findings={[]} 
-                    />
+                <div className="flex h-full">
+                  {/* Main Content - Node Exploration */}
+                  <div className="flex-1 p-4 h-full">
+                    <div className="border rounded-md p-4 h-full">
+                      <h3 className="font-medium text-lg mb-4">Node Exploration</h3>
+                      <NodeExplorationGraph researchEvents={researchEvents} />
+                    </div>
                   </div>
                   
-                  <div className="col-span-1 border rounded-md p-4 overflow-auto">
-                    <h3 className="font-medium text-lg mb-4">Sources</h3>
-                    <SourcesList 
-                      sources={[]} 
-                      findings={[]}
-                    />
-                  </div>
-                  
-                  <div className="col-span-1 border rounded-md p-4 overflow-auto">
-                    <h3 className="font-medium text-lg mb-4">Results</h3>
-                    <ResearchOutput 
-                      output=""
-                      isLoading={false}
-                    />
-                  </div>
-                  
-                  <div className="col-span-1 border rounded-md p-4 overflow-auto">
-                    <h3 className="font-medium text-lg mb-4">Node Exploration</h3>
-                    <NodeExplorationGraph researchEvents={researchEvents} />
+                  {/* Right Sidebar - Research Path, Sources, Results */}
+                  <div className="w-80 border-l border-border">
+                    <div className="h-full flex flex-col">
+                      <div className="p-3 border-b border-border">
+                        <h3 className="font-medium">Research Path</h3>
+                        <div className="max-h-[250px] overflow-auto mt-2">
+                          <ReasoningPath 
+                            reasoningPath={[]} 
+                            sources={[]} 
+                            findings={[]} 
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="p-3 border-b border-border">
+                        <h3 className="font-medium">Sources</h3>
+                        <div className="max-h-[250px] overflow-auto mt-2">
+                          <SourcesList 
+                            sources={[]} 
+                            findings={[]}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="p-3 border-b border-border flex-1">
+                        <h3 className="font-medium">Results</h3>
+                        <div className="max-h-[250px] overflow-auto mt-2">
+                          <ResearchOutput 
+                            output=""
+                            isLoading={false}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="p-2 border-t border-border">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full text-xs"
+                          onClick={() => setShowFullResults(true)}
+                        >
+                          View Full Report
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
