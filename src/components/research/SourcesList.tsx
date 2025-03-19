@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { ExternalLink, Globe, Search, BookOpen, FileText, ChevronRight, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,7 @@ import { cn } from "@/lib/utils";
 interface Finding {
   source: string;
   content?: string;
+  finding?: any;
 }
 
 interface SourcesListProps {
@@ -53,13 +55,17 @@ const getDomainIcon = (url: string) => {
 };
 
 // Expandable source item component
-const SourceItem = ({ url, content, isFinding, index }: { 
+const SourceItem = ({ url, content, isFinding, index, finding }: { 
   url: string; 
   content?: string; 
   isFinding: boolean;
   index: number;
+  finding?: any;
 }) => {
   const [expanded, setExpanded] = useState(isFinding);
+  
+  // Determine display content - either directly from content or from finding object
+  const displayContent = content || (finding && `Title: ${finding.title || ''}\nSummary: ${finding.summary || ''}\nConfidence: ${finding.confidence_score?.toFixed(2) || 'N/A'}`);
   
   return (
     <div 
@@ -129,10 +135,10 @@ const SourceItem = ({ url, content, isFinding, index }: {
       
       {expanded && (
         <div className="mt-2 ml-8 animate-accordion-down">
-          {content ? (
+          {displayContent ? (
             <div className="text-sm text-muted-foreground bg-muted-foreground/5 p-3 rounded border border-muted-foreground/10">
-              <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-headings:my-2">
-                {content}
+              <div className="prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-headings:my-2 whitespace-pre-wrap">
+                {displayContent}
               </div>
             </div>
           ) : (
@@ -156,8 +162,8 @@ const SourceItem = ({ url, content, isFinding, index }: {
 };
 
 // Group sources by domain
-const groupSourcesByDomain = (allSources: Array<{ url: string; content?: string; isFinding: boolean }>) => {
-  const domains = new Map<string, Array<{ url: string; content?: string; isFinding: boolean; index: number }>>();
+const groupSourcesByDomain = (allSources: Array<{ url: string; content?: string; isFinding: boolean; finding?: any }>) => {
+  const domains = new Map<string, Array<{ url: string; content?: string; isFinding: boolean; finding?: any; index: number }>>();
   
   allSources.forEach((source, index) => {
     try {
@@ -182,14 +188,15 @@ const SourcesList = ({ sources, findings = [] }: SourcesListProps) => {
   const [groupByDomain, setGroupByDomain] = useState(false);
   
   // Combine sources and findings, prioritizing findings
-  const allSources: Array<{ url: string; content?: string; isFinding: boolean }> = [];
+  const allSources: Array<{ url: string; content?: string; isFinding: boolean; finding?: any }> = [];
   
   // Add findings first
   findings.forEach(finding => {
     allSources.push({
       url: finding.source,
       content: finding.content,
-      isFinding: true
+      isFinding: true,
+      finding: finding.finding
     });
   });
   
@@ -215,6 +222,7 @@ const SourcesList = ({ sources, findings = [] }: SourcesListProps) => {
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-lg font-medium">
           {allSources.length} sources found
+          {findings.length > 0 && ` (including ${findings.length} findings)`}
         </h3>
         <Button 
           variant="outline" 
@@ -244,6 +252,7 @@ const SourcesList = ({ sources, findings = [] }: SourcesListProps) => {
                     content={item.content} 
                     isFinding={item.isFinding}
                     index={item.index}
+                    finding={item.finding}
                   />
                 ))}
               </div>
@@ -260,6 +269,7 @@ const SourcesList = ({ sources, findings = [] }: SourcesListProps) => {
               content={source.content} 
               isFinding={source.isFinding}
               index={index}
+              finding={source.finding}
             />
           ))}
         </div>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Search, CheckCircle2, ArrowRight, Clock, BrainCircuit, Book, Lightbulb, FileText, Database, Code } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +14,12 @@ interface Finding {
   query?: string;
   raw_data?: string;
   finding?: any;
+}
+
+interface FindingsListProps {
+  findings: Finding[];
+  nodeId?: string;
+  step?: string;
 }
 
 interface ReasoningStepProps {
@@ -585,6 +592,9 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
     }
   }, [isSearchStep, hasFindingsForStep, findings.length, isActive, index, sources.length]);
 
+  // Display findings inline with the reasoning step
+  const showInlineFindings = isSearchStep && hasFindingsForStep;
+
   return (
     <div className="mb-3 animate-fade-in">
       <div 
@@ -649,6 +659,23 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
           </div>
           
           <p className="text-sm">{formattedStep}</p>
+
+          {/* Inline findings preview - show always regardless of expansion state */}
+          {showInlineFindings && (
+            <div className="mt-2 space-y-1 border-l-2 border-blue-200 dark:border-blue-800 pl-2">
+              {relevantFindings.slice(0, 1).map((finding, idx) => (
+                <div key={idx} className="text-xs text-blue-700 dark:text-blue-300 bg-blue-50/50 dark:bg-blue-950/20 p-1.5 rounded">
+                  <div className="font-medium">{finding.finding?.title || 'Finding'}</div>
+                  <div className="line-clamp-1">{finding.finding?.summary}</div>
+                </div>
+              ))}
+              {relevantFindings.length > 1 && (
+                <div className="text-xs text-blue-600 dark:text-blue-400">
+                  + {relevantFindings.length - 1} more finding{relevantFindings.length > 2 ? 's' : ''}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
       
