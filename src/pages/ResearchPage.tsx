@@ -3,7 +3,7 @@ import { ResearchContainer } from "@/components/research/ResearchContainer";
 
 const ResearchPage = () => {
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen bg-background flex flex-col">
       <ResearchContainer />
     </div>
   );

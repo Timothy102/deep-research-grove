@@ -10,7 +10,7 @@ import ResearchHistorySidebar from "./ResearchHistorySidebar";
 import { ProgressIndicator } from "./ProgressIndicator";
 import HumanApprovalDialog from "./HumanApprovalDialog";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, History } from "lucide-react";
 
 // Define the interface for research session state and events
 interface ResearchSessionState {
@@ -131,9 +131,9 @@ export const ResearchContainer = () => {
   } : null;
 
   return (
-    <div className="relative flex h-full">
+    <div className="flex h-full">
       {/* History Sidebar - Left side */}
-      <div className={`${showSidebar ? 'w-64' : 'w-0'} border-r border-border transition-all duration-300 overflow-hidden`}>
+      <div className={`${showSidebar ? 'w-[365px]' : 'w-0'} border-r border-border transition-all duration-300 overflow-hidden h-full bg-background`}>
         <div className="p-4 border-b">
           <h2 className="text-lg font-medium">Research History</h2>
         </div>
@@ -143,7 +143,9 @@ export const ResearchContainer = () => {
         />
       </div>
       
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Header with toggle button and title */}
         <div className="p-4 border-b flex items-center">
           <Button 
             variant="ghost" 
@@ -156,6 +158,7 @@ export const ResearchContainer = () => {
           <h1 className="text-xl font-semibold">Research Agent</h1>
         </div>
         
+        {/* Content Area with Form and Research Results */}
         <div className="flex-1 p-4 overflow-auto">
           {/* Research Form */}
           <div className="mb-6">
@@ -165,6 +168,7 @@ export const ResearchContainer = () => {
             />
           </div>
           
+          {/* Progress Indicator (only visible when loading) */}
           {isLoading && (
             <div className="mb-6">
               <ProgressIndicator 
@@ -175,9 +179,10 @@ export const ResearchContainer = () => {
             </div>
           )}
           
+          {/* Research Results (only visible when a session exists and not loading) */}
           {session && !isLoading && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Node Exploration */}
+              {/* Node Exploration Graph */}
               <div className="md:col-span-2 border rounded-md p-4">
                 <h3 className="font-medium text-lg mb-4">Node Exploration</h3>
                 <div className="h-[400px]">
@@ -185,7 +190,7 @@ export const ResearchContainer = () => {
                 </div>
               </div>
               
-              {/* Right column with Research Path and Sources */}
+              {/* Right column with Research Path, Sources, and Results */}
               <div className="md:col-span-1 space-y-4">
                 {/* Research Path */}
                 <div className="border rounded-md p-4">
@@ -220,6 +225,7 @@ export const ResearchContainer = () => {
         </div>
       </div>
       
+      {/* Human Approval Dialog */}
       <HumanApprovalDialog
         isOpen={showHumanDialog}
         onClose={() => setShowHumanDialog(false)}
