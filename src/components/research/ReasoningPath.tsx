@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Search, CheckCircle2, ArrowRight, Clock, BrainCircuit, Book, Lightbulb, FileText, Database, Code } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ interface Finding {
   node_id?: string;
   query?: string;
   raw_data?: string;
+  finding?: any;
 }
 
 interface ReasoningStepProps {
@@ -272,13 +273,22 @@ const extractDomain = (url: string): string => {
   }
 };
 
-const SourceItem = ({ source, content, sourceIndex, isFinding }: { 
+const SourceItem = ({ source, content, sourceIndex, isFinding, finding }: { 
   source: string; 
   content?: string; 
   sourceIndex: number;
   isFinding: boolean;
+  finding?: any;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  useEffect(() => {
+    if (finding && (finding.title || finding.summary)) {
+      setIsExpanded(true);
+    }
+  }, [finding]);
+  
+  const displayContent = content || (finding && `Title: ${finding.title || ''}\nSummary: ${finding.summary || ''}\nConfidence: ${finding.confidence_score?.toFixed(2) || 'N/A'}`);
   
   return (
     <div 
@@ -291,7 +301,7 @@ const SourceItem = ({ source, content, sourceIndex, isFinding }: {
     >
       <div 
         className="flex items-center gap-2 p-2 cursor-pointer"
-        onClick={() => content && setIsExpanded(!isExpanded)}
+        onClick={() => displayContent && setIsExpanded(!isExpanded)}
       >
         <span className={cn(
           "inline-block w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0",
@@ -322,7 +332,7 @@ const SourceItem = ({ source, content, sourceIndex, isFinding }: {
         </div>
         
         <div className="flex items-center gap-1">
-          {content && (
+          {displayContent && (
             <Button
               variant="ghost"
               size="sm"
@@ -348,10 +358,10 @@ const SourceItem = ({ source, content, sourceIndex, isFinding }: {
         </div>
       </div>
       
-      {isExpanded && content && (
+      {isExpanded && displayContent && (
         <div className="px-2 pb-2 pt-1 ml-7 animate-accordion-down">
-          <div className="text-xs text-muted-foreground bg-background p-2 rounded border text-left">
-            {content}
+          <div className="text-xs text-muted-foreground bg-background p-2 rounded border text-left whitespace-pre-wrap">
+            {displayContent}
           </div>
         </div>
       )}
@@ -397,6 +407,7 @@ const AllSourcesAndFindings = ({ sources = [], findings = [] }: { sources: strin
                     content={finding.content}
                     sourceIndex={index + 1}
                     isFinding={true}
+                    finding={finding.finding}
                   />
                 ))}
               </div>
@@ -445,6 +456,7 @@ const FindingsList = ({ findings = [], nodeId, step }: FindingsListProps) => {
               content={finding.content}
               sourceIndex={idx + 1}
               isFinding={true}
+              finding={finding.finding}
             />
           ))}
         </div>
@@ -476,9 +488,11 @@ const FindingsContent = ({ findings }: { findings: Finding[] }) => {
                 <ExternalLink className="h-3 w-3 ml-1" />
               </a>
             </div>
-            {finding.content && (
-              <div className="text-sm text-muted-foreground bg-white/80 dark:bg-gray-900/50 p-2 rounded border border-blue-100 dark:border-blue-900 mt-1">
-                {finding.content}
+            {(finding.content || finding.finding) && (
+              <div className="text-sm text-muted-foreground bg-white/80 dark:bg-gray-900/50 p-2 rounded border border-blue-100 dark:border-blue-900 mt-1 whitespace-pre-wrap">
+                {finding.content || (finding.finding && 
+                  `Title: ${finding.finding.title || ''}\nSummary: ${finding.finding.summary || ''}\nConfidence: ${finding.finding.confidence_score?.toFixed(2) || 'N/A'}`
+                )}
               </div>
             )}
           </CardContent>
@@ -564,6 +578,12 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
   const isLastStep = isActive && index === sources.length - 1;
 
   const isSearchStep = type === "searching";
+
+  useEffect(() => {
+    if (isSearchStep && hasFindingsForStep && !expanded) {
+      setExpanded(true);
+    }
+  }, [isSearchStep, hasFindingsForStep, findings.length]);
 
   return (
     <div className="mb-3 animate-fade-in">
@@ -715,3 +735,4 @@ const ReasoningPath = ({ reasoningPath, sources = [], findings = [], isActive = 
 };
 
 export default ReasoningPath;
+

@@ -50,6 +50,7 @@ interface Finding {
   content?: string;
   node_id?: string;
   query?: string;
+  finding?: any;
 }
 
 const ResearchPage = () => {
@@ -378,7 +379,8 @@ const ResearchPage = () => {
                     source: data.data.source || "",
                     content: data.data.content || undefined,
                     node_id: data.data.node_id || undefined,
-                    query: data.data.query || undefined
+                    query: data.data.query || undefined,
+                    finding: data.data.finding || undefined
                   };
                   
                   console.log(`[${new Date().toISOString()}] 📑 Received finding:`, finding);
@@ -898,3 +900,4 @@ const ResearchPage = () => {
 };
 
 export default ResearchPage;
+

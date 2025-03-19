@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Copy, CheckCircle2, Loader2 } from "lucide-react";
+import { Copy, CheckCircle2, Loader2, Code } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ResearchOutputProps {
@@ -11,13 +11,14 @@ interface ResearchOutputProps {
 
 const ResearchOutput = ({ output, isLoading = false, rawFindings }: ResearchOutputProps) => {
   const [copied, setCopied] = useState(false);
+  const [copiedRawFindings, setCopiedRawFindings] = useState(false);
   const [showRawFindings, setShowRawFindings] = useState(false);
   
-  const copyToClipboard = async () => {
+  const copyToClipboard = async (text: string, setCopiedState: (copied: boolean) => void) => {
     try {
-      await navigator.clipboard.writeText(output);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(text);
+      setCopiedState(true);
+      setTimeout(() => setCopiedState(false), 2000);
     } catch (err) {
       console.error("Failed to copy:", err);
     }
@@ -39,8 +40,9 @@ const ResearchOutput = ({ output, isLoading = false, rawFindings }: ResearchOutp
           <Button
             variant="ghost"
             size="sm"
-            onClick={copyToClipboard}
+            onClick={() => copyToClipboard(output, setCopied)}
             className="h-8 w-8 p-0 rounded-full bg-background/80 backdrop-blur-sm"
+            title="Copy research output"
           >
             {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           </Button>
@@ -60,14 +62,27 @@ const ResearchOutput = ({ output, isLoading = false, rawFindings }: ResearchOutp
         <div className="relative">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium">Raw Research Data</h3>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setShowRawFindings(!showRawFindings)}
-              className="text-xs"
-            >
-              {showRawFindings ? "Hide Details" : "Show Details"}
-            </Button>
+            <div className="flex items-center gap-2">
+              {showRawFindings && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(rawFindings, setCopiedRawFindings)}
+                  className="h-7 w-7 p-0 rounded-full"
+                  title="Copy raw findings"
+                >
+                  {copiedRawFindings ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+              )}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowRawFindings(!showRawFindings)}
+                className="text-xs"
+              >
+                {showRawFindings ? "Hide Details" : "Show Details"}
+              </Button>
+            </div>
           </div>
           
           {showRawFindings && (
