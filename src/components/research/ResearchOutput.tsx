@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { Copy, CheckCircle2, Loader2, Code } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface ResearchOutputProps {
   output: string;
@@ -37,15 +38,23 @@ const ResearchOutput = ({ output, isLoading = false, rawFindings }: ResearchOutp
       {/* Main research output */}
       <div className="relative">
         <div className="absolute top-3 right-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => copyToClipboard(output, setCopied)}
-            className="h-8 w-8 p-0 rounded-full bg-background/80 backdrop-blur-sm"
-            title="Copy research output"
-          >
-            {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(output, setCopied)}
+                  className="h-8 w-8 p-0 rounded-full bg-background/80 backdrop-blur-sm"
+                >
+                  {copied ? <CheckCircle2 className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{copied ? "Copied!" : "Copy research output"}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <div className="p-4 whitespace-pre-wrap text-sm rounded-md border">
           {isLoading && (
@@ -64,15 +73,23 @@ const ResearchOutput = ({ output, isLoading = false, rawFindings }: ResearchOutp
             <h3 className="text-sm font-medium">Raw Research Data</h3>
             <div className="flex items-center gap-2">
               {showRawFindings && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => copyToClipboard(rawFindings, setCopiedRawFindings)}
-                  className="h-7 w-7 p-0 rounded-full"
-                  title="Copy raw findings"
-                >
-                  {copiedRawFindings ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                </Button>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToClipboard(rawFindings, setCopiedRawFindings)}
+                        className="h-7 w-7 p-0 rounded-full"
+                      >
+                        {copiedRawFindings ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{copiedRawFindings ? "Copied!" : "Copy raw findings"}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
               <Button 
                 variant="outline" 

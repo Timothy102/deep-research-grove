@@ -580,10 +580,10 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
   const isSearchStep = type === "searching";
 
   useEffect(() => {
-    if (isSearchStep && hasFindingsForStep && !expanded) {
+    if ((isSearchStep && hasFindingsForStep) || (isActive && index === sources.length - 1)) {
       setExpanded(true);
     }
-  }, [isSearchStep, hasFindingsForStep, findings.length]);
+  }, [isSearchStep, hasFindingsForStep, findings.length, isActive, index, sources.length]);
 
   return (
     <div className="mb-3 animate-fade-in">
@@ -735,4 +735,3 @@ const ReasoningPath = ({ reasoningPath, sources = [], findings = [], isActive = 
 };
 
 export default ReasoningPath;
-
