@@ -67,6 +67,9 @@ const SourceItem = ({ url, content, isFinding, index, finding }: {
   // Determine display content - either directly from content or from finding object
   const displayContent = content || (finding && `Title: ${finding.title || ''}\nSummary: ${finding.summary || ''}\nConfidence: ${finding.confidence_score?.toFixed(2) || 'N/A'}`);
   
+  // Show a compact preview of finding when not expanded
+  const showPreview = isFinding && finding && !expanded;
+  
   return (
     <div 
       className={cn(
@@ -133,6 +136,19 @@ const SourceItem = ({ url, content, isFinding, index, finding }: {
         </div>
       </div>
       
+      {/* Show finding preview when not expanded but only for findings */}
+      {showPreview && (
+        <div className="mt-2 ml-8">
+          <div className="text-sm text-blue-700 dark:text-blue-300 bg-blue-50/50 dark:bg-blue-950/20 p-1.5 rounded border border-blue-100 dark:border-blue-900">
+            <div className="font-medium text-xs">{finding.title || 'Finding'}</div>
+            <div className="line-clamp-1 text-xs opacity-80">
+              {finding.summary || 'No summary available'}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Full content display when expanded */}
       {expanded && (
         <div className="mt-2 ml-8 animate-accordion-down">
           {displayContent ? (

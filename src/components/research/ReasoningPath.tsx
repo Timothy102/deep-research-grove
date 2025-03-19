@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, ExternalLink, Search, CheckCircle2, ArrowRight, Clock, BrainCircuit, Book, Lightbulb, FileText, Database, Code } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -376,75 +375,6 @@ const SourceItem = ({ source, content, sourceIndex, isFinding, finding }: {
   );
 };
 
-const AllSourcesAndFindings = ({ sources = [], findings = [] }: { sources: string[], findings: Finding[] }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  
-  if (sources.length === 0 && findings.length === 0) {
-    return null;
-  }
-  
-  return (
-    <Collapsible 
-      open={isExpanded} 
-      onOpenChange={setIsExpanded}
-      className="mt-4 border rounded-md p-2 bg-muted/20"
-    >
-      <CollapsibleTrigger asChild>
-        <Button variant="ghost" size="sm" className="w-full flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            <span>All Sources & Findings ({sources.length + findings.length})</span>
-          </span>
-          {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-        </Button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="mt-2 space-y-1 animate-accordion-down">
-        <div className="space-y-1">
-          {findings.length > 0 && (
-            <div className="mb-3">
-              <h4 className="text-xs font-medium mb-2 text-muted-foreground flex items-center gap-1.5">
-                <Book className="h-3.5 w-3.5" />
-                Findings ({findings.length}):
-              </h4>
-              <div className="space-y-1">
-                {findings.map((finding, index) => (
-                  <SourceItem
-                    key={`finding-${index}`}
-                    source={finding.source}
-                    content={finding.content}
-                    sourceIndex={index + 1}
-                    isFinding={true}
-                    finding={finding.finding}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {sources.length > 0 && (
-            <div>
-              <h4 className="text-xs font-medium mb-2 text-muted-foreground flex items-center gap-1.5">
-                <ExternalLink className="h-3.5 w-3.5" />
-                Sources ({sources.length}):
-              </h4>
-              <div className="space-y-1">
-                {sources.map((source, index) => (
-                  <SourceItem
-                    key={`source-${index}`}
-                    source={source}
-                    sourceIndex={index + 1}
-                    isFinding={false}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-};
-
 const FindingsList = ({ findings = [], nodeId, step }: FindingsListProps) => {
   if (!findings || findings.length === 0) return null;
   
@@ -592,8 +522,27 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
     }
   }, [isSearchStep, hasFindingsForStep, findings.length, isActive, index, sources.length]);
 
-  // Display findings inline with the reasoning step
-  const showInlineFindings = isSearchStep && hasFindingsForStep;
+  // Display findings preview even when not expanded for search steps
+  const showFindingPreview = isSearchStep && hasFindingsForStep;
+  
+  // Extract the answer if it exists in rawData for immediate display
+  let answer = "";
+  if (rawData) {
+    try {
+      const rawDataObj = JSON.parse(rawData);
+      if (rawDataObj.data && rawDataObj.event === "answer") {
+        answer = rawDataObj.data.answer || "";
+      }
+    } catch (e) {
+      // If multiple JSON objects, try to find the answer event
+      if (typeof rawData === "string") {
+        const answerMatch = rawData.match(/"event"\s*:\s*"answer"[\s\S]*?"answer"\s*:\s*"([^"]+)"/);
+        if (answerMatch && answerMatch[1]) {
+          answer = answerMatch[1];
+        }
+      }
+    }
+  }
 
   return (
     <div className="mb-3 animate-fade-in">
@@ -659,21 +608,35 @@ const ReasoningStep = ({ step, index, sources = [], findings = [], defaultExpand
           </div>
           
           <p className="text-sm">{formattedStep}</p>
+          
+          {/* Display answer immediately if available, even when not expanded */}
+          {answer && !expanded && (
+            <div className="mt-2 text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20 p-2 rounded border border-emerald-100 dark:border-emerald-900">
+              <div className="font-medium text-xs mb-1 flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                <span>Answer</span>
+              </div>
+              <div className="line-clamp-3">{answer}</div>
+            </div>
+          )}
 
-          {/* Inline findings preview - show always regardless of expansion state */}
-          {showInlineFindings && (
-            <div className="mt-2 space-y-1 border-l-2 border-blue-200 dark:border-blue-800 pl-2">
-              {relevantFindings.slice(0, 1).map((finding, idx) => (
-                <div key={idx} className="text-xs text-blue-700 dark:text-blue-300 bg-blue-50/50 dark:bg-blue-950/20 p-1.5 rounded">
-                  <div className="font-medium">{finding.finding?.title || 'Finding'}</div>
-                  <div className="line-clamp-1">{finding.finding?.summary}</div>
+          {/* Show finding preview without expanding - but only the first finding */}
+          {showFindingPreview && !expanded && relevantFindings.length > 0 && (
+            <div className="mt-2 space-y-1">
+              <div className="text-xs text-blue-700 dark:text-blue-300 bg-blue-50/50 dark:bg-blue-950/20 p-2 rounded border border-blue-100 dark:border-blue-900">
+                <div className="font-medium flex items-center gap-1 mb-1">
+                  <Book className="h-3 w-3" />
+                  <span>{relevantFindings[0].finding?.title || 'Finding'}</span>
                 </div>
-              ))}
-              {relevantFindings.length > 1 && (
-                <div className="text-xs text-blue-600 dark:text-blue-400">
-                  + {relevantFindings.length - 1} more finding{relevantFindings.length > 2 ? 's' : ''}
+                <div className="line-clamp-2">
+                  {relevantFindings[0].finding?.summary || relevantFindings[0].content || ''}
                 </div>
-              )}
+                {relevantFindings.length > 1 && (
+                  <div className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                    + {relevantFindings.length - 1} more finding{relevantFindings.length > 2 ? 's' : ''}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -756,7 +719,6 @@ const ReasoningPath = ({ reasoningPath, sources = [], findings = [], isActive = 
         })}
       </div>
       
-      <AllSourcesAndFindings sources={sources} findings={findings} />
     </div>
   );
 };
