@@ -10,18 +10,7 @@ import ResearchHistorySidebar from "./ResearchHistorySidebar";
 import { ProgressIndicator } from "./ProgressIndicator";
 import HumanApprovalDialog from "./HumanApprovalDialog";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarProvider,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarTrigger,
-} from "@/components/ui/sidebar";
-import { ChevronLeft, ChevronRight, LayoutGrid, List, Network } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // Define the interface for research session state and events
 interface ResearchSessionState {
@@ -75,7 +64,6 @@ export const ResearchContainer = () => {
   const [researchEvents, setResearchEvents] = useState<ResearchSessionEvent[]>([]);
   const [session, setSession] = useState<ResearchSession | null>(null);
   const [showHumanDialog, setShowHumanDialog] = useState(false);
-  const [showFullResults, setShowFullResults] = useState(false);
 
   // Updated to match ResearchForm props signature
   const handleResearchSubmit = async (
@@ -86,7 +74,6 @@ export const ResearchContainer = () => {
     currentUnderstanding?: string
   ) => {
     setIsLoading(true);
-    setShowFullResults(false);
     setCurrentStage("Initializing research");
     setEvents([]);
     setResearchEvents([]);
@@ -146,7 +133,10 @@ export const ResearchContainer = () => {
   return (
     <div className="relative flex h-full">
       {/* History Sidebar - Left side */}
-      <div className={`${showSidebar ? 'w-80' : 'w-0'} border-r border-border transition-all duration-300 overflow-hidden`}>
+      <div className={`${showSidebar ? 'w-64' : 'w-0'} border-r border-border transition-all duration-300 overflow-hidden`}>
+        <div className="p-4 border-b">
+          <h2 className="text-lg font-medium">Research History</h2>
+        </div>
         <ResearchHistorySidebar 
           history={[]} 
           onHistoryItemClick={() => {}} 
@@ -154,28 +144,29 @@ export const ResearchContainer = () => {
       </div>
       
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <div className="p-4 border-b">
-          <div className="flex items-center gap-2 mb-2">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => setShowSidebar(!showSidebar)}
-              className="h-8 w-8"
-            >
-              {showSidebar ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </Button>
-            <h1 className="text-xl font-semibold">Research Agent</h1>
-          </div>
-          
-          <ResearchForm 
-            onSubmit={handleResearchSubmit} 
-            isLoading={isLoading}
-          />
+        <div className="p-4 border-b flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => setShowSidebar(!showSidebar)}
+            className="h-8 w-8 mr-2"
+          >
+            {showSidebar ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </Button>
+          <h1 className="text-xl font-semibold">Research Agent</h1>
         </div>
         
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 p-4 overflow-auto">
+          {/* Research Form */}
+          <div className="mb-6">
+            <ResearchForm 
+              onSubmit={handleResearchSubmit} 
+              isLoading={isLoading}
+            />
+          </div>
+          
           {isLoading && (
-            <div className="p-4">
+            <div className="mb-6">
               <ProgressIndicator 
                 isLoading={isLoading} 
                 currentStage={currentStage} 
@@ -185,77 +176,46 @@ export const ResearchContainer = () => {
           )}
           
           {session && !isLoading && (
-            <>
-              {showFullResults ? (
-                <div className="p-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setShowFullResults(false)}
-                    className="mb-4"
-                  >
-                    Back to research overview
-                  </Button>
-                  <ResearchResults result={mockResult} />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Node Exploration */}
+              <div className="md:col-span-2 border rounded-md p-4">
+                <h3 className="font-medium text-lg mb-4">Node Exploration</h3>
+                <div className="h-[400px]">
+                  <NodeExplorationGraph researchEvents={researchEvents} />
                 </div>
-              ) : (
-                <div className="flex h-full">
-                  {/* Main Content - Node Exploration */}
-                  <div className="flex-1 p-4 h-full">
-                    <div className="border rounded-md p-4 h-full">
-                      <h3 className="font-medium text-lg mb-4">Node Exploration</h3>
-                      <NodeExplorationGraph researchEvents={researchEvents} />
-                    </div>
-                  </div>
-                  
-                  {/* Right Sidebar - Research Path, Sources, Results */}
-                  <div className="w-80 border-l border-border">
-                    <div className="h-full flex flex-col">
-                      <div className="p-3 border-b border-border">
-                        <h3 className="font-medium">Research Path</h3>
-                        <div className="max-h-[250px] overflow-auto mt-2">
-                          <ReasoningPath 
-                            reasoningPath={[]} 
-                            sources={[]} 
-                            findings={[]} 
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="p-3 border-b border-border">
-                        <h3 className="font-medium">Sources</h3>
-                        <div className="max-h-[250px] overflow-auto mt-2">
-                          <SourcesList 
-                            sources={[]} 
-                            findings={[]}
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="p-3 border-b border-border flex-1">
-                        <h3 className="font-medium">Results</h3>
-                        <div className="max-h-[250px] overflow-auto mt-2">
-                          <ResearchOutput 
-                            output=""
-                            isLoading={false}
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="p-2 border-t border-border">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="w-full text-xs"
-                          onClick={() => setShowFullResults(true)}
-                        >
-                          View Full Report
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
+              </div>
+              
+              {/* Right column with Research Path and Sources */}
+              <div className="md:col-span-1 space-y-4">
+                {/* Research Path */}
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium text-lg mb-2">Research Path</h3>
+                  <ReasoningPath 
+                    reasoningPath={[]} 
+                    sources={[]} 
+                    findings={[]} 
+                  />
                 </div>
-              )}
-            </>
+                
+                {/* Sources */}
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium text-lg mb-2">Sources</h3>
+                  <SourcesList 
+                    sources={[]} 
+                    findings={[]}
+                  />
+                </div>
+                
+                {/* Research Output */}
+                <div className="border rounded-md p-4">
+                  <h3 className="font-medium text-lg mb-2">Results</h3>
+                  <ResearchOutput 
+                    output=""
+                    isLoading={false}
+                  />
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>
