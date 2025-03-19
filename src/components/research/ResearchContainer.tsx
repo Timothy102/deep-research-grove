@@ -5,7 +5,7 @@ import ReasoningPath from "./ReasoningPath";
 import ResearchOutput from "./ResearchOutput";
 import SourcesList from "./SourcesList";
 import { NodeExplorationGraph } from "./NodeExplorationGraph";
-import { ResearchResults } from "./ResearchResults";
+import ResearchResults from "./ResearchResults"; // Changed from named import to default import
 import ResearchHistorySidebar from "./ResearchHistorySidebar";
 import { ProgressIndicator } from "./ProgressIndicator";
 import HumanApprovalDialog from "./HumanApprovalDialog";
@@ -154,7 +154,7 @@ export const ResearchContainer = () => {
             <>
               {showFullResults ? (
                 <ResearchResults 
-                  session={session} 
+                  result={null} 
                   onBack={() => setShowFullResults(false)} 
                 />
               ) : (
@@ -196,8 +196,13 @@ export const ResearchContainer = () => {
       </div>
       
       <HumanApprovalDialog
-        open={showHumanDialog}
-        onOpenChange={setShowHumanDialog}
+        isOpen={showHumanDialog}
+        onClose={() => setShowHumanDialog(false)}
+        content=""
+        query=""
+        callId=""
+        nodeId=""
+        approvalType="synthesis"
         onApprove={() => handleHumanApproval(true)}
         onReject={() => handleHumanApproval(false)}
       />
