@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ResearchForm } from "./ResearchForm";
 import ReasoningPath from "./ReasoningPath";
@@ -9,6 +8,7 @@ import ResearchResults from "./ResearchResults"; // Changed from named import to
 import ResearchHistorySidebar from "./ResearchHistorySidebar";
 import { ProgressIndicator } from "./ProgressIndicator";
 import HumanApprovalDialog from "./HumanApprovalDialog";
+import { Button } from "@/components/ui/button";
 
 // Define the interface for research session state and events
 interface ResearchSessionState {
@@ -120,6 +120,16 @@ export const ResearchContainer = () => {
     }
   };
 
+  // Create a mock result object that matches the ResearchResult type
+  const mockResult = session ? {
+    query: session.query,
+    answer: "This is a placeholder for the research results.",
+    sources: [],
+    reasoning_path: [],
+    confidence: 0.85,
+    session_id: session.id
+  } : null;
+
   return (
     <div className="relative flex h-full">
       {showSidebar && (
@@ -153,10 +163,16 @@ export const ResearchContainer = () => {
           {session && !isLoading && (
             <>
               {showFullResults ? (
-                <ResearchResults 
-                  result={null} 
-                  onBack={() => setShowFullResults(false)} 
-                />
+                <div className="p-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowFullResults(false)}
+                    className="mb-4"
+                  >
+                    Back to research overview
+                  </Button>
+                  <ResearchResults result={mockResult} />
+                </div>
               ) : (
                 <div className="grid grid-cols-4 gap-4 p-4 h-full">
                   <div className="col-span-1 border rounded-md p-4 overflow-auto">
