@@ -80,6 +80,7 @@ export type Database = {
       research_states: {
         Row: {
           answer: string | null
+          client_id: string | null
           created_at: string | null
           findings: Json | null
           id: string
@@ -95,6 +96,7 @@ export type Database = {
         }
         Insert: {
           answer?: string | null
+          client_id?: string | null
           created_at?: string | null
           findings?: Json | null
           id?: string
@@ -110,6 +112,7 @@ export type Database = {
         }
         Update: {
           answer?: string | null
+          client_id?: string | null
           created_at?: string | null
           findings?: Json | null
           id?: string
