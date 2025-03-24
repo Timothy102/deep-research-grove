@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -876,3 +877,147 @@ const ResearchPage = () => {
             size="sm" 
             onClick={() => navigate("/models")}
             className="flex items-center gap-1 lowercase"
+          >
+            <Brain className="h-4 w-4" />
+            models
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/profile")}
+            className="flex items-center gap-1 lowercase"
+          >
+            <User className="h-4 w-4" />
+            profile
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            className="flex items-center gap-1 lowercase"
+          >
+            <LogOut className="h-4 w-4" />
+            logout
+          </Button>
+        </div>
+      </header>
+
+      <div className="flex flex-1 h-[calc(100vh-4rem)]">
+        {!isMobile && (
+          <ResearchHistorySidebar
+            isOpen={sidebarOpen}
+            history={groupedHistory}
+            onSelectHistoryItem={loadHistoryItem}
+          />
+        )}
+
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          <div className="flex justify-between items-center border-b p-4">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={toggleSidebar}
+              className="mr-2 hidden md:flex"
+            >
+              {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </Button>
+            
+            <div className="flex-1">
+              <ResearchForm
+                onSubmit={handleResearch}
+                isLoading={isLoading}
+                initialObjective={researchObjective}
+                setResearchObjective={setResearchObjective}
+                selectedLLM={selectedLLM}
+                setSelectedLLM={setSelectedLLM}
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-auto p-6">
+            {isLoading && (
+              <div className="flex items-center justify-center space-x-2 mb-4">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="text-sm text-muted-foreground">
+                  Researching your query...
+                </span>
+              </div>
+            )}
+
+            <Tabs 
+              defaultValue="reasoning" 
+              value={activeTab} 
+              onValueChange={setActiveTab}
+              className="w-full"
+            >
+              <TabsList className="mb-4">
+                <TabsTrigger value="reasoning" className="flex items-center gap-1">
+                  <FileText className="h-4 w-4" />
+                  <span className="hidden sm:inline">Reasoning Path</span>
+                  <span className="sm:hidden">Path</span>
+                </TabsTrigger>
+                <TabsTrigger value="sources" className="flex items-center gap-1">
+                  <Search className="h-4 w-4" />
+                  <span className="hidden sm:inline">Sources</span>
+                  <span className="sm:hidden">Sources</span>
+                </TabsTrigger>
+                <TabsTrigger value="output" className="flex items-center gap-1">
+                  <Brain className="h-4 w-4" />
+                  <span className="hidden sm:inline">Final Output</span>
+                  <span className="sm:hidden">Output</span>
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="reasoning" className="border-none p-0">
+                <ReasoningPath 
+                  reasoningPath={reasoningPath} 
+                  isLoading={isLoading} 
+                />
+              </TabsContent>
+
+              <TabsContent value="sources" className="border-none p-0">
+                <SourcesList 
+                  sources={sources} 
+                  findings={findings}
+                  rawData={rawData}
+                />
+              </TabsContent>
+
+              <TabsContent value="output" className="border-none p-0">
+                <ResearchOutput 
+                  output={researchOutput} 
+                  isLoading={isLoading}
+                />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </div>
+      </div>
+
+      {showOnboarding && (
+        <UserModelOnboarding
+          isOpen={showOnboarding}
+          onCompleted={() => {
+            setShowOnboarding(false);
+          }}
+        />
+      )}
+
+      {showApprovalDialog && humanApprovalRequest && (
+        <HumanApprovalDialog
+          content={humanApprovalRequest.content}
+          query={humanApprovalRequest.query}
+          callId={humanApprovalRequest.call_id}
+          nodeId={humanApprovalRequest.node_id}
+          approvalType={humanApprovalRequest.approval_type}
+          isOpen={showApprovalDialog}
+          onClose={() => setShowApprovalDialog(false)}
+          onApprove={handleApproveRequest}
+          onReject={handleRejectRequest}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ResearchPage;
