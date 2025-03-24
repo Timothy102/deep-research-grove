@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, XCircle, MessageSquare, FileText, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, MessageSquare, FileText, AlertTriangle, HelpCircle } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -37,6 +38,19 @@ const HumanApprovalDialog = ({
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      
+      // Show a persistent toast notification to draw user's attention
+      toast(`Human input needed: ${approvalType}`, {
+        id: `approval-${callId}`,
+        duration: Infinity,
+        icon: <HelpCircle className="h-5 w-5 text-blue-500" />,
+        action: {
+          label: "Review",
+          onClick: () => {
+            document.getElementById('human-approval-dialog')?.scrollIntoView({ behavior: 'smooth' });
+          }
+        }
+      });
     }
     
     console.log(`[${new Date().toISOString()}] 🔍 HumanApprovalDialog mounted with props:`, { 
@@ -49,6 +63,7 @@ const HumanApprovalDialog = ({
     
     return () => {
       document.body.style.overflow = '';
+      toast.dismiss(`approval-${callId}`);
       console.log(`[${new Date().toISOString()}] 🧹 HumanApprovalDialog unmounting for callId:`, callId);
     };
   }, [callId, nodeId, content, approvalType, isOpen]);
@@ -149,7 +164,10 @@ const HumanApprovalDialog = ({
   };
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-[9999] p-4 overflow-hidden">
+    <div 
+      id="human-approval-dialog"
+      className="fixed inset-0 flex items-center justify-center z-[9999] p-4 overflow-hidden"
+    >
       <div 
         className="fixed inset-0 bg-black/50 backdrop-blur-sm" 
         onClick={onClose}

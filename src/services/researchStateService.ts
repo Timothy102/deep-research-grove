@@ -21,6 +21,18 @@ export interface ResearchState {
   client_id?: string;
   human_interaction_request?: string;
   custom_data?: string;
+  human_interactions?: Array<{
+    call_id: string;
+    node_id: string;
+    interaction_type: string;
+    content: string;
+    status: 'pending' | 'completed';
+    response?: {
+      approved: boolean;
+      comment?: string;
+      timestamp: string;
+    };
+  }>;
 }
 
 // Save initial research state
@@ -47,11 +59,16 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
   const clientId = getClientId();
   console.log(`[${new Date().toISOString()}] 🔑 Using client ID for research state:`, clientId);
   
+  // Initialize human_interactions if not present
+  if (!state.human_interactions) {
+    state.human_interactions = [];
+  }
+  
   // Filter out properties that might not exist in the table schema
   const validState = {
     research_id: state.research_id,
     session_id: state.session_id,
-    status: state.status === 'awaiting_human_input' ? 'error' : state.status, // Map awaiting_human_input to error for compatibility
+    status: state.status,
     query: state.query,
     answer: state.answer,
     sources: state.sources,
@@ -62,7 +79,8 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     user_id: user.user.id,
     client_id: clientId,
     human_interaction_request: state.human_interaction_request,
-    custom_data: state.custom_data
+    custom_data: state.custom_data,
+    human_interactions: JSON.stringify(state.human_interactions)
   };
   
   try {
@@ -149,16 +167,69 @@ export async function updateResearchState(
     updates: JSON.stringify(updates).substring(0, 100) + "..." 
   });
   
-  // Ensure status is compatible with the database schema
-  if (updates.status === 'awaiting_human_input') {
-    updates.status = 'error'; // Map awaiting_human_input to error for compatibility
-  }
-  
   // Handle human_interaction_result by using custom_data instead
   if ('human_interaction_result' in updates) {
     const humanInteractionResult = (updates as any).human_interaction_result;
     updates.custom_data = humanInteractionResult;
     delete (updates as any).human_interaction_result;
+  }
+  
+  // Get current state to access human_interactions array
+  try {
+    const currentState = await getResearchState(researchId, sessionId);
+    
+    // Handle human interaction updates
+    if (updates.human_interaction_request && currentState) {
+      try {
+        const requestData = JSON.parse(updates.human_interaction_request);
+        let interactions = currentState.human_interactions || [];
+        
+        // Add the new interaction request
+        interactions.push({
+          call_id: requestData.call_id,
+          node_id: requestData.node_id,
+          interaction_type: requestData.interaction_type,
+          content: requestData.content,
+          status: 'pending'
+        });
+        
+        updates.human_interactions = interactions;
+      } catch (e) {
+        console.error("Error parsing human_interaction_request", e);
+      }
+    }
+    
+    // Update an existing human interaction with response data
+    if (updates.custom_data && currentState) {
+      try {
+        const responseData = JSON.parse(updates.custom_data);
+        
+        if (responseData.call_id) {
+          let interactions = currentState.human_interactions || [];
+          const interactionIndex = interactions.findIndex(i => i.call_id === responseData.call_id);
+          
+          if (interactionIndex >= 0) {
+            interactions[interactionIndex].status = 'completed';
+            interactions[interactionIndex].response = {
+              approved: responseData.approved,
+              comment: responseData.comment,
+              timestamp: new Date().toISOString()
+            };
+            
+            updates.human_interactions = interactions;
+          }
+        }
+      } catch (e) {
+        console.error("Error processing custom_data for human interaction", e);
+      }
+    }
+    
+    // Convert human_interactions array to JSON string for storage
+    if (updates.human_interactions) {
+      (updates as any).human_interactions = JSON.stringify(updates.human_interactions);
+    }
+  } catch (error) {
+    console.error("Error getting current state for human interaction updates", error);
   }
   
   // Filter out active_tab if it exists in updates
@@ -268,7 +339,23 @@ export async function getResearchState(researchId: string, sessionId: string): P
   // Ensure the returned data has the correct status type
   if (data) {
     const result = data as ResearchState;
-    if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
+    
+    // Convert human_interactions back from JSON string
+    if (typeof result.human_interactions === 'string') {
+      try {
+        result.human_interactions = JSON.parse(result.human_interactions);
+      } catch (e) {
+        console.error("Error parsing human_interactions", e);
+        result.human_interactions = [];
+      }
+    } else if (!result.human_interactions) {
+      result.human_interactions = [];
+    }
+    
+    if (result.status !== 'in_progress' && 
+        result.status !== 'completed' && 
+        result.status !== 'error' && 
+        result.status !== 'awaiting_human_input') {
       result.status = 'in_progress'; // Default to 'in_progress' if invalid status
     }
     return result;
@@ -308,7 +395,23 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
   // Ensure all returned items have the correct status type
   const result = (data || []).map(item => {
     const typedItem = item as ResearchState;
-    if (typedItem.status !== 'in_progress' && typedItem.status !== 'completed' && typedItem.status !== 'error') {
+    
+    // Convert human_interactions back from JSON string
+    if (typeof typedItem.human_interactions === 'string') {
+      try {
+        typedItem.human_interactions = JSON.parse(typedItem.human_interactions);
+      } catch (e) {
+        console.error("Error parsing human_interactions", e);
+        typedItem.human_interactions = [];
+      }
+    } else if (!typedItem.human_interactions) {
+      typedItem.human_interactions = [];
+    }
+    
+    if (typedItem.status !== 'in_progress' && 
+        typedItem.status !== 'completed' && 
+        typedItem.status !== 'error' && 
+        typedItem.status !== 'awaiting_human_input') {
       typedItem.status = 'in_progress'; // Default to 'in_progress' if invalid status
     }
     return typedItem;
@@ -358,7 +461,22 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
         clientId: result.client_id
       });
       
-      if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
+      // Convert human_interactions back from JSON string
+      if (typeof result.human_interactions === 'string') {
+        try {
+          result.human_interactions = JSON.parse(result.human_interactions);
+        } catch (e) {
+          console.error("Error parsing human_interactions", e);
+          result.human_interactions = [];
+        }
+      } else if (!result.human_interactions) {
+        result.human_interactions = [];
+      }
+      
+      if (result.status !== 'in_progress' && 
+          result.status !== 'completed' && 
+          result.status !== 'error' && 
+          result.status !== 'awaiting_human_input') {
         result.status = 'in_progress'; // Default to 'in_progress' if invalid status
       }
       return result;

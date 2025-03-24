@@ -1,68 +1,69 @@
 
-// HumanLayer service for handling human-in-the-loop interactions
+import { toast } from "sonner";
 
-const HUMANLAYER_API_KEY = "hl-a-xg52uTvDVR_XQohWAXvz4cFjVIVve-DfCBSELw3KCK4";
+interface HumanLayerResponse {
+  id: string;
+  comment?: string;
+  approved: boolean;
+  created_at?: string;
+  responded_at?: string;
+  call_id: string;
+  [key: string]: any;
+}
 
-/**
- * Directly responds to an approval request using the HumanLayer API
- */
-export const respondToApproval = async (callId: string, approved: boolean, comment: string = "") => {
-  console.log(`[${new Date().toISOString()}] 📤 Sending response to HumanLayer:`, { 
-    callId, 
-    approved, 
-    comment: comment.slice(0, 20) + (comment.length > 20 ? '...' : '') 
+export async function respondToApproval(
+  callId: string, 
+  approved: boolean, 
+  comment: string = ""
+): Promise<HumanLayerResponse> {
+  console.log(`[${new Date().toISOString()}] 🚀 Sending approval response to HumanLayer:`, {
+    callId,
+    approved,
+    comment: comment ? comment.substring(0, 50) + "..." : ""
   });
-
+  
+  const payload = {
+    approved,
+    comment,
+    user_info: {},
+    slack_context: {},
+    reject_option_name: null
+  };
+  
   try {
     const response = await fetch(`https://api.humanlayer.dev/humanlayer/v1/agent/function_calls/${callId}/respond`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${HUMANLAYER_API_KEY}`
+        "Content-Type": "application/json",
+        "Authorization": "Bearer hl-a-xg52uTvDVR_XQohWAXvz4cFjVIVve-DfCBSELw3KCK4"
       },
-      body: JSON.stringify({
-        approved,
-        comment,
-        user_info: {},
-        slack_context: {},
-        reject_option_name: null
-      })
+      body: JSON.stringify(payload)
     });
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[${new Date().toISOString()}] ❌ HumanLayer API error:`, errorText);
-      throw new Error(`HTTP error! status: ${response.status}`);
+      throw new Error(`HumanLayer API error: ${response.status} - ${errorText}`);
     }
     
-    const responseData = await response.json();
-    console.log(`[${new Date().toISOString()}] ✅ HumanLayer response success:`, responseData);
-    return responseData;
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error in HumanLayer response:`, error);
-    throw error;
-  }
-};
-
-/**
- * Gets the current status of a function call
- */
-export const getApprovalStatus = async (callId: string) => {
-  try {
-    const response = await fetch(`https://api.humanlayer.dev/humanlayer/v1/agent/function_calls/${callId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${HUMANLAYER_API_KEY}`
+    const data = await response.json();
+    console.log(`[${new Date().toISOString()}] ✅ HumanLayer response successful:`, data);
+    
+    // Dispatch a custom event to notify the system that a human interaction has completed
+    const humanInteractionEvent = new CustomEvent('human_interaction_completed', {
+      detail: {
+        call_id: callId,
+        approved,
+        comment,
+        response: data
       }
     });
     
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
+    window.dispatchEvent(humanInteractionEvent);
     
-    return await response.json();
+    return data;
   } catch (error) {
-    console.error("Error getting approval status:", error);
+    console.error(`[${new Date().toISOString()}] ❌ Error sending response to HumanLayer:`, error);
+    toast.error("Failed to send response to HumanLayer");
     throw error;
   }
-};
+}
