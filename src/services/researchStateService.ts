@@ -1,4 +1,5 @@
-import { supabase } from "@/integrations/supabase/client";
+
+import { supabase, getClientId } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 
 export interface ResearchState {
@@ -17,6 +18,7 @@ export interface ResearchState {
   user_model?: string | Json;
   active_tab?: string; // Added to persist active tab
   error?: string; // Added for error messages
+  client_id?: string; // Added to track browser session
 }
 
 // Save initial research state
@@ -39,6 +41,9 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     state.reasoning_path = ["Analyzing research objective..."];
   }
   
+  // Associate this research state with the current browser client
+  const clientId = getClientId();
+  
   // Filter out properties that might not exist in the table schema
   const validState = {
     research_id: state.research_id,
@@ -51,16 +56,17 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     reasoning_path: state.reasoning_path,
     user_model: state.user_model,
     error: state.error,
-    user_id: user.user.id
+    user_id: user.user.id,
+    client_id: clientId
   };
   
   try {
     console.log(`[${new Date().toISOString()}] 🔄 Attempting to insert research state with user_id:`, user.user.id);
     
-    // Default path without active_tab first
+    // Include the client_id in the insert operation
     const { data, error } = await supabase
       .from('research_states')
-      .insert(validState)
+      .insert({...validState, client_id: clientId})
       .select();
       
     if (error) {
@@ -73,7 +79,8 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
           .from('research_states')
           .insert({
             ...validState,
-            active_tab: state.active_tab
+            active_tab: state.active_tab,
+            client_id: clientId
           })
           .select();
           
@@ -136,6 +143,9 @@ export async function updateResearchState(
   
   console.log("Updating research state:", { researchId, sessionId, updates });
   
+  // Include the client_id in the match criteria to ensure we only update our own research state
+  const clientId = getClientId();
+  
   // Filter out active_tab if it exists in updates
   const { active_tab, ...otherUpdates } = updates;
   
@@ -148,7 +158,12 @@ export async function updateResearchState(
       const { data, error } = await supabase
         .from('research_states')
         .update({ ...validUpdates, active_tab })
-        .match({ research_id: researchId, session_id: sessionId, user_id: user.user.id })
+        .match({ 
+          research_id: researchId, 
+          session_id: sessionId, 
+          user_id: user.user.id,
+          client_id: clientId  // Add client_id to match criteria
+        })
         .select();
         
       if (error) {
@@ -181,7 +196,12 @@ export async function updateResearchState(
   const { data, error } = await supabase
     .from('research_states')
     .update(validUpdates)
-    .match({ research_id: researchId, session_id: sessionId, user_id: user.user.id })
+    .match({ 
+      research_id: researchId, 
+      session_id: sessionId, 
+      user_id: user.user.id,
+      client_id: clientId  // Add client_id to match criteria
+    })
     .select();
     
   if (error) {
@@ -209,10 +229,18 @@ export async function getResearchState(researchId: string, sessionId: string): P
     throw new Error("User not authenticated");
   }
   
+  // Include client_id in the match criteria
+  const clientId = getClientId();
+  
   const { data, error } = await supabase
     .from('research_states')
     .select('*')
-    .match({ research_id: researchId, session_id: sessionId, user_id: user.user.id })
+    .match({ 
+      research_id: researchId, 
+      session_id: sessionId, 
+      user_id: user.user.id,
+      client_id: clientId
+    })
     .maybeSingle();
     
   if (error) {
@@ -240,10 +268,17 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
     throw new Error("User not authenticated");
   }
   
+  // Include client_id in the match criteria
+  const clientId = getClientId();
+  
   const { data, error } = await supabase
     .from('research_states')
     .select('*')
-    .match({ session_id: sessionId, user_id: user.user.id })
+    .match({ 
+      session_id: sessionId, 
+      user_id: user.user.id,
+      client_id: clientId
+    })
     .order('created_at', { ascending: false });
     
   if (error) {
@@ -272,12 +307,19 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
       throw new Error("User not authenticated");
     }
     
-    console.log("Fetching latest session state for session:", sessionId, "and user:", user.user.id);
+    // Include client_id in the match criteria
+    const clientId = getClientId();
+    
+    console.log("Fetching latest session state for session:", sessionId, "and user:", user.user.id, "and client:", clientId);
     
     const { data, error } = await supabase
       .from('research_states')
       .select('*')
-      .match({ session_id: sessionId, user_id: user.user.id })
+      .match({ 
+        session_id: sessionId, 
+        user_id: user.user.id,
+        client_id: clientId
+      })
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();

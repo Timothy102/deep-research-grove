@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -28,6 +29,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from "sonner";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { getClientId } from "@/integrations/supabase/client";
 
 interface ResearchHistory {
   id: string;
@@ -79,6 +81,7 @@ const ResearchPage = () => {
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
+  const clientIdRef = useRef<string>(getClientId()); // Store the client ID
   const { toast: uiToast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
 
@@ -146,7 +149,7 @@ const ResearchPage = () => {
 
   const loadSessionData = async (sessionId: string) => {
     try {
-      console.log("Loading session data for session ID:", sessionId);
+      console.log("Loading session data for session ID:", sessionId, "client ID:", clientIdRef.current);
       
       const sessionState = await getLatestSessionState(sessionId);
       
@@ -210,7 +213,8 @@ const ResearchPage = () => {
               source_priorities: model.source_priorities || [],
               session_id: currentSessionIdRef.current,
               model_id: model.id,
-              currentUnderstanding: currentUnderstanding
+              currentUnderstanding: currentUnderstanding,
+              client_id: clientIdRef.current // Add client ID to payload
             };
           }
         } catch (err) {
@@ -221,7 +225,8 @@ const ResearchPage = () => {
             userModel: userModelText,
             useCase: useCase,
             session_id: currentSessionIdRef.current,
-            currentUnderstanding: currentUnderstanding
+            currentUnderstanding: currentUnderstanding,
+            client_id: clientIdRef.current // Add client ID to payload
           };
         }
       } else {
@@ -231,7 +236,8 @@ const ResearchPage = () => {
           userModel: userModelText,
           useCase: useCase,
           session_id: currentSessionIdRef.current,
-          currentUnderstanding: currentUnderstanding
+          currentUnderstanding: currentUnderstanding,
+          client_id: clientIdRef.current // Add client ID to payload
         };
       }
       
@@ -292,7 +298,8 @@ const ResearchPage = () => {
             model: selectedLLM,
             session_id: currentSessionIdRef.current,
             research_id: researchId,
-            user_id: user?.id
+            user_id: user?.id,
+            client_id: clientIdRef.current // Add client ID to request
           })
         });
         
@@ -324,9 +331,20 @@ const ResearchPage = () => {
               try {
                 const data = JSON.parse(line.substring(6));
                 
+                // Extract client_id from event data
+                const eventClientId = data.client_id || userModelData.client_id;
                 const eventSessionId = data.session_id || currentSessionIdRef.current;
                 const eventResearchId = data.research_id || researchId;
                 
+                // Only process events meant for this client
+                if (eventClientId !== clientIdRef.current) {
+                  console.warn("Received event for different client, ignoring", { 
+                    eventClientId, currentClientId: clientIdRef.current
+                  });
+                  continue;
+                }
+                
+                // Verify session and research IDs
                 if (eventSessionId !== currentSessionIdRef.current || 
                     eventResearchId !== researchId) {
                   console.warn("Received event for different session/research, ignoring", { 
@@ -551,6 +569,15 @@ const ResearchPage = () => {
       
       console.log("Polled research state:", data);
       
+      // Verify the client ID matches
+      if (data.client_id && data.client_id !== clientIdRef.current) {
+        console.warn("Received polling response for different client, ignoring", {
+          stateClientId: data.client_id, 
+          currentClientId: clientIdRef.current
+        });
+        return;
+      }
+      
       if ((data?.session_id && data.session_id !== currentSessionIdRef.current) ||
           (data?.research_id && data.research_id !== researchId)) {
         console.warn("Received polling response for different session/research, ignoring");
@@ -657,7 +684,8 @@ const ResearchPage = () => {
           call_id: callId,
           approved: true,
           comment: '',
-          session_id: currentSessionIdRef.current
+          session_id: currentSessionIdRef.current,
+          client_id: clientIdRef.current // Add client ID to request
         })
       });
       
@@ -701,7 +729,8 @@ const ResearchPage = () => {
           call_id: callId,
           approved: false,
           comment: reason,
-          session_id: currentSessionIdRef.current
+          session_id: currentSessionIdRef.current,
+          client_id: clientIdRef.current // Add client ID to request
         })
       });
       

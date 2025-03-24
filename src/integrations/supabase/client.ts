@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
@@ -74,4 +75,17 @@ export const syncSession = async () => {
     console.error("Error syncing session:", e);
   }
   return null;
+};
+
+// Generate a unique client identifier for this browser session
+export const getClientId = () => {
+  const storageKey = 'deepresearch.client.id';
+  let clientId = localStorage.getItem(storageKey);
+  
+  if (!clientId) {
+    clientId = `client_${Math.random().toString(36).substring(2, 15)}_${Date.now().toString(36)}`;
+    localStorage.setItem(storageKey, clientId);
+  }
+  
+  return clientId;
 };
