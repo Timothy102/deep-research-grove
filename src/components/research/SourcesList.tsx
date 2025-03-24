@@ -178,14 +178,15 @@ const SourcesList: React.FC<SourcesListProps> = ({ sources, findings = [], rawDa
     }));
   };
   
-  const groupedSources = groupSourcesByDomain(sources);
+  // Get all unique sources from both sources array and findings
+  const allSources = new Set([...sources]);
+  findings.forEach(finding => {
+    if (finding.source) {
+      allSources.add(finding.source);
+    }
+  });
   
-  // Get findings that don't have a matching source
-  const standaloneFindingSources = findings
-    .filter(finding => !sources.includes(finding.source))
-    .map(finding => finding.source);
-  
-  const allSourcesGrouped = groupSourcesByDomain([...sources, ...standaloneFindingSources]);
+  const allSourcesGrouped = groupSourcesByDomain(Array.from(allSources));
   
   return (
     <div className="space-y-6">
@@ -205,60 +206,65 @@ const SourcesList: React.FC<SourcesListProps> = ({ sources, findings = [], rawDa
         </h3>
         
         <div className="space-y-4">
-          {Object.entries(allSourcesGrouped).map(([domain, domainSources], domainIndex) => (
-            <div key={domain} className={cn(
-              "border rounded-md overflow-hidden",
-              expanded[domain] ? "shadow-sm" : ""
-            )}>
-              <div 
-                className="flex items-center gap-2 p-3 bg-muted/50 cursor-pointer hover:bg-muted/80 transition-colors"
-                onClick={() => toggleDomain(domain)}
-              >
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 w-6 p-0"
+          {Object.entries(allSourcesGrouped).map(([domain, domainSources], domainIndex) => {
+            // Count how many sources in this domain have findings
+            const findingsCount = domainSources.filter(source => sourcesToFindings[source]).length;
+            
+            return (
+              <div key={domain} className={cn(
+                "border rounded-md overflow-hidden",
+                expanded[domain] ? "shadow-sm" : ""
+              )}>
+                <div 
+                  className="flex items-center gap-2 p-3 bg-muted/50 cursor-pointer hover:bg-muted/80 transition-colors"
+                  onClick={() => toggleDomain(domain)}
                 >
-                  {expanded[domain] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                </Button>
-                
-                <div className="flex items-center gap-2">
-                  {getDomainIcon(domain)}
-                  <span className="font-medium">{domain}</span>
-                  <Badge variant="outline" className="ml-1 text-xs">
-                    {domainSources.length}
-                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                  >
+                    {expanded[domain] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  </Button>
                   
-                  {domainSources.some(source => sourcesToFindings[source]) && (
-                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
-                      <Book className="h-3 w-3 mr-1" />
-                      findings
+                  <div className="flex items-center gap-2">
+                    {getDomainIcon(domain)}
+                    <span className="font-medium">{domain}</span>
+                    <Badge variant="outline" className="ml-1 text-xs">
+                      {domainSources.length}
                     </Badge>
-                  )}
-                </div>
-              </div>
-              
-              {expanded[domain] && (
-                <div className="p-3 pt-1 space-y-2 animate-accordion-down">
-                  {domainSources.map((source, idx) => {
-                    const sourceFinding = sourcesToFindings[source];
-                    const isFinding = !!sourceFinding;
                     
-                    return (
-                      <SourceItem 
-                        key={idx} 
-                        source={source}
-                        index={idx}
-                        isFinding={isFinding}
-                        content={isFinding ? undefined : ""}
-                        finding={sourceFinding?.finding}
-                      />
-                    );
-                  })}
+                    {findingsCount > 0 && (
+                      <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                        <Book className="h-3 w-3 mr-1" />
+                        {findingsCount} finding{findingsCount !== 1 ? 's' : ''}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
+                
+                {expanded[domain] && (
+                  <div className="p-3 pt-1 space-y-2 animate-accordion-down">
+                    {domainSources.map((source, idx) => {
+                      const sourceFinding = sourcesToFindings[source];
+                      const isFinding = !!sourceFinding;
+                      
+                      return (
+                        <SourceItem 
+                          key={idx} 
+                          source={source}
+                          index={idx}
+                          isFinding={isFinding}
+                          content={isFinding ? undefined : ""}
+                          finding={sourceFinding?.finding}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
