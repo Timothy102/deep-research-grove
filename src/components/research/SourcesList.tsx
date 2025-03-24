@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ExternalLink, Globe, Search, BookOpen, FileText, ChevronRight, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +13,7 @@ interface Finding {
 interface SourcesListProps {
   sources: string[];
   findings?: Finding[];
+  rawData?: Record<string, string>;
 }
 
 // Function to extract domain name from URL
@@ -200,7 +200,7 @@ const groupSourcesByDomain = (allSources: Array<{ url: string; content?: string;
   return Array.from(domains.entries()).sort((a, b) => b[1].length - a[1].length);
 };
 
-const SourcesList = ({ sources, findings = [] }: SourcesListProps) => {
+const SourcesList = ({ sources, findings = [], rawData = {} }: SourcesListProps) => {
   const [groupByDomain, setGroupByDomain] = useState(false);
   
   // Combine sources and findings, prioritizing findings

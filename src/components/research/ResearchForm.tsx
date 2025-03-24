@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Dispatch, SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,22 +38,39 @@ const exampleObjective = `I was always interested as to why life needs to exist.
 type ResearchFormProps = {
   onSubmit: (query: string, userModel: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => void;
   isLoading: boolean;
+  initialObjective?: string;
+  setResearchObjective?: Dispatch<SetStateAction<string>>;
+  selectedLLM?: string;
+  setSelectedLLM?: Dispatch<SetStateAction<string>>;
 };
 
-export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
-  const [query, setQuery] = useState("");
+export const ResearchForm = ({ 
+  onSubmit, 
+  isLoading, 
+  initialObjective = "", 
+  setResearchObjective, 
+  selectedLLM = "auto", 
+  setSelectedLLM 
+}: ResearchFormProps) => {
+  const [query, setQuery] = useState(initialObjective);
   const [currentUnderstanding, setCurrentUnderstanding] = useState("");
   const [userModel, setUserModel] = useState("");
   const [useCase, setUseCase] = useState("");
   const [userModels, setUserModels] = useState<UserModel[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string>("");
-  const [selectedLLM, setSelectedLLM] = useState("auto");
+  const [localSelectedLLM, setLocalSelectedLLM] = useState(selectedLLM);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [showExample, setShowExample] = useState(false);
 
   useEffect(() => {
     loadUserModels();
   }, []);
+
+  useEffect(() => {
+    if (initialObjective) {
+      setQuery(initialObjective);
+    }
+  }, [initialObjective]);
 
   const loadUserModels = async () => {
     setIsLoadingModels(true);
@@ -78,6 +95,20 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
     e.preventDefault();
     if (!query.trim()) return;
     onSubmit(query, userModel, useCase, selectedModelId, currentUnderstanding);
+  };
+
+  const handleQueryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setQuery(e.target.value);
+    if (setResearchObjective) {
+      setResearchObjective(e.target.value);
+    }
+  };
+
+  const handleLLMChange = (value: string) => {
+    setLocalSelectedLLM(value);
+    if (setSelectedLLM) {
+      setSelectedLLM(value);
+    }
   };
 
   const getSelectedModelDetails = () => {
@@ -147,7 +178,7 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
           id="research-objective"
           placeholder="What do you want to research? Be specific about your objectives and desired outcomes."
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={handleQueryChange}
           className="min-h-24 resize-none"
           required
         />
@@ -212,8 +243,8 @@ export const ResearchForm = ({ onSubmit, isLoading }: ResearchFormProps) => {
             select the LLM to use for this research
           </p>
           <Select 
-            value={selectedLLM} 
-            onValueChange={setSelectedLLM}
+            value={localSelectedLLM} 
+            onValueChange={handleLLMChange}
           >
             <SelectTrigger id="llm-model" className="w-full">
               <SelectValue placeholder="auto" className="lowercase" />

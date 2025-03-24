@@ -11,14 +11,20 @@ interface ResearchHistorySidebarProps {
   history: ResearchHistoryGroup[];
   onHistoryItemClick: (item: ResearchHistoryEntry) => void;
   className?: string;
+  isOpen?: boolean;
 }
 
 const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
   history,
   onHistoryItemClick,
-  className
+  className,
+  isOpen = true
 }) => {
   const navigate = useNavigate();
+
+  if (!isOpen) {
+    return null;
+  }
 
   if (history.length === 0) {
     return (

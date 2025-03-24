@@ -17,9 +17,10 @@ import { useToast } from "@/hooks/use-toast";
 interface UserModelOnboardingProps {
   isOpen: boolean;
   onClose: () => void;
+  onCompleted?: () => void;
 }
 
-const UserModelOnboarding = ({ isOpen, onClose }: UserModelOnboardingProps) => {
+const UserModelOnboarding = ({ isOpen, onClose, onCompleted }: UserModelOnboardingProps) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,6 +36,9 @@ const UserModelOnboarding = ({ isOpen, onClose }: UserModelOnboardingProps) => {
         description: "Your research model has been created successfully",
       });
       onClose();
+      if (onCompleted) {
+        onCompleted();
+      }
       navigate("/research");
     } catch (error) {
       console.error("Error creating model:", error);
@@ -52,6 +56,9 @@ const UserModelOnboarding = ({ isOpen, onClose }: UserModelOnboardingProps) => {
     try {
       await updateUserOnboardingStatus(true);
       onClose();
+      if (onCompleted) {
+        onCompleted();
+      }
       navigate("/research");
     } catch (error) {
       console.error("Error updating onboarding status:", error);

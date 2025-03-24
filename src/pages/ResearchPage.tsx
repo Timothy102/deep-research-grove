@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -55,6 +54,21 @@ interface Finding {
   node_id?: string;
   query?: string;
   finding?: any;
+}
+
+interface HumanInteraction {
+  call_id: string;
+  node_id: string;
+  query: string;
+  content: string;
+  interaction_type: string;
+  status: "completed" | "pending";
+  response?: {
+    approved: boolean;
+    comment?: string;
+    timestamp: string;
+  };
+  type?: string;
 }
 
 interface HumanInteractionRequest {
@@ -215,11 +229,18 @@ const ResearchPage = () => {
         
         // Check for pending human interactions
         if (sessionState.status === 'awaiting_human_input' && sessionState.human_interactions) {
-          const interactions = Array.isArray(sessionState.human_interactions) 
-            ? sessionState.human_interactions 
-            : (typeof sessionState.human_interactions === 'string' 
-                ? JSON.parse(sessionState.human_interactions) 
-                : []);
+          let interactions: HumanInteraction[] = [];
+          
+          if (typeof sessionState.human_interactions === 'string') {
+            try {
+              interactions = JSON.parse(sessionState.human_interactions);
+            } catch (e) {
+              console.error("Error parsing human interactions:", e);
+              interactions = [];
+            }
+          } else if (Array.isArray(sessionState.human_interactions)) {
+            interactions = sessionState.human_interactions;
+          }
                 
           // Find the last unanswered interaction request
           const lastInteraction = interactions
@@ -611,18 +632,34 @@ const ResearchPage = () => {
                   );
                   
                   if (currentSessionIdRef.current) {
+                    // Create an array of human interactions
+                    const humanInteractions: HumanInteraction[] = [
+                      ...findings.map(f => ({ 
+                        type: 'finding', 
+                        call_id: f.node_id || '', 
+                        node_id: f.node_id || '',
+                        content: f.content || '',
+                        query: f.query || '',
+                        interaction_type: 'finding',
+                        status: 'completed' as const
+                      })),
+                      { 
+                        type: 'interaction_request', 
+                        timestamp: new Date().toISOString(),
+                        call_id: interactionRequest.call_id,
+                        node_id: interactionRequest.node_id,
+                        query: interactionRequest.query,
+                        content: interactionRequest.content,
+                        interaction_type: interactionRequest.interaction_type,
+                        status: 'pending' as const
+                      }
+                    ];
+                    
                     // Save the human interaction request to the database for persistence
-                    updateResearchState(researchId, currentSessionIdRef.current, {
+                    await updateResearchState(researchId, currentSessionIdRef.current, {
                       status: 'awaiting_human_input',
-                      human_interactions: JSON.stringify([
-                        ...(findings.map(f => ({ type: 'finding', ...f })) || []),
-                        { 
-                          type: 'interaction_request', 
-                          timestamp: new Date().toISOString(),
-                          ...interactionRequest 
-                        }
-                      ])
-                    }).catch(err => console.error("Error updating human interaction state:", err));
+                      human_interactions: humanInteractions
+                    });
                   }
                 } else if (eventType === "human_interaction_result") {
                   console.log(`[${new Date().toISOString()}] 🧠 Human interaction result received:`, data.data);
@@ -907,7 +944,7 @@ const ResearchPage = () => {
           <ResearchHistorySidebar
             isOpen={sidebarOpen}
             history={groupedHistory}
-            onSelectHistoryItem={loadHistoryItem}
+            onHistoryItemClick={loadHistoryItem}
           />
         )}
 
@@ -997,9 +1034,8 @@ const ResearchPage = () => {
       {showOnboarding && (
         <UserModelOnboarding
           isOpen={showOnboarding}
-          onCompleted={() => {
-            setShowOnboarding(false);
-          }}
+          onClose={() => setShowOnboarding(false)}
+          onCompleted={() => setShowOnboarding(false)}
         />
       )}
 
@@ -1021,3 +1057,4 @@ const ResearchPage = () => {
 };
 
 export default ResearchPage;
+
