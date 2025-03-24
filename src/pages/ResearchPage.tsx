@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -15,8 +16,8 @@ import {
   getResearchState, 
   getLatestSessionState 
 } from "@/services/researchStateService";
-import { getUserOnboardingStatus, UserModel, getUserModelById } from "@/services/userModelService";
-import { respondToApproval } from "@/services/humanLayerService";
+import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted } from "@/services/userModelService";
+import { submitHumanFeedback } from "@/services/humanInteractionService";
 import { useToast } from "@/hooks/use-toast";
 import { ResearchForm } from "@/components/research/ResearchForm";
 import ReasoningPath from "@/components/research/ReasoningPath";
@@ -886,4 +887,179 @@ const ResearchPage = () => {
   };
 
   const toggleSidebar = () => {
-    setSidebarOpen(!
+    setSidebarOpen(!sidebarOpen);
+  };
+
+  return (
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* History sidebar */}
+      <ResearchHistorySidebar 
+        isOpen={sidebarOpen}
+        history={groupedHistory}
+        onSelectItem={loadHistoryItem}
+        onToggle={toggleSidebar}
+      />
+      
+      {/* Main content */}
+      <div className={`flex flex-col flex-1 h-full overflow-hidden transition-all duration-300 ease-in-out ${sidebarOpen ? (isMobile ? 'ml-0' : 'ml-72') : 'ml-0'}`}>
+        {/* Header */}
+        <header className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleSidebar}
+              className="mr-2"
+            >
+              {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
+            </Button>
+            <h1 className="text-xl font-semibold">Deep Research</h1>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleNewChat}
+              title="New research"
+            >
+              <MessageSquarePlus className="h-5 w-5" />
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              title="Log out"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
+        </header>
+        
+        {/* Main content area */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {/* Research form */}
+          <div className="p-4 border-b">
+            <ResearchForm 
+              isLoading={isLoading}
+              initialValue={researchObjective}
+              initialDomain={domain}
+              initialExpertiseLevel={expertiseLevel}
+              initialUserContext={userContext}
+              initialCognitiveStyle={selectedCognitiveStyle}
+              initialLLM={selectedLLM}
+              onSubmit={handleResearch}
+              onLLMChange={setSelectedLLM}
+            />
+          </div>
+          
+          {/* Research results */}
+          <div className="flex-1 overflow-hidden p-4">
+            {isLoading || reasoningPath.length > 0 || researchOutput ? (
+              <Tabs 
+                value={activeTab} 
+                onValueChange={setActiveTab} 
+                className="h-full flex flex-col"
+              >
+                <TabsList className="grid grid-cols-3 w-full">
+                  <TabsTrigger value="reasoning" className="flex items-center gap-2">
+                    <Brain className="h-4 w-4" />
+                    <span>Reasoning</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="sources" className="flex items-center gap-2">
+                    <Search className="h-4 w-4" />
+                    <span>Sources</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="output" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    <span>Output</span>
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent 
+                  value="reasoning" 
+                  className="flex-1 overflow-auto p-4 mt-0"
+                >
+                  <ReasoningPath 
+                    reasoningPath={reasoningPath} 
+                    isActive={activeTab === "reasoning"} 
+                    isLoading={isLoading}
+                    sources={sources}
+                    findings={findings}
+                    rawData={rawData}
+                    sessionId={sessionId}
+                  />
+                  
+                  {isLoading && (
+                    <div className="flex justify-center mt-4">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  )}
+                </TabsContent>
+                
+                <TabsContent 
+                  value="sources" 
+                  className="flex-1 overflow-auto p-4 mt-0"
+                >
+                  <SourcesList sources={sources} findings={findings} />
+                </TabsContent>
+                
+                <TabsContent 
+                  value="output" 
+                  className="flex-1 overflow-auto p-4 mt-0"
+                >
+                  <ResearchOutput output={researchOutput} isLoading={isLoading} />
+                </TabsContent>
+              </Tabs>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                <Brain className="h-16 w-16 mb-4 text-muted-foreground" />
+                <h2 className="text-2xl font-semibold mb-2">Start Your Research</h2>
+                <p className="text-muted-foreground max-w-md mb-6">
+                  Enter your research objective and add user context to get started.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      
+      {/* Onboarding modal */}
+      {showOnboarding && (
+        <UserModelOnboarding 
+          isOpen={showOnboarding}
+          onClose={() => setShowOnboarding(false)}
+          onComplete={async (model) => {
+            try {
+              await markOnboardingCompleted();
+              setShowOnboarding(false);
+              
+              toast.success("User model created successfully");
+            } catch (error) {
+              console.error("Error completing onboarding:", error);
+              toast.error("Failed to complete onboarding");
+            }
+          }}
+        />
+      )}
+      
+      {/* Human approval dialog */}
+      {showApprovalDialog && humanApprovalRequest && (
+        <HumanApprovalDialog
+          content={humanApprovalRequest.content}
+          query={humanApprovalRequest.query}
+          callId={humanApprovalRequest.call_id}
+          nodeId={humanApprovalRequest.node_id}
+          approvalType={humanApprovalRequest.approval_type}
+          isOpen={showApprovalDialog}
+          onClose={() => setShowApprovalDialog(false)}
+          onApprove={handleApproveRequest}
+          onReject={handleRejectRequest}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ResearchPage;
