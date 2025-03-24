@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { ExternalLink, ChevronDown, ChevronRight, Search, Database } from "lucide-react";
+import { ExternalLink, ChevronDown, ChevronRight, Search, Database, Book, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,12 @@ interface Finding {
   content?: string;
   node_id?: string;
   query?: string;
-  finding?: any;
+  finding?: {
+    title?: string;
+    summary?: string;
+    confidence_score?: number;
+    url?: string;
+  };
 }
 
 interface SourcesListProps {
@@ -23,6 +28,8 @@ interface SourceItemProps {
   source: string;
   content?: string;
   finding?: any;
+  index?: number;
+  isFinding?: boolean;
 }
 
 const extractDomain = (url: string): string => {
@@ -63,17 +70,39 @@ const getDomainIcon = (domain: string) => {
   return <Search className="h-4 w-4" />;
 };
 
-const SourceItem: React.FC<SourceItemProps> = ({ source, content, finding }) => {
-  const [expanded, setExpanded] = useState(false);
+const SourceItem: React.FC<SourceItemProps> = ({ source, content, finding, index, isFinding = false }) => {
+  const [expanded, setExpanded] = useState(finding && (finding.title || finding.summary));
   
-  const displayContent = content || (finding && 
-    `Title: ${finding.title || ''}\nSummary: ${finding.summary || ''}\nConfidence: ${finding.confidence_score?.toFixed(2) || 'N/A'}`
-  );
+  const displayContent = finding ? 
+    `Title: ${finding.title || ''}\nSummary: ${finding.summary || ''}\nConfidence: ${finding.confidence_score?.toFixed(2) || 'N/A'}${finding.url ? `\nURL: ${finding.url}` : ''}` 
+    : content;
   
   return (
-    <div className="border border-muted-foreground/10 rounded-md mb-2">
+    <div className={cn(
+      "border rounded-md mb-2",
+      isFinding ? "border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20" 
+                : "border-muted-foreground/10"
+    )}>
       <div className="flex items-center justify-between p-2 cursor-pointer" onClick={() => displayContent && setExpanded(!expanded)}>
         <div className="flex items-center gap-2 flex-1 overflow-hidden">
+          {index !== undefined && (
+            <span className={cn(
+              "inline-block w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0",
+              isFinding
+                ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
+                : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+            )}>
+              {index + 1}
+            </span>
+          )}
+          
+          {isFinding && (
+            <Badge variant="outline" className="h-5 py-0.5 text-[10px] bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+              <Book className="h-3 w-3 mr-1" />
+              finding
+            </Badge>
+          )}
+          
           <a 
             href={source} 
             target="_blank" 
@@ -81,7 +110,7 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, content, finding }) => 
             className="text-blue-600 dark:text-blue-400 hover:underline truncate text-sm"
             onClick={(e) => e.stopPropagation()}
           >
-            {extractDomain(source)}
+            {finding?.title || extractDomain(source)}
           </a>
         </div>
         
@@ -114,7 +143,7 @@ const SourceItem: React.FC<SourceItemProps> = ({ source, content, finding }) => 
       
       {expanded && displayContent && (
         <div className="px-2 pb-2 animate-accordion-down">
-          <div className="text-xs text-muted-foreground bg-background/50 p-2 rounded border">
+          <div className="text-xs text-muted-foreground bg-background/50 p-2 rounded border whitespace-pre-wrap">
             {displayContent}
           </div>
         </div>
@@ -134,6 +163,14 @@ const SourcesList: React.FC<SourcesListProps> = ({ sources, findings = [], rawDa
     );
   }
   
+  // Create a mapping of source URLs to their findings
+  const sourcesToFindings: Record<string, Finding> = {};
+  findings.forEach(finding => {
+    if (finding.source) {
+      sourcesToFindings[finding.source] = finding;
+    }
+  });
+  
   const toggleDomain = (domain: string) => {
     setExpanded(prev => ({
       ...prev,
@@ -143,19 +180,32 @@ const SourcesList: React.FC<SourcesListProps> = ({ sources, findings = [], rawDa
   
   const groupedSources = groupSourcesByDomain(sources);
   
+  // Get findings that don't have a matching source
+  const standaloneFindingSources = findings
+    .filter(finding => !sources.includes(finding.source))
+    .map(finding => finding.source);
+  
+  const allSourcesGrouped = groupSourcesByDomain([...sources, ...standaloneFindingSources]);
+  
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
           <Database className="h-4 w-4" />
-          Sources
+          Sources & Findings
           <Badge variant="outline" className="ml-2">
             {sources.length}
           </Badge>
+          {findings.length > 0 && (
+            <Badge variant="outline" className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+              <Book className="h-3 w-3 mr-1" />
+              {findings.length} findings
+            </Badge>
+          )}
         </h3>
         
         <div className="space-y-4">
-          {Object.entries(groupedSources).map(([domain, domainSources]) => (
+          {Object.entries(allSourcesGrouped).map(([domain, domainSources], domainIndex) => (
             <div key={domain} className={cn(
               "border rounded-md overflow-hidden",
               expanded[domain] ? "shadow-sm" : ""
@@ -178,48 +228,39 @@ const SourcesList: React.FC<SourcesListProps> = ({ sources, findings = [], rawDa
                   <Badge variant="outline" className="ml-1 text-xs">
                     {domainSources.length}
                   </Badge>
+                  
+                  {domainSources.some(source => sourcesToFindings[source]) && (
+                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+                      <Book className="h-3 w-3 mr-1" />
+                      findings
+                    </Badge>
+                  )}
                 </div>
               </div>
               
               {expanded[domain] && (
                 <div className="p-3 pt-1 space-y-2 animate-accordion-down">
-                  {domainSources.map((source, idx) => (
-                    <SourceItem 
-                      key={idx} 
-                      source={source} 
-                      content={findings.find(f => f.source === source)?.content}
-                      finding={findings.find(f => f.source === source)?.finding}
-                    />
-                  ))}
+                  {domainSources.map((source, idx) => {
+                    const sourceFinding = sourcesToFindings[source];
+                    const isFinding = !!sourceFinding;
+                    
+                    return (
+                      <SourceItem 
+                        key={idx} 
+                        source={source}
+                        index={idx}
+                        isFinding={isFinding}
+                        content={isFinding ? undefined : ""}
+                        finding={sourceFinding?.finding}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </div>
           ))}
         </div>
       </div>
-      
-      {findings.length > 0 && (
-        <div>
-          <h3 className="text-sm font-medium mb-4 flex items-center gap-2">
-            <Search className="h-4 w-4" />
-            Findings
-            <Badge variant="outline" className="ml-2">
-              {findings.length}
-            </Badge>
-          </h3>
-          
-          <div className="space-y-2">
-            {findings.map((finding, idx) => (
-              <SourceItem 
-                key={idx}
-                source={finding.source}
-                content={finding.content}
-                finding={finding.finding}
-              />
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

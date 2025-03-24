@@ -44,6 +44,17 @@ const ReasoningPath = ({
     );
   }
   
+  // Group findings by node_id for easier matching
+  const findingsByNodeId: Record<string, Finding[]> = {};
+  findings.forEach(finding => {
+    if (finding.node_id) {
+      if (!findingsByNodeId[finding.node_id]) {
+        findingsByNodeId[finding.node_id] = [];
+      }
+      findingsByNodeId[finding.node_id].push(finding);
+    }
+  });
+  
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -55,8 +66,10 @@ const ReasoningPath = ({
       
       <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pb-8">
         {reasoningPath.map((step, index) => {
+          // Extract node ID from the step text using multiple patterns
           const nodeId = step.match(/node(?:_id|[\s_]id)?:?\s*['"]?([a-zA-Z0-9_-]+)['"]?/i)?.[1] || 
                       step.match(/node\s+(\d+)|#(\d+)/i)?.[1] || 
+                      step.match(/step-(\d+)/i)?.[1] ||
                       `step-${index}`;
                       
           const stepRawData = nodeId ? rawData[nodeId] : undefined;
@@ -78,11 +91,23 @@ const ReasoningPath = ({
             }
           }
           
-          // Find relevant findings for this step
-          const relevantFindings = findings.filter(finding => 
-            finding.node_id === nodeId || 
-            (step.toLowerCase().includes(finding.source?.split('//')[1]?.split('.')[0] || ''))
-          );
+          // Get findings for this specific node_id
+          const nodeFindings = findingsByNodeId[nodeId] || [];
+          
+          // Also try to match findings by source/URL in the step text
+          const urlFindings = findings.filter(finding => {
+            if (nodeFindings.includes(finding)) return false; // Skip if already added
+            try {
+              const url = new URL(finding.source);
+              const domain = url.hostname.replace('www.', '');
+              return step.toLowerCase().includes(domain.split('.')[0]);
+            } catch {
+              return false;
+            }
+          });
+          
+          // Combine both sets of findings
+          const relevantFindings = [...nodeFindings, ...urlFindings];
           
           return (
             <ReasoningStep
