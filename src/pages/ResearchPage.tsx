@@ -322,7 +322,7 @@ const ResearchPage = () => {
               included_sources: model.included_sources || [],
               source_priorities: model.source_priorities || [],
               session_id: currentSessionIdRef.current,
-              model_id: model.id,
+              model_id: selectedModelId,
               currentUnderstanding: currentUnderstanding,
               client_id: clientIdRef.current
             };
@@ -338,6 +338,7 @@ const ResearchPage = () => {
             expertise_level: expertiseLevel,
             cognitiveStyle: selectedCognitiveStyle,
             session_id: currentSessionIdRef.current,
+            model_id: "claude-3.5-sonnet",
             currentUnderstanding: currentUnderstanding,
             client_id: clientIdRef.current
           };
@@ -352,6 +353,7 @@ const ResearchPage = () => {
           expertise_level: expertiseLevel,
           cognitiveStyle: selectedCognitiveStyle,
           session_id: currentSessionIdRef.current,
+          model_id: "claude-3.5-sonnet",
           currentUnderstanding: currentUnderstanding,
           client_id: clientIdRef.current
         };
@@ -1068,4 +1070,3 @@ const ResearchPage = () => {
 };
 
 export default ResearchPage;
-
