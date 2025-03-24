@@ -892,7 +892,7 @@ const ResearchPage = () => {
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-2">
             <Brain className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold">arcadia research</h1>
+            <h1 className="text-lg font-semibold">deep research</h1>
           </div>
           
           <div className="flex items-center space-x-2">
@@ -995,7 +995,11 @@ const ResearchPage = () => {
       {showApprovalDialog && humanApprovalRequest && (
         <HumanApprovalDialog
           isOpen={showApprovalDialog}
-          request={humanApprovalRequest}
+          callId={humanApprovalRequest.call_id}
+          nodeId={humanApprovalRequest.node_id}
+          query={humanApprovalRequest.query}
+          content={humanApprovalRequest.content}
+          approvalType={humanApprovalRequest.approval_type}
           onApprove={(callId, nodeId) => handleApproveRequest(callId, nodeId)}
           onReject={(callId, nodeId, reason) => handleRejectRequest(callId, nodeId, reason)}
           onClose={() => setShowApprovalDialog(false)}

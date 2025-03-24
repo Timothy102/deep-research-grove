@@ -183,7 +183,7 @@ const UserModelsPage = () => {
         <div className="flex items-center space-x-2">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600"></div>
           <a href="/" className="no-underline">
-            <span className="font-display font-semibold text-xl">deepresearch</span>
+            <span className="font-display font-semibold text-xl">deep research</span>
           </a>
         </div>
         <div className="flex items-center space-x-4">
