@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -884,3 +885,138 @@ const ResearchPage = () => {
       toast.error("Failed to submit feedback");
       throw error;
     }
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen max-h-screen">
+      <header className="border-b">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center space-x-2">
+            <Brain className="h-5 w-5 text-primary" />
+            <h1 className="text-lg font-semibold">arcadia research</h1>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="hidden md:flex"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleNewChat}
+            >
+              <MessageSquarePlus className="h-4 w-4" />
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        {sidebarOpen && !isMobile && (
+          <aside className="w-72 border-r overflow-y-auto flex-shrink-0">
+            <ResearchHistorySidebar 
+              isOpen={sidebarOpen}
+              history={groupedHistory}
+              onSelectItem={(item) => loadHistoryItem(item)}
+              onToggle={() => setSidebarOpen(!sidebarOpen)}
+            />
+          </aside>
+        )}
+
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <div className="p-4 border-b">
+            <ResearchForm 
+              isLoading={isLoading}
+              initialValue={researchObjective}
+              initialDomain={domain}
+              initialExpertiseLevel={expertiseLevel}
+              initialUserContext={userContext}
+              initialCognitiveStyle={selectedCognitiveStyle}
+              initialLLM={selectedLLM}
+              onSubmit={handleResearch}
+            />
+          </div>
+          
+          <div className="flex-1 overflow-auto p-4">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="mb-4">
+                <TabsTrigger value="reasoning" className="flex items-center space-x-1">
+                  <Brain className="h-4 w-4" />
+                  <span>process ({reasoningPath.length})</span>
+                </TabsTrigger>
+                <TabsTrigger value="output" className="flex items-center space-x-1">
+                  <FileText className="h-4 w-4" />
+                  <span>output</span>
+                </TabsTrigger>
+                <TabsTrigger value="sources" className="flex items-center space-x-1">
+                  <Search className="h-4 w-4" />
+                  <span>sources ({sources.length})</span>
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="reasoning" className="mt-0">
+                <ReasoningPath 
+                  reasoningPath={reasoningPath} 
+                  sources={sources}
+                  findings={findings}
+                  isActive={activeTab === "reasoning"}
+                  isLoading={isLoading}
+                  rawData={rawData}
+                  sessionId={currentSessionIdRef.current || ""}
+                />
+              </TabsContent>
+              
+              <TabsContent value="output" className="mt-0">
+                <ResearchOutput content={researchOutput} isLoading={isLoading} />
+              </TabsContent>
+              
+              <TabsContent value="sources" className="mt-0">
+                <SourcesList sources={sources} />
+              </TabsContent>
+            </Tabs>
+          </div>
+        </main>
+      </div>
+      
+      {showApprovalDialog && humanApprovalRequest && (
+        <HumanApprovalDialog
+          isOpen={showApprovalDialog}
+          request={humanApprovalRequest}
+          onApprove={(callId, nodeId) => handleApproveRequest(callId, nodeId)}
+          onReject={(callId, nodeId, reason) => handleRejectRequest(callId, nodeId, reason)}
+          onClose={() => setShowApprovalDialog(false)}
+        />
+      )}
+      
+      {showOnboarding && (
+        <UserModelOnboarding
+          isOpen={true}
+          onClose={() => setShowOnboarding(false)}
+          onCompleted={async (model) => {
+            setShowOnboarding(false);
+            await markOnboardingCompleted();
+            setDomain(model.domain);
+            setExpertiseLevel(model.expertise_level);
+            setSelectedCognitiveStyle(model.cognitive_style);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ResearchPage;
