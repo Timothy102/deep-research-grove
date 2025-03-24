@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -97,6 +96,9 @@ const ResearchPage = () => {
       return;
     }
     
+    // Log the current client ID for debugging
+    console.log(`[${new Date().toISOString()}] 🔑 Active client ID:`, clientIdRef.current);
+    
     currentSessionIdRef.current = sessionId;
     
     checkOnboardingStatus();
@@ -149,16 +151,33 @@ const ResearchPage = () => {
 
   const loadSessionData = async (sessionId: string) => {
     try {
-      console.log("Loading session data for session ID:", sessionId, "client ID:", clientIdRef.current);
+      console.log(`[${new Date().toISOString()}] 🔄 Loading session data:`, { 
+        sessionId, 
+        clientId: clientIdRef.current.substring(0, 15)  // Log partial client ID for privacy
+      });
       
       const sessionState = await getLatestSessionState(sessionId);
       
       if (!sessionState) {
-        console.log("No existing session data found");
+        console.log(`[${new Date().toISOString()}] ℹ️ No existing session data found`);
         return;
       }
       
-      console.log("Retrieved session data:", sessionState);
+      console.log(`[${new Date().toISOString()}] ✅ Retrieved session data:`, { 
+        id: sessionState.id,
+        research_id: sessionState.research_id,
+        status: sessionState.status,
+        clientId: sessionState.client_id
+      });
+      
+      // Verify this session belongs to the current client
+      if (sessionState.client_id && sessionState.client_id !== clientIdRef.current) {
+        console.warn(`[${new Date().toISOString()}] ⚠️ Session belongs to a different client, resetting state`, {
+          sessionClientId: sessionState.client_id.substring(0, 15),
+          currentClientId: clientIdRef.current.substring(0, 15)
+        });
+        return;
+      }
       
       if (sessionState.research_id) {
         researchIdRef.current = sessionState.research_id;
@@ -175,7 +194,7 @@ const ResearchPage = () => {
         }
       }
     } catch (error) {
-      console.error("Error loading session data:", error);
+      console.error(`[${new Date().toISOString()}] ❌ Error loading session data:`, error);
     }
   };
 
@@ -218,7 +237,7 @@ const ResearchPage = () => {
             };
           }
         } catch (err) {
-          console.error("Error fetching user model:", err);
+          console.error(`[${new Date().toISOString()}] ❌ Error fetching user model:`, err);
           userModelPayload = {
             user_id: user?.id || "anonymous",
             name: user?.email || "anonymous",
@@ -268,7 +287,7 @@ const ResearchPage = () => {
       await loadHistory();
       
     } catch (error) {
-      console.error("Research error:", error);
+      console.error(`[${new Date().toISOString()}] ❌ Research error:`, error);
       uiToast({
         title: "research failed",
         description: "there was an error processing your request",
@@ -287,6 +306,8 @@ const ResearchPage = () => {
     
     const fetchEventSource = async () => {
       try {
+        console.log(`[${new Date().toISOString()}] 🔄 Starting research stream with client ID:`, clientIdRef.current.substring(0, 15));
+        
         const response = await fetch(streamUrl, {
           method: 'POST',
           headers: {
@@ -336,26 +357,34 @@ const ResearchPage = () => {
                 const eventSessionId = data.session_id || currentSessionIdRef.current;
                 const eventResearchId = data.research_id || researchId;
                 
-                // Only process events meant for this client
+                // Only process events meant for this client - STRICT VALIDATION
                 if (eventClientId !== clientIdRef.current) {
-                  console.warn("Received event for different client, ignoring", { 
-                    eventClientId, currentClientId: clientIdRef.current
+                  console.warn(`[${new Date().toISOString()}] 🚫 Rejected event for different client:`, { 
+                    eventClientId: eventClientId?.substring(0, 15), 
+                    currentClientId: clientIdRef.current.substring(0, 15),
+                    eventType: data.event || data.type
                   });
                   continue;
                 }
                 
-                // Verify session and research IDs
+                // Verify session and research IDs - STRICT VALIDATION
                 if (eventSessionId !== currentSessionIdRef.current || 
                     eventResearchId !== researchId) {
-                  console.warn("Received event for different session/research, ignoring", { 
-                    eventSessionId, currentSessionId: currentSessionIdRef.current,
-                    eventResearchId, currentResearchId: researchId
+                  console.warn(`[${new Date().toISOString()}] 🚫 Rejected event for different session/research:`, { 
+                    eventSessionId,
+                    currentSessionId: currentSessionIdRef.current,
+                    eventResearchId,
+                    currentResearchId: researchId,
+                    eventType: data.event || data.type
                   });
                   continue;
                 }
                 
                 const eventType = data.event || data.type;
-                console.log(`[${new Date().toISOString()}] 📊 Processing event type:`, eventType, data);
+                console.log(`[${new Date().toISOString()}] 📊 Processing event:`, { 
+                  type: eventType, 
+                  clientId: clientIdRef.current.substring(0, 15)
+                });
                 
                 if (data.data && data.data.node_id) {
                   const nodeId = data.data.node_id;
@@ -527,13 +556,13 @@ const ResearchPage = () => {
                   );
                 }
               } catch (error) {
-                console.error("Error parsing event data:", error);
+                console.error(`[${new Date().toISOString()}] ❌ Error parsing event data:`, error);
               }
             }
           }
         }
       } catch (error) {
-        console.error("Fetch error:", error);
+        console.error(`[${new Date().toISOString()}] ❌ Fetch error:`, error);
         uiToast({
           title: "connection error",
           description: "failed to connect to research service",
@@ -553,34 +582,48 @@ const ResearchPage = () => {
   const pollResearchState = async (researchId: string) => {
     try {
       if (!currentSessionIdRef.current) {
-        console.error("No session ID available for polling");
+        console.error(`[${new Date().toISOString()}] ❌ No session ID available for polling`);
         return;
       }
       
-      console.log("Polling for research state:", researchId, "in session:", currentSessionIdRef.current);
+      console.log(`[${new Date().toISOString()}] 🔄 Polling research state:`, { 
+        researchId,
+        sessionId: currentSessionIdRef.current,
+        clientId: clientIdRef.current.substring(0, 15)
+      });
       
       const data = await getResearchState(researchId, currentSessionIdRef.current);
       
       if (!data) {
-        console.log("No research state found, will retry...");
+        console.log(`[${new Date().toISOString()}] ℹ️ No research state found, will retry...`);
         setTimeout(() => pollResearchState(researchId), 3000);
         return;
       }
       
-      console.log("Polled research state:", data);
+      console.log(`[${new Date().toISOString()}] ✅ Polled research state:`, { 
+        id: data.id,
+        status: data.status,
+        clientId: data.client_id?.substring(0, 15) || 'none'
+      });
       
-      // Verify the client ID matches
+      // STRICT VALIDATION: Verify the client ID matches
       if (data.client_id && data.client_id !== clientIdRef.current) {
-        console.warn("Received polling response for different client, ignoring", {
-          stateClientId: data.client_id, 
-          currentClientId: clientIdRef.current
+        console.warn(`[${new Date().toISOString()}] 🚫 Rejected polling response for different client:`, {
+          stateClientId: data.client_id.substring(0, 15), 
+          currentClientId: clientIdRef.current.substring(0, 15)
         });
         return;
       }
       
+      // STRICT VALIDATION: Verify the session and research ID match
       if ((data?.session_id && data.session_id !== currentSessionIdRef.current) ||
           (data?.research_id && data.research_id !== researchId)) {
-        console.warn("Received polling response for different session/research, ignoring");
+        console.warn(`[${new Date().toISOString()}] 🚫 Rejected polling response for different session/research`, {
+          stateSessionId: data.session_id,
+          currentSessionId: currentSessionIdRef.current,
+          stateResearchId: data.research_id,
+          currentResearchId: researchId
+        });
         return;
       }
       
@@ -626,7 +669,7 @@ const ResearchPage = () => {
         setIsLoading(false);
       }
     } catch (error) {
-      console.error("Polling error:", error);
+      console.error(`[${new Date().toISOString()}] ❌ Polling error:`, error);
       uiToast({
         title: "Error",
         description: "Failed to retrieve research results",

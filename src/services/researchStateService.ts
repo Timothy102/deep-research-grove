@@ -41,8 +41,9 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     state.reasoning_path = ["Analyzing research objective..."];
   }
   
-  // Associate this research state with the current browser client
+  // Create a guaranteed unique client ID for this browser session/tab
   const clientId = getClientId();
+  console.log(`[${new Date().toISOString()}] 🔑 Using client ID for research state:`, clientId);
   
   // Filter out properties that might not exist in the table schema
   const validState = {
@@ -61,9 +62,9 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
   };
   
   try {
-    console.log(`[${new Date().toISOString()}] 🔄 Attempting to insert research state with user_id:`, user.user.id);
+    console.log(`[${new Date().toISOString()}] 🔄 Attempting to insert research state with user_id:`, user.user.id, "and client_id:", clientId);
     
-    // Include the client_id in the insert operation
+    // Always include the client_id in every operation
     const { data, error } = await supabase
       .from('research_states')
       .insert({...validState, client_id: clientId})
@@ -141,10 +142,15 @@ export async function updateResearchState(
     throw new Error("User not authenticated");
   }
   
-  console.log("Updating research state:", { researchId, sessionId, updates });
-  
-  // Include the client_id in the match criteria to ensure we only update our own research state
+  // Client ID is crucial for isolating sessions
   const clientId = getClientId();
+  
+  console.log(`[${new Date().toISOString()}] 🔄 Updating research state:`, { 
+    researchId, 
+    sessionId,
+    clientId,
+    updates: JSON.stringify(updates).substring(0, 100) + "..." 
+  });
   
   // Filter out active_tab if it exists in updates
   const { active_tab, ...otherUpdates } = updates;
@@ -155,6 +161,8 @@ export async function updateResearchState(
   // Try with active_tab first if it exists
   if (active_tab !== undefined) {
     try {
+      console.log(`[${new Date().toISOString()}] 🔄 Updating with active_tab and client_id:`, clientId);
+      
       const { data, error } = await supabase
         .from('research_states')
         .update({ ...validUpdates, active_tab })
@@ -162,16 +170,16 @@ export async function updateResearchState(
           research_id: researchId, 
           session_id: sessionId, 
           user_id: user.user.id,
-          client_id: clientId  // Add client_id to match criteria
+          client_id: clientId
         })
         .select();
         
       if (error) {
         if (error.message.includes("active_tab")) {
-          console.log("active_tab column doesn't exist, trying without it");
+          console.log(`[${new Date().toISOString()}] ℹ️ active_tab column doesn't exist, trying without it`);
           // Fall through to try without active_tab
         } else {
-          console.error("Error updating research state:", error);
+          console.error(`[${new Date().toISOString()}] ❌ Error updating research state:`, error);
           throw error;
         }
       } else {
@@ -187,12 +195,14 @@ export async function updateResearchState(
         return null;
       }
     } catch (error) {
-      console.error("Error in update attempt with active_tab:", error);
+      console.error(`[${new Date().toISOString()}] ❌ Error in update attempt with active_tab:`, error);
       // Fall through to try without active_tab
     }
   }
   
   // Try without active_tab if we got here
+  console.log(`[${new Date().toISOString()}] 🔄 Updating without active_tab but with client_id:`, clientId);
+  
   const { data, error } = await supabase
     .from('research_states')
     .update(validUpdates)
@@ -200,12 +210,12 @@ export async function updateResearchState(
       research_id: researchId, 
       session_id: sessionId, 
       user_id: user.user.id,
-      client_id: clientId  // Add client_id to match criteria
+      client_id: clientId  // Always use client_id to ensure isolation
     })
     .select();
     
   if (error) {
-    console.error("Error updating research state:", error);
+    console.error(`[${new Date().toISOString()}] ❌ Error updating research state:`, error);
     throw error;
   }
   
@@ -229,8 +239,14 @@ export async function getResearchState(researchId: string, sessionId: string): P
     throw new Error("User not authenticated");
   }
   
-  // Include client_id in the match criteria
+  // Include client_id in the match criteria for strict isolation
   const clientId = getClientId();
+  
+  console.log(`[${new Date().toISOString()}] 🔍 Fetching research state:`, { 
+    researchId, 
+    sessionId,
+    clientId
+  });
   
   const { data, error } = await supabase
     .from('research_states')
@@ -244,7 +260,7 @@ export async function getResearchState(researchId: string, sessionId: string): P
     .maybeSingle();
     
   if (error) {
-    console.error("Error fetching research state:", error);
+    console.error(`[${new Date().toISOString()}] ❌ Error fetching research state:`, error);
     throw error;
   }
   
@@ -268,8 +284,10 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
     throw new Error("User not authenticated");
   }
   
-  // Include client_id in the match criteria
+  // Include client_id in the match criteria for strict isolation
   const clientId = getClientId();
+  
+  console.log(`[${new Date().toISOString()}] 🔍 Fetching all research states for session:`, sessionId, "and client:", clientId);
   
   const { data, error } = await supabase
     .from('research_states')
@@ -282,7 +300,7 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
     .order('created_at', { ascending: false });
     
   if (error) {
-    console.error("Error fetching session research states:", error);
+    console.error(`[${new Date().toISOString()}] ❌ Error fetching session research states:`, error);
     throw error;
   }
   
@@ -307,10 +325,11 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
       throw new Error("User not authenticated");
     }
     
-    // Include client_id in the match criteria
+    // Include client_id in the match criteria for strict isolation
     const clientId = getClientId();
     
-    console.log("Fetching latest session state for session:", sessionId, "and user:", user.user.id, "and client:", clientId);
+    console.log(`[${new Date().toISOString()}] 🔍 Fetching latest session state for session:`, sessionId, 
+      "user:", user.user.id.substring(0, 8), "client:", clientId.substring(0, 15));
     
     const { data, error } = await supabase
       .from('research_states')
@@ -325,13 +344,18 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
       .maybeSingle();
       
     if (error) {
-      console.error("Error fetching latest session state:", error);
+      console.error(`[${new Date().toISOString()}] ❌ Error fetching latest session state:`, error);
       throw error;
     }
     
     if (data) {
       const result = data as ResearchState;
-      console.log("Found session state:", result);
+      console.log(`[${new Date().toISOString()}] ✅ Found session state:`, {
+        id: result.id,
+        research_id: result.research_id,
+        status: result.status,
+        clientId: result.client_id
+      });
       
       if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
         result.status = 'in_progress'; // Default to 'in_progress' if invalid status
@@ -339,10 +363,10 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
       return result;
     }
     
-    console.log("No session state found for session:", sessionId);
+    console.log(`[${new Date().toISOString()}] ℹ️ No session state found for session:`, sessionId);
     return null;
   } catch (error) {
-    console.error("Error in getLatestSessionState:", error);
+    console.error(`[${new Date().toISOString()}] 🔥 Error in getLatestSessionState:`, error);
     return null;
   }
 }
