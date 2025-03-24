@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 interface UserModelOnboardingProps {
   isOpen: boolean;
   onClose: () => void;
-  onCompleted?: () => void;
+  onCompleted?: (model: any) => void; // Changed from optional function that takes no args to optional function that takes a model
   onComplete?: (model: any) => Promise<void>;
 }
 
@@ -61,7 +61,7 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
       onClose();
       
       if (onCompleted) {
-        onCompleted();
+        onCompleted(createdModel);
       }
       
       if (onComplete) {
