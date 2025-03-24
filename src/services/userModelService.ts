@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export type UserModelSourcePriority = {
@@ -244,3 +243,27 @@ export async function getUserOnboardingStatus(): Promise<boolean> {
   
   return data?.onboarding_completed || false;
 }
+
+// Add new function to mark onboarding as completed
+export const markOnboardingCompleted = async (): Promise<void> => {
+  try {
+    const user = await supabase.auth.getUser();
+    
+    if (!user.data.user) {
+      throw new Error("No authenticated user found");
+    }
+    
+    await supabase
+      .from('user_onboarding')
+      .upsert({
+        user_id: user.data.user.id,
+        completed: true,
+        completed_at: new Date().toISOString(),
+      });
+      
+    console.log("Onboarding marked as completed");
+  } catch (error) {
+    console.error("Error marking onboarding as completed:", error);
+    throw error;
+  }
+};

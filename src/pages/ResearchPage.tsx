@@ -1010,7 +1010,12 @@ const ResearchPage = () => {
               <TabsContent value="reasoning" className="border-none p-0">
                 <ReasoningPath 
                   reasoningPath={reasoningPath} 
-                  isLoading={isLoading} 
+                  isLoading={isLoading}
+                  sources={sources}
+                  findings={findings}
+                  isActive={isLoading}
+                  rawData={rawData}
+                  sessionId={currentSessionIdRef.current || ""}
                 />
               </TabsContent>
 
@@ -1059,3 +1064,4 @@ const ResearchPage = () => {
 };
 
 export default ResearchPage;
+
