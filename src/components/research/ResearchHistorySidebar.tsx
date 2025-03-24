@@ -12,30 +12,22 @@ interface ResearchHistorySidebarProps {
   onHistoryItemClick: (item: ResearchHistoryEntry) => void;
   className?: string;
   isOpen?: boolean;
+  onToggle?: () => void;
+  onSelectItem?: (item: ResearchHistoryEntry) => void;
 }
 
 const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
   history,
   onHistoryItemClick,
   className,
-  isOpen = true
+  isOpen = true,
+  onToggle,
+  onSelectItem
 }) => {
   const navigate = useNavigate();
 
   if (!isOpen) {
     return null;
-  }
-
-  if (history.length === 0) {
-    return (
-      <div className={cn("p-4", className)}>
-        <h3 className="font-semibold mb-4 flex items-center">
-          <History className="h-4 w-4 mr-2" />
-          research history
-        </h3>
-        <p className="text-sm text-muted-foreground">no history yet</p>
-      </div>
-    );
   }
 
   return (
@@ -75,8 +67,12 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                           // Navigate directly to the session
                           navigate(`/research/${sessionId}`);
                         } else {
-                          // Fallback to the old behavior
-                          onHistoryItemClick(item);
+                          // Use the appropriate callback
+                          if (onSelectItem) {
+                            onSelectItem(item);
+                          } else {
+                            onHistoryItemClick(item);
+                          }
                         }
                       }}
                     >

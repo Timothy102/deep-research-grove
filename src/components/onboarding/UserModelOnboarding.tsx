@@ -13,12 +13,14 @@ interface UserModelOnboardingProps {
   isOpen: boolean;
   onClose: () => void;
   onCompleted?: () => void;
+  onComplete?: (model: any) => Promise<void>;
 }
 
 const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({ 
   isOpen, 
   onClose,
-  onCompleted 
+  onCompleted,
+  onComplete
 }) => {
   const [domain, setDomain] = useState("");
   const [expertiseLevel, setExpertiseLevel] = useState("");
@@ -40,12 +42,14 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
         return;
       }
 
-      await createUserModel({
+      const modelData = {
         name: `${domain} model`, // Adding a default name based on domain
         domain,
         expertise_level: expertiseLevel,
         cognitive_style: cognitiveStyle,
-      });
+      };
+
+      const createdModel = await createUserModel(modelData);
 
       await markOnboardingCompleted();
 
@@ -53,9 +57,15 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
         title: "model created",
         description: "your user model has been created",
       });
+      
       onClose();
+      
       if (onCompleted) {
         onCompleted();
+      }
+      
+      if (onComplete) {
+        await onComplete(createdModel);
       }
     } catch (error) {
       console.error("Error creating user model:", error);

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,13 @@ interface ResearchFormProps {
   setResearchObjective?: React.Dispatch<React.SetStateAction<string>>;
   selectedLLM?: string;
   setSelectedLLM?: React.Dispatch<React.SetStateAction<string>>;
+  initialValue?: string;
+  initialDomain?: string;
+  initialExpertiseLevel?: string;
+  initialUserContext?: string;
+  initialCognitiveStyle?: string;
+  initialLLM?: string;
+  onLLMChange?: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export const ResearchForm: React.FC<ResearchFormProps> = ({ 
@@ -20,9 +28,12 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   initialObjective = '',
   setResearchObjective,
   selectedLLM = 'claude-3.5-sonnet',
-  setSelectedLLM
+  setSelectedLLM,
+  initialValue,
+  initialLLM,
+  onLLMChange
 }) => {
-  const [query, setQuery] = useState(initialObjective);
+  const [query, setQuery] = useState(initialObjective || initialValue || '');
   const [userModelText, setUserModelText] = useState("");
   const [useCase, setUseCase] = useState("");
   const [userModels, setUserModels] = useState([]);
@@ -35,8 +46,13 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
       if (setResearchObjective) {
         setResearchObjective(initialObjective);
       }
+    } else if (initialValue) {
+      setQuery(initialValue);
+      if (setResearchObjective) {
+        setResearchObjective(initialValue);
+      }
     }
-  }, [initialObjective, setResearchObjective]);
+  }, [initialObjective, initialValue, setResearchObjective]);
 
   useEffect(() => {
     const fetchUserModels = async () => {
@@ -59,6 +75,15 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
     await onSubmit(query, userModelText, useCase, selectedModelId, currentUnderstanding);
   };
 
+  // Choose the right function for LLM selection
+  const handleLLMChange = (value: string) => {
+    if (onLLMChange) {
+      onLLMChange(value);
+    } else if (setSelectedLLM) {
+      setSelectedLLM(value);
+    }
+  };
+
   return (
     <div>
       <form onSubmit={handleSubmit} className="flex items-center space-x-4">
@@ -69,7 +94,10 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
           onChange={(e) => setQuery(e.target.value)}
           className="flex-1"
         />
-        <Select onValueChange={setSelectedLLM} defaultValue={selectedLLM}>
+        <Select 
+          onValueChange={handleLLMChange} 
+          defaultValue={initialLLM || selectedLLM}
+        >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Select LLM" />
           </SelectTrigger>
