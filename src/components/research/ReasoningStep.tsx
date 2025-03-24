@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { 
@@ -11,7 +11,9 @@ import {
   MessageSquare,
   CheckCircle2,
   AlertTriangle,
-  X
+  X,
+  BookOpen,
+  Link
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +33,12 @@ interface Finding {
   content?: string;
   node_id?: string;
   query?: string;
-  finding?: any;
+  finding?: {
+    title?: string;
+    summary?: string;
+    confidence_score?: number;
+    url?: string;
+  };
 }
 
 interface ReasoningStepProps {
@@ -43,6 +50,7 @@ interface ReasoningStepProps {
   isActive?: boolean;
   rawData?: string;
   sessionId: string;
+  answer?: string | null;
 }
 
 const extractNodeId = (step: string): string | undefined => {
@@ -244,6 +252,72 @@ const SourceItem = ({ source, content, sourceIndex, isFinding, finding }: Source
   );
 };
 
+const AnswerDisplay = ({ answer }: { answer: string }) => {
+  if (!answer) return null;
+  
+  return (
+    <div className="mt-3 text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20 p-3 rounded-md border border-emerald-100 dark:border-emerald-900">
+      <div className="font-medium text-sm mb-2 flex items-center gap-2">
+        <CheckCircle2 className="h-4 w-4" />
+        <span>Answer</span>
+      </div>
+      <div className="whitespace-pre-wrap">{answer}</div>
+    </div>
+  );
+};
+
+const FindingsDisplay = ({ findings }: { findings: Finding[] }) => {
+  if (!findings || findings.length === 0) return null;
+  
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="font-medium text-sm flex items-center gap-2 text-blue-700 dark:text-blue-300">
+        <BookOpen className="h-4 w-4" />
+        <span>Findings ({findings.length})</span>
+      </div>
+      
+      <div className="space-y-3">
+        {findings.map((finding, idx) => (
+          <div key={idx} className="border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 p-3 rounded-md">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 border-blue-200 dark:border-blue-800 flex items-center gap-1">
+                  <Book className="h-3 w-3" />
+                  <span className="truncate max-w-[150px]">
+                    {finding.finding?.title || extractDomain(finding.source)}
+                  </span>
+                </Badge>
+                
+                <span className="text-xs text-muted-foreground">
+                  {finding.finding?.confidence_score 
+                    ? `${(finding.finding.confidence_score * 100).toFixed(1)}% confidence` 
+                    : ''}
+                </span>
+              </div>
+              
+              <a 
+                href={finding.source} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
+              >
+                <Link className="h-3 w-3" />
+                <span>Source</span>
+              </a>
+            </div>
+            
+            {finding.finding?.summary && (
+              <div className="text-sm text-muted-foreground bg-white/80 dark:bg-gray-900/50 p-2 rounded border border-blue-100 dark:border-blue-900 whitespace-pre-wrap">
+                {finding.finding.summary}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 const FindingsContent = ({ findings }: { findings: Finding[] }) => {
   if (!findings || findings.length === 0) return null;
   
@@ -389,7 +463,8 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
   defaultExpanded = false, 
   isActive = false, 
   rawData,
-  sessionId
+  sessionId,
+  answer
 }) => {
   const [expanded, setExpanded] = useState(defaultExpanded || index === 0);
   const [showFeedbackInput, setShowFeedbackInput] = useState(false);
@@ -431,27 +506,28 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
 
   const isLastStep = isActive && index === sources.length - 1;
   const isSearchStep = type === "searching";
+  const hasAnswer = !!answer;
 
-  React.useEffect(() => {
-    if ((isSearchStep && hasFindingsForStep) || (isActive && index === sources.length - 1)) {
+  useEffect(() => {
+    if ((isSearchStep && hasFindingsForStep) || hasAnswer || (isActive && index === sources.length - 1)) {
       setExpanded(true);
     }
-  }, [isSearchStep, hasFindingsForStep, findings.length, isActive, index, sources.length]);
+  }, [isSearchStep, hasFindingsForStep, findings.length, isActive, index, sources.length, hasAnswer]);
 
-  // Extract the answer if it exists in rawData for immediate display
-  let answer = "";
-  if (rawData) {
+  // Extract answer if not provided directly but exists in rawData
+  let displayAnswer = answer;
+  if (!displayAnswer && rawData) {
     try {
       const rawDataObj = JSON.parse(rawData);
       if (rawDataObj.data && rawDataObj.event === "answer") {
-        answer = rawDataObj.data.answer || "";
+        displayAnswer = rawDataObj.data.answer || "";
       }
     } catch (e) {
       // If multiple JSON objects, try to find the answer event
       if (typeof rawData === "string") {
         const answerMatch = rawData.match(/"event"\s*:\s*"answer"[\s\S]*?"answer"\s*:\s*"([^"]+)"/);
         if (answerMatch && answerMatch[1]) {
-          answer = answerMatch[1];
+          displayAnswer = answerMatch[1];
         }
       }
     }
@@ -470,7 +546,8 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
           expanded 
             ? `shadow-sm border-l-4 ${color.split(' ')[0]}` 
             : `border-l-4 ${color.split(' ')[0]} hover:bg-gray-50 dark:hover:bg-gray-900/30`,
-          hasFindingsForStep && "border-blue-300 dark:border-blue-700"
+          hasFindingsForStep && "border-blue-300 dark:border-blue-700",
+          hasAnswer && "border-emerald-300 dark:border-emerald-700"
         )}
         role="button"
         onClick={() => setExpanded(!expanded)}
@@ -512,6 +589,13 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
               </Badge>
             )}
             
+            {hasAnswer && (
+              <Badge variant="outline" className="font-normal text-xs bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Answer
+              </Badge>
+            )}
+            
             <Badge variant="outline" className="font-normal text-xs bg-slate-50 text-slate-700 dark:bg-slate-950 dark:text-slate-300 border-slate-200 dark:border-slate-800">
               Node ID: {nodeId}
             </Badge>
@@ -530,13 +614,13 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
           <p className="text-sm">{formattedStep}</p>
           
           {/* Display answer immediately if available, even when not expanded */}
-          {answer && !expanded && (
+          {displayAnswer && !expanded && (
             <div className="mt-2 text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20 p-2 rounded border border-emerald-100 dark:border-emerald-900">
               <div className="font-medium text-xs mb-1 flex items-center gap-1">
                 <CheckCircle2 className="h-3 w-3" />
                 <span>Answer</span>
               </div>
-              <div className="line-clamp-3">{answer}</div>
+              <div className="line-clamp-3">{displayAnswer}</div>
             </div>
           )}
           
@@ -547,7 +631,7 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
                 <Badge key={idx} variant="outline" className="bg-blue-50/80 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 py-1">
                   <Book className="h-3 w-3 mr-1" />
                   <span className="truncate max-w-[200px]">
-                    {extractDomain(finding.source)}
+                    {finding.finding?.title || extractDomain(finding.source)}
                   </span>
                 </Badge>
               ))}
@@ -576,8 +660,12 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
             <SearchQueries step={step} />
           )}
           
+          {displayAnswer && (
+            <AnswerDisplay answer={displayAnswer} />
+          )}
+          
           {hasFindingsForStep && (
-            <FindingsContent findings={relevantFindings} />
+            <FindingsDisplay findings={relevantFindings} />
           )}
           
           {rawData && (

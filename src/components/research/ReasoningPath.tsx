@@ -9,7 +9,12 @@ interface Finding {
   node_id?: string;
   query?: string;
   raw_data?: string;
-  finding?: any;
+  finding?: {
+    title?: string;
+    summary?: string;
+    confidence_score?: number;
+    url?: string;
+  };
 }
 
 interface ReasoningPathProps {
@@ -56,6 +61,23 @@ const ReasoningPath = ({
                       
           const stepRawData = nodeId ? rawData[nodeId] : undefined;
           
+          // Find answer data from raw data if available
+          let answerData = null;
+          if (stepRawData) {
+            try {
+              const parsedData = JSON.parse(stepRawData);
+              if (parsedData.event === "answer" && parsedData.data && parsedData.data.answer) {
+                answerData = parsedData.data.answer;
+              }
+            } catch (e) {
+              // If multiple JSON objects, try to extract answer data
+              const answerMatch = stepRawData.match(/"event"\s*:\s*"answer"[\s\S]*?"answer"\s*:\s*"([^"]+)"/);
+              if (answerMatch && answerMatch[1]) {
+                answerData = answerMatch[1];
+              }
+            }
+          }
+          
           // Find relevant findings for this step
           const relevantFindings = findings.filter(finding => 
             finding.node_id === nodeId || 
@@ -73,6 +95,7 @@ const ReasoningPath = ({
               isActive={isActive && index === reasoningPath.length - 1}
               rawData={stepRawData}
               sessionId={sessionId}
+              answer={answerData}
             />
           );
         })}
