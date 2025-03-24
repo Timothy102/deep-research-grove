@@ -204,14 +204,14 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
           <div className="space-y-2">
             <Label htmlFor="user-model">User Model ID (Optional)</Label>
             <Select
-              value={selectedModelId || ""}
-              onValueChange={(value) => setSelectedModelId(value || undefined)}
+              value={selectedModelId || "none"}
+              onValueChange={(value) => setSelectedModelId(value === "none" ? undefined : value)}
             >
               <SelectTrigger id="user-model">
                 <SelectValue placeholder="Select a user model" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="none">None</SelectItem>
                 {userModels.map((model: any) => (
                   <SelectItem key={model.id} value={model.id}>
                     {model.name}
