@@ -403,6 +403,9 @@ const ResearchPage = () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type',
           },
           body: JSON.stringify({
             research_objective: query,
@@ -412,7 +415,8 @@ const ResearchPage = () => {
             research_id: researchId,
             user_id: user?.id,
             client_id: clientIdRef.current
-          })
+          }),
+          mode: 'cors',
         });
         
         if (!response.ok) {
@@ -698,7 +702,7 @@ const ResearchPage = () => {
         console.error(`[${new Date().toISOString()}] ❌ Fetch error:`, error);
         uiToast({
           title: "connection error",
-          description: "failed to connect to research service",
+          description: "failed to connect to research service. This may be due to CORS restrictions. Please contact support.",
           variant: "destructive",
         });
         setIsLoading(false);
@@ -896,6 +900,16 @@ const ResearchPage = () => {
           </div>
           
           <div className="flex items-center space-x-2">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => navigate("/models")}
+              className="hidden md:flex items-center gap-1"
+            >
+              <User className="h-4 w-4" />
+              <span>user models</span>
+            </Button>
+            
             <Button 
               variant="ghost" 
               size="icon" 

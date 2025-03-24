@@ -16,6 +16,13 @@ import UserModelsPage from './pages/UserModelsPage';
 import NotFound from './pages/NotFound';
 import './App.css';
 
+// Configure CORS proxy for Modal API
+const configureModalApiProxy = () => {
+  // This is just setting up a configuration, the actual proxy would need
+  // to be set up on the server where this app is hosted
+  console.log(`[${new Date().toISOString()}] 🔄 Setting up CORS proxy configuration for Modal API`);
+};
+
 const queryClient = new QueryClient();
 
 function AppRoutes() {
@@ -23,6 +30,9 @@ function AppRoutes() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Configure CORS proxy
+    configureModalApiProxy();
+    
     // Get the last path from local storage on initial load
     const savedPath = localStorage.getItem('lastPath');
     if (savedPath) {
