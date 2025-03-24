@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 
 interface ResearchHistorySidebarProps {
   history: ResearchHistoryGroup[];
-  onHistoryItemClick: (item: ResearchHistoryEntry) => void;
+  onHistoryItemClick?: (item: ResearchHistoryEntry) => void; // Made optional with ?
   className?: string;
   isOpen?: boolean;
   onToggle?: () => void;
@@ -70,7 +70,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                           // Use the appropriate callback
                           if (onSelectItem) {
                             onSelectItem(item);
-                          } else {
+                          } else if (onHistoryItemClick) {
                             onHistoryItemClick(item);
                           }
                         }

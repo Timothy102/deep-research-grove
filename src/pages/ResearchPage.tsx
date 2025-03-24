@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -931,6 +930,7 @@ const ResearchPage = () => {
             <ResearchHistorySidebar 
               isOpen={sidebarOpen}
               history={groupedHistory}
+              onHistoryItemClick={(item) => loadHistoryItem(item)}
               onSelectItem={(item) => loadHistoryItem(item)}
               onToggle={() => setSidebarOpen(!sidebarOpen)}
             />
@@ -981,7 +981,7 @@ const ResearchPage = () => {
               </TabsContent>
               
               <TabsContent value="output" className="mt-0">
-                <ResearchOutput content={researchOutput} isLoading={isLoading} />
+                <ResearchOutput output={researchOutput} isLoading={isLoading} />
               </TabsContent>
               
               <TabsContent value="sources" className="mt-0">
@@ -1006,9 +1006,9 @@ const ResearchPage = () => {
         <UserModelOnboarding
           isOpen={true}
           onClose={() => setShowOnboarding(false)}
-          onCompleted={async (model) => {
+          onCompleted={(model: any) => {
             setShowOnboarding(false);
-            await markOnboardingCompleted();
+            markOnboardingCompleted();
             setDomain(model.domain);
             setExpertiseLevel(model.expertise_level);
             setSelectedCognitiveStyle(model.cognitive_style);
