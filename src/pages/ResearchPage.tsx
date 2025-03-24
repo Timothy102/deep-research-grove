@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -192,13 +191,71 @@ const ResearchPage = () => {
       if (sessionState.research_id) {
         researchIdRef.current = sessionState.research_id;
         
+        // Restore all session state
+        if (sessionState.query) {
+          setResearchObjective(sessionState.query);
+        }
+        
+        if (sessionState.answer) {
+          setResearchOutput(sessionState.answer);
+        }
+        
+        if (sessionState.sources) {
+          setSources(sessionState.sources);
+        }
+        
+        if (sessionState.findings) {
+          setFindings(Array.isArray(sessionState.findings) ? sessionState.findings : []);
+        }
+        
+        if (sessionState.reasoning_path) {
+          setReasoningPath(sessionState.reasoning_path);
+        }
+        
+        // Check for pending human interactions
+        if (sessionState.status === 'awaiting_human_input' && sessionState.human_interactions) {
+          const interactions = Array.isArray(sessionState.human_interactions) 
+            ? sessionState.human_interactions 
+            : (typeof sessionState.human_interactions === 'string' 
+                ? JSON.parse(sessionState.human_interactions) 
+                : []);
+                
+          // Find the last unanswered interaction request
+          const lastInteraction = interactions
+            .filter(interaction => interaction.type === 'interaction_request')
+            .pop();
+            
+          if (lastInteraction) {
+            // Restore the human interaction request
+            const approvalRequest: HumanApprovalRequest = {
+              call_id: lastInteraction.call_id,
+              node_id: lastInteraction.node_id,
+              query: lastInteraction.query || sessionState.query,
+              content: lastInteraction.content,
+              approval_type: lastInteraction.interaction_type
+            };
+            
+            setHumanApprovalRequest(approvalRequest);
+            setShowApprovalDialog(true);
+            
+            console.log(`[${new Date().toISOString()}] 🔄 Restored pending human interaction:`, approvalRequest);
+          }
+        }
+        
         if (sessionState.active_tab) {
           setActiveTab(sessionState.active_tab);
         } else {
-          setActiveTab(sessionState.status === 'in_progress' ? 'reasoning' : 'output');
+          // Set appropriate active tab based on status
+          if (sessionState.status === 'awaiting_human_input') {
+            setActiveTab('reasoning');
+          } else if (sessionState.status === 'in_progress') {
+            setActiveTab('reasoning');
+          } else {
+            setActiveTab('output');
+          }
         }
         
-        if (sessionState.status === 'in_progress') {
+        if (sessionState.status === 'in_progress' || sessionState.status === 'awaiting_human_input') {
           setIsLoading(true);
           pollResearchState(sessionState.research_id);
         }
@@ -553,9 +610,17 @@ const ResearchPage = () => {
                   );
                   
                   if (currentSessionIdRef.current) {
+                    // Save the human interaction request to the database for persistence
                     updateResearchState(researchId, currentSessionIdRef.current, {
-                      status: 'error', // Using 'error' as a temporary state since 'awaiting_human_input' is not valid
-                      human_interaction_request: JSON.stringify(interactionRequest)
+                      status: 'awaiting_human_input',
+                      human_interactions: JSON.stringify([
+                        ...(findings.map(f => ({ type: 'finding', ...f })) || []),
+                        { 
+                          type: 'interaction_request', 
+                          timestamp: new Date().toISOString(),
+                          ...interactionRequest 
+                        }
+                      ])
                     }).catch(err => console.error("Error updating human interaction state:", err));
                   }
                 } else if (eventType === "human_interaction_result") {
@@ -569,9 +634,14 @@ const ResearchPage = () => {
                   toast.dismiss(`interaction-${data.data.call_id}`);
                   
                   if (currentSessionIdRef.current) {
+                    // Update the database with the human interaction result
                     updateResearchState(researchId, currentSessionIdRef.current, {
                       status: 'in_progress',
-                      custom_data: JSON.stringify(data.data) // Use custom_data instead of human_interaction_result
+                      custom_data: JSON.stringify({
+                        ...data.data,
+                        timestamp: new Date().toISOString(),
+                        type: 'interaction_result'
+                      })
                     }).catch(err => console.error("Error updating human interaction result:", err));
                   }
                   
@@ -688,6 +758,10 @@ const ResearchPage = () => {
           variant: "destructive",
         });
         setIsLoading(false);
+      } else if (data.status === 'awaiting_human_input') {
+        // Do nothing, wait for human input
+        console.log(`[${new Date().toISOString()}] ⏳ Awaiting human input, will retry...`);
+        setTimeout(() => pollResearchState(researchId), 3000);
       }
     } catch (error) {
       console.error(`[${new Date().toISOString()}] ❌ Polling error:`, error);
@@ -802,140 +876,3 @@ const ResearchPage = () => {
             size="sm" 
             onClick={() => navigate("/models")}
             className="flex items-center gap-1 lowercase"
-          >
-            <Brain className="h-4 w-4" />
-            models
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => navigate("/profile")}
-            className="flex items-center gap-2 lowercase"
-          >
-            <User className="h-4 w-4" />
-            profile
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleLogout}
-            className="flex items-center gap-2 lowercase"
-          >
-            <LogOut className="h-4 w-4" />
-            logout
-          </Button>
-        </div>
-      </header>
-
-      <div className="flex flex-1 overflow-hidden">
-        {sidebarOpen && (
-          <aside className="w-64 border-r overflow-y-auto hidden md:block">
-            <ResearchHistorySidebar 
-              history={groupedHistory}
-              onHistoryItemClick={loadHistoryItem}
-            />
-          </aside>
-        )}
-
-        <main className="flex-1 p-6 overflow-y-auto">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold lowercase">deep research</h1>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="md:flex hidden"
-                onClick={toggleSidebar}
-              >
-                {sidebarOpen ? (
-                  <PanelLeftClose className="h-4 w-4" />
-                ) : (
-                  <PanelLeftOpen className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            
-            <div className="space-y-6 mb-8">
-              <ResearchForm 
-                onSubmit={handleResearch}
-                isLoading={isLoading}
-              />
-            </div>
-            
-            {(researchOutput || sources.length > 0 || reasoningPath.length > 0) && (
-              <div className="mt-10">
-                <Tabs 
-                  value={activeTab} 
-                  onValueChange={setActiveTab}
-                  className="w-full"
-                >
-                  <TabsList className="grid grid-cols-3 mb-6">
-                    <TabsTrigger value="reasoning" className="flex items-center gap-1">
-                      <FileText className="h-4 w-4" />
-                      <span className="hidden sm:inline">research</span> planning
-                    </TabsTrigger>
-                    <TabsTrigger value="sources" className="flex items-center gap-1">
-                      <FileText className="h-4 w-4" />
-                      sources
-                    </TabsTrigger>
-                    <TabsTrigger value="output" className="flex items-center gap-1">
-                      <FileText className="h-4 w-4" />
-                      result
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="reasoning">
-                    <ReasoningPath 
-                      reasoningPath={reasoningPath} 
-                      sources={sources}
-                      findings={findings}
-                      isLoading={isLoading}
-                      isActive={isLoading}
-                      rawData={rawData}
-                    />
-                  </TabsContent>
-                  
-                  <TabsContent value="sources">
-                    <SourcesList sources={sources} findings={findings} />
-                  </TabsContent>
-                  
-                  <TabsContent value="output">
-                    <ResearchOutput 
-                      output={researchOutput} 
-                      isLoading={isLoading}
-                      rawFindings={Object.values(rawData).join('\n\n')}
-                    />
-                  </TabsContent>
-                </Tabs>
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
-      
-      <UserModelOnboarding 
-        isOpen={showOnboarding} 
-        onClose={() => setShowOnboarding(false)} 
-      />
-      
-      {showApprovalDialog && humanApprovalRequest && (
-        <HumanApprovalDialog
-          isOpen={showApprovalDialog}
-          onClose={() => {
-            setShowApprovalDialog(false);
-            setHumanApprovalRequest(null);
-          }}
-          content={humanApprovalRequest.content}
-          query={humanApprovalRequest.query}
-          callId={humanApprovalRequest.call_id}
-          nodeId={humanApprovalRequest.node_id}
-          approvalType={humanApprovalRequest.approval_type}
-          onApprove={handleApproveRequest}
-          onReject={handleRejectRequest}
-        />
-      )}
-    </div>
-  );
-};
-
-export default ResearchPage;

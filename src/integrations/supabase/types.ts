@@ -83,6 +83,7 @@ export type Database = {
           client_id: string | null
           created_at: string | null
           findings: Json | null
+          human_interactions: Json | null
           id: string
           query: string
           reasoning_path: string[] | null
@@ -99,6 +100,7 @@ export type Database = {
           client_id?: string | null
           created_at?: string | null
           findings?: Json | null
+          human_interactions?: Json | null
           id?: string
           query: string
           reasoning_path?: string[] | null
@@ -115,6 +117,7 @@ export type Database = {
           client_id?: string | null
           created_at?: string | null
           findings?: Json | null
+          human_interactions?: Json | null
           id?: string
           query?: string
           reasoning_path?: string[] | null

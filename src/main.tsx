@@ -1,9 +1,10 @@
 
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import './index.css'
+import { createRoot } from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
 import { toast } from "sonner";
 import HumanApprovalDialog from './components/research/HumanApprovalDialog.tsx';
+import { respondToApproval } from './services/humanLayerService.ts';
 
 // Global event handler for human interaction requests 
 // This ensures we can handle them even if the user navigates away from the research page
@@ -27,6 +28,28 @@ window.addEventListener('message', (event) => {
           approvalType={interaction_type}
           isOpen={true}
           onClose={() => toast.dismiss(t)}
+          onApprove={async (callId, nodeId) => {
+            try {
+              await respondToApproval(callId, true);
+              toast.success("Feedback submitted successfully");
+              toast.dismiss(t);
+              return Promise.resolve();
+            } catch (error) {
+              toast.error("Failed to submit feedback");
+              throw error;
+            }
+          }}
+          onReject={async (callId, nodeId, reason) => {
+            try {
+              await respondToApproval(callId, false, reason);
+              toast.success("Feedback submitted successfully");
+              toast.dismiss(t);
+              return Promise.resolve();
+            } catch (error) {
+              toast.error("Failed to submit feedback");
+              throw error;
+            }
+          }}
         />
       ),
       {
