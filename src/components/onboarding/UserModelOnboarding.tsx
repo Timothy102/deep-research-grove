@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
       }
 
       await createUserModel({
+        name: `${domain} model`, // Adding a default name based on domain
         domain,
         expertise_level: expertiseLevel,
         cognitive_style: cognitiveStyle,
