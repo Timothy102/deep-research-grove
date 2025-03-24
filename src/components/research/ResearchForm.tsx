@@ -5,6 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Loader2, Search } from "lucide-react";
 import { getUserModels } from "@/services/userModelService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface ResearchFormProps {
   onSubmit: (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => Promise<void>;
@@ -30,6 +34,10 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   selectedLLM = 'claude-3.5-sonnet',
   setSelectedLLM,
   initialValue,
+  initialDomain = '',
+  initialExpertiseLevel = 'intermediate',
+  initialUserContext = '',
+  initialCognitiveStyle = 'general',
   initialLLM,
   onLLMChange
 }) => {
@@ -39,6 +47,11 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   const [userModels, setUserModels] = useState([]);
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
   const [currentUnderstanding, setCurrentUnderstanding] = useState("");
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
+  const [domain, setDomain] = useState(initialDomain || '');
+  const [expertiseLevel, setExpertiseLevel] = useState(initialExpertiseLevel || 'intermediate');
+  const [userContext, setUserContext] = useState(initialUserContext || '');
+  const [cognitiveStyle, setCognitiveStyle] = useState(initialCognitiveStyle || 'general');
 
   useEffect(() => {
     if (initialObjective) {
@@ -85,7 +98,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   };
 
   return (
-    <div>
+    <div className="space-y-4">
       <form onSubmit={handleSubmit} className="flex items-center space-x-4">
         <Input
           type="text"
@@ -103,8 +116,11 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="claude-3.5-sonnet">Claude 3.5 Sonnet</SelectItem>
-            <SelectItem value="gpt-4">GPT-4</SelectItem>
-            <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
+            <SelectItem value="o3-mini">GPT-4o Mini</SelectItem>
+            <SelectItem value="o1">GPT-4o</SelectItem>
+            <SelectItem value="gpt4-turbo">GPT-4 Turbo</SelectItem>
+            <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash</SelectItem>
+            <SelectItem value="deepseek-ai/DeepSeek-R1">DeepSeek R1</SelectItem>
           </SelectContent>
         </Select>
         <Button type="submit" disabled={isLoading}>
@@ -121,6 +137,88 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
           )}
         </Button>
       </form>
+
+      <Collapsible open={isAdvancedOpen} onOpenChange={setIsAdvancedOpen} className="space-y-2">
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" size="sm" className="flex items-center w-full justify-between">
+            <span>Advanced options</span>
+            {isAdvancedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="space-y-4 pt-2">
+          <div className="space-y-2">
+            <Label htmlFor="domain">Domain / Field</Label>
+            <Input
+              id="domain"
+              placeholder="e.g. Computer Science, Medicine, Finance..."
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="expertise-level">Expertise Level</Label>
+            <Select value={expertiseLevel} onValueChange={setExpertiseLevel}>
+              <SelectTrigger id="expertise-level">
+                <SelectValue placeholder="Select expertise level" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="beginner">Beginner</SelectItem>
+                <SelectItem value="intermediate">Intermediate</SelectItem>
+                <SelectItem value="advanced">Advanced</SelectItem>
+                <SelectItem value="expert">Expert</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="cognitive-style">Cognitive Style</Label>
+            <Select value={cognitiveStyle} onValueChange={setCognitiveStyle}>
+              <SelectTrigger id="cognitive-style">
+                <SelectValue placeholder="Select cognitive style" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="systematic">Systematic</SelectItem>
+                <SelectItem value="general">General</SelectItem>
+                <SelectItem value="first-principles">First Principles</SelectItem>
+                <SelectItem value="creative">Creative</SelectItem>
+                <SelectItem value="practical">Practical Applier</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="current-understanding">Current Understanding (Optional)</Label>
+            <Textarea
+              id="current-understanding"
+              placeholder="Describe your current understanding of the topic..."
+              value={currentUnderstanding}
+              onChange={(e) => setCurrentUnderstanding(e.target.value)}
+              rows={3}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="user-model">User Model ID (Optional)</Label>
+            <Select
+              value={selectedModelId || ""}
+              onValueChange={(value) => setSelectedModelId(value || undefined)}
+            >
+              <SelectTrigger id="user-model">
+                <SelectValue placeholder="Select a user model" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {userModels.map((model: any) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 };

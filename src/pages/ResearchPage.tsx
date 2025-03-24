@@ -334,6 +334,9 @@ const ResearchPage = () => {
             name: user?.email || "anonymous",
             userModel: userModelText,
             useCase: useCase,
+            domain: domain,
+            expertise_level: expertiseLevel,
+            cognitiveStyle: selectedCognitiveStyle,
             session_id: currentSessionIdRef.current,
             currentUnderstanding: currentUnderstanding,
             client_id: clientIdRef.current
@@ -345,6 +348,9 @@ const ResearchPage = () => {
           name: user?.email || "anonymous",
           userModel: userModelText,
           useCase: useCase,
+          domain: domain,
+          expertise_level: expertiseLevel,
+          cognitiveStyle: selectedCognitiveStyle,
           session_id: currentSessionIdRef.current,
           currentUnderstanding: currentUnderstanding,
           client_id: clientIdRef.current
@@ -395,325 +401,284 @@ const ResearchPage = () => {
     
     const streamUrl = `https://timothy102--vertical-deep-research-stream-research.modal.run`;
     
-    const fetchEventSource = async () => {
+    const eventSource = new EventSource(`${streamUrl}?research_objective=${encodeURIComponent(query)}&user_model=${encodeURIComponent(JSON.stringify(userModelData))}&model=${selectedLLM}&session_id=${currentSessionIdRef.current}&research_id=${researchId}&user_id=${user?.id || 'anonymous'}&client_id=${clientIdRef.current}`);
+    eventSourceRef.current = eventSource;
+    
+    eventSource.onopen = () => {
+      console.log(`[${new Date().toISOString()}] 🔄 Connection established to research stream`);
+    };
+    
+    eventSource.onmessage = (event) => {
       try {
-        console.log(`[${new Date().toISOString()}] 🔄 Starting research stream with client ID:`, clientIdRef.current.substring(0, 15));
+        const data = JSON.parse(event.data);
         
-        const response = await fetch(streamUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type',
-          },
-          body: JSON.stringify({
-            research_objective: query,
-            user_model: userModelData,
-            model: selectedLLM,
-            session_id: currentSessionIdRef.current,
-            research_id: researchId,
-            user_id: user?.id,
-            client_id: clientIdRef.current
-          }),
-          mode: 'cors',
+        const eventClientId = data.client_id || userModelData.client_id;
+        const eventSessionId = data.session_id || currentSessionIdRef.current;
+        const eventResearchId = data.research_id || researchId;
+        
+        if (eventClientId !== clientIdRef.current) {
+          console.warn(`[${new Date().toISOString()}] 🚫 Rejected event for different client:`, { 
+            eventClientId: eventClientId?.substring(0, 15), 
+            currentClientId: clientIdRef.current.substring(0, 15),
+            eventType: data.event || data.type
+          });
+          return;
+        }
+        
+        if (eventSessionId !== currentSessionIdRef.current || 
+            eventResearchId !== researchId) {
+          console.warn(`[${new Date().toISOString()}] 🚫 Rejected event for different session/research:`, { 
+            eventSessionId,
+            currentSessionId: currentSessionIdRef.current,
+            eventResearchId,
+            currentResearchId: researchId,
+            eventType: data.event || data.type
+          });
+          return;
+        }
+        
+        const eventType = data.event || data.type;
+        console.log(`[${new Date().toISOString()}] 📊 Processing event:`, { 
+          type: eventType, 
+          clientId: clientIdRef.current.substring(0, 15)
         });
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (data.data && data.data.node_id) {
+          const nodeId = data.data.node_id;
+          const rawEventData = JSON.stringify(data, null, 2);
+          
+          setRawData(prev => {
+            const existingData = prev[nodeId] || '';
+            const updatedData = existingData 
+              ? `${existingData}\n${rawEventData}`
+              : rawEventData;
+            
+            return { ...prev, [nodeId]: updatedData };
+          });
         }
         
-        const reader = response.body?.getReader();
-        if (!reader) {
-          throw new Error("Unable to get reader from response");
-        }
-        
-        const decoder = new TextDecoder();
-        let buffer = "";
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) {
-            break;
+        if (eventType === "start") {
+          console.log("Research started");
+          setActiveTab("reasoning");
+        } else if (eventType === "update") {
+          const message = data.data.message || "";
+          setResearchOutput(prev => prev + message + "\n");
+          
+          if (currentSessionIdRef.current) {
+            updateResearchState(researchId, currentSessionIdRef.current, {
+              answer: researchOutput + message + "\n"
+            }).catch(err => console.error("Error updating research state:", err));
+          }
+        } else if (eventType === "source") {
+          const source = data.data.source || "";
+          setSources(prev => [...prev, source]);
+          
+          if (currentSessionIdRef.current) {
+            updateResearchState(researchId, currentSessionIdRef.current, {
+              sources: [...sources, source]
+            }).catch(err => console.error("Error updating sources:", err));
+          }
+        } else if (eventType === "finding") {
+          const finding: Finding = { 
+            source: data.data.source || "",
+            content: data.data.content || undefined,
+            node_id: data.data.node_id || undefined,
+            query: data.data.query || undefined,
+            finding: data.data.finding || undefined
+          };
+          
+          console.log(`[${new Date().toISOString()}] 📑 Received finding:`, finding);
+          
+          setFindings(prev => [...prev, finding]);
+          
+          if (currentSessionIdRef.current) {
+            const updatedFindings = [...findings, finding];
+            updateResearchState(researchId, currentSessionIdRef.current, {
+              findings: updatedFindings
+            }).catch(err => console.error("Error updating findings:", err));
+          }
+        } else if (eventType === "reasoning") {
+          const step = data.data.step || "";
+          
+          const nodeIdMatch = step.match(/Node ID:?\s*([a-zA-Z0-9_-]+)/i) || 
+                            step.match(/node\s+(\d+)|#(\d+)/i);
+          if (nodeIdMatch) {
+            const nodeId = nodeIdMatch[1] || nodeIdMatch[2];
+            const rawDataString = JSON.stringify(data, null, 2);
+            
+            setRawData(prev => {
+              const existing = prev[nodeId] || '';
+              return {
+                ...prev,
+                [nodeId]: existing ? `${existing}\n${rawDataString}` : rawDataString
+              };
+            });
           }
           
-          buffer += decoder.decode(value, { stream: true });
+          if (step.toLowerCase().includes("synthesizing") && reasoningPath.length > 0 && reasoningPath.length % 5 === 0) {
+            const syntheticRequest = {
+              call_id: `synthetic-${researchId}-${reasoningPath.length}`,
+              node_id: `${reasoningPath.length}`,
+              query: researchObjective,
+              content: `This is a synthetic approval request at step ${reasoningPath.length}. This would normally contain synthesized content based on the research so far.`,
+              approval_type: "synthesis"
+            };
+            setHumanApprovalRequest(syntheticRequest);
+          }
           
-          const lines = buffer.split("\n\n");
-          buffer = lines.pop() || "";
+          setReasoningPath(prev => [...prev, step]);
           
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              try {
-                const data = JSON.parse(line.substring(6));
-                
-                const eventClientId = data.client_id || userModelData.client_id;
-                const eventSessionId = data.session_id || currentSessionIdRef.current;
-                const eventResearchId = data.research_id || researchId;
-                
-                if (eventClientId !== clientIdRef.current) {
-                  console.warn(`[${new Date().toISOString()}] 🚫 Rejected event for different client:`, { 
-                    eventClientId: eventClientId?.substring(0, 15), 
-                    currentClientId: clientIdRef.current.substring(0, 15),
-                    eventType: data.event || data.type
-                  });
-                  continue;
-                }
-                
-                if (eventSessionId !== currentSessionIdRef.current || 
-                    eventResearchId !== researchId) {
-                  console.warn(`[${new Date().toISOString()}] 🚫 Rejected event for different session/research:`, { 
-                    eventSessionId,
-                    currentSessionId: currentSessionIdRef.current,
-                    eventResearchId,
-                    currentResearchId: researchId,
-                    eventType: data.event || data.type
-                  });
-                  continue;
-                }
-                
-                const eventType = data.event || data.type;
-                console.log(`[${new Date().toISOString()}] 📊 Processing event:`, { 
-                  type: eventType, 
-                  clientId: clientIdRef.current.substring(0, 15)
-                });
-                
-                if (data.data && data.data.node_id) {
-                  const nodeId = data.data.node_id;
-                  const rawEventData = JSON.stringify(data, null, 2);
-                  
-                  setRawData(prev => {
-                    const existingData = prev[nodeId] || '';
-                    const updatedData = existingData 
-                      ? `${existingData}\n${rawEventData}`
-                      : rawEventData;
-                    
-                    return { ...prev, [nodeId]: updatedData };
-                  });
-                }
-                
-                if (eventType === "start") {
-                  console.log("Research started");
-                  setActiveTab("reasoning");
-                } else if (eventType === "update") {
-                  const message = data.data.message || "";
-                  setResearchOutput(prev => prev + message + "\n");
-                  
-                  if (currentSessionIdRef.current) {
-                    updateResearchState(researchId, currentSessionIdRef.current, {
-                      answer: researchOutput + message + "\n"
-                    }).catch(err => console.error("Error updating research state:", err));
-                  }
-                } else if (eventType === "source") {
-                  const source = data.data.source || "";
-                  setSources(prev => [...prev, source]);
-                  
-                  if (currentSessionIdRef.current) {
-                    updateResearchState(researchId, currentSessionIdRef.current, {
-                      sources: [...sources, source]
-                    }).catch(err => console.error("Error updating sources:", err));
-                  }
-                } else if (eventType === "finding") {
-                  const finding: Finding = { 
-                    source: data.data.source || "",
-                    content: data.data.content || undefined,
-                    node_id: data.data.node_id || undefined,
-                    query: data.data.query || undefined,
-                    finding: data.data.finding || undefined
-                  };
-                  
-                  console.log(`[${new Date().toISOString()}] 📑 Received finding:`, finding);
-                  
-                  setFindings(prev => [...prev, finding]);
-                  
-                  if (currentSessionIdRef.current) {
-                    const updatedFindings = [...findings, finding];
-                    updateResearchState(researchId, currentSessionIdRef.current, {
-                      findings: updatedFindings
-                    }).catch(err => console.error("Error updating findings:", err));
-                  }
-                } else if (eventType === "reasoning") {
-                  const step = data.data.step || "";
-                  
-                  const nodeIdMatch = step.match(/Node ID:?\s*([a-zA-Z0-9_-]+)/i) || 
-                                    step.match(/node\s+(\d+)|#(\d+)/i);
-                  if (nodeIdMatch) {
-                    const nodeId = nodeIdMatch[1] || nodeIdMatch[2];
-                    const rawDataString = JSON.stringify(data, null, 2);
-                    
-                    setRawData(prev => {
-                      const existing = prev[nodeId] || '';
-                      return {
-                        ...prev,
-                        [nodeId]: existing ? `${existing}\n${rawDataString}` : rawDataString
-                      };
-                    });
-                  }
-                  
-                  if (step.toLowerCase().includes("synthesizing") && reasoningPath.length > 0 && reasoningPath.length % 5 === 0) {
-                    const syntheticRequest = {
-                      call_id: `synthetic-${researchId}-${reasoningPath.length}`,
-                      node_id: `${reasoningPath.length}`,
-                      query: researchObjective,
-                      content: `This is a synthetic approval request at step ${reasoningPath.length}. This would normally contain synthesized content based on the research so far.`,
-                      approval_type: "synthesis"
-                    };
-                    setHumanApprovalRequest(syntheticRequest);
-                  }
-                  
-                  setReasoningPath(prev => [...prev, step]);
-                  
-                  if (isLoading) {
-                    setActiveTab("reasoning");
-                  }
-                  
-                  if (currentSessionIdRef.current) {
-                    const updatedPath = [...reasoningPath, step];
-                    updateResearchState(researchId, currentSessionIdRef.current, {
-                      reasoning_path: updatedPath
-                    }).catch(err => console.error("Error updating reasoning path:", err));
-                  }
-                } else if (eventType === "complete") {
-                  const finalAnswer = data.data.answer || "";
-                  const finalSources = data.data.sources || [];
-                  const finalFindings = data.data.findings || [];
-                  const finalReasoningPath = data.data.reasoning_path || [];
-                  
-                  setResearchOutput(finalAnswer);
-                  setSources(finalSources);
-                  setFindings(finalFindings);
-                  setReasoningPath(finalReasoningPath);
-                  setIsLoading(false);
-                  
-                  if (currentSessionIdRef.current) {
-                    updateResearchState(researchId, currentSessionIdRef.current, {
-                      status: 'completed',
-                      answer: finalAnswer,
-                      sources: finalSources,
-                      findings: finalFindings,
-                      reasoning_path: finalReasoningPath
-                    }).catch(err => console.error("Error updating final state:", err));
-                  }
-                  
-                  setActiveTab("output");
-                } else if (eventType === "error") {
-                  uiToast({
-                    title: "research error",
-                    description: data.data.error || "Unknown error",
-                    variant: "destructive",
-                  });
-                  setIsLoading(false);
-                  
-                  if (currentSessionIdRef.current) {
-                    updateResearchState(researchId, currentSessionIdRef.current, {
-                      status: 'error',
-                    }).catch(err => console.error("Error updating error state:", err));
-                  }
-                } else if (eventType === "human_interaction_request") {
-                  console.log(`[${new Date().toISOString()}] 🧠 Human interaction requested:`, data.data);
-                  
-                  const interactionRequest: HumanInteractionRequest = {
-                    call_id: data.data.call_id,
-                    node_id: data.data.node_id,
-                    query: data.data.query || researchObjective,
-                    content: data.data.content,
-                    interaction_type: data.data.interaction_type
-                  };
-                  
-                  // Convert HumanInteractionRequest to HumanApprovalRequest
-                  const approvalRequest: HumanApprovalRequest = {
-                    ...interactionRequest,
-                    approval_type: interactionRequest.interaction_type
-                  };
-                  
-                  setHumanApprovalRequest(approvalRequest);
-                  setShowApprovalDialog(true);
-                  
-                  window.postMessage(
-                    { 
-                      type: "human_interaction_request", 
-                      data: interactionRequest
-                    }, 
-                    window.location.origin
-                  );
-                  
-                  if (currentSessionIdRef.current) {
-                    // Create an array of human interactions
-                    const humanInteractions: HumanInteraction[] = [
-                      ...findings.map(f => ({ 
-                        type: 'finding', 
-                        call_id: f.node_id || '', 
-                        node_id: f.node_id || '',
-                        content: f.content || '',
-                        query: f.query || '',
-                        interaction_type: 'finding',
-                        status: 'completed' as const
-                      })),
-                      { 
-                        type: 'interaction_request', 
-                        call_id: interactionRequest.call_id,
-                        node_id: interactionRequest.node_id,
-                        query: interactionRequest.query,
-                        content: interactionRequest.content,
-                        interaction_type: interactionRequest.interaction_type,
-                        status: 'pending' as const,
-                        timestamp: new Date().toISOString()
-                      }
-                    ];
-                    
-                    // Save the human interaction request to the database for persistence
-                    await updateResearchState(researchId, currentSessionIdRef.current, {
-                      status: 'awaiting_human_input',
-                      human_interactions: humanInteractions
-                    });
-                  }
-                } else if (eventType === "human_interaction_result") {
-                  console.log(`[${new Date().toISOString()}] 🧠 Human interaction result received:`, data.data);
-                  
-                  if (humanApprovalRequest?.call_id === data.data.call_id) {
-                    setHumanApprovalRequest(null);
-                    setShowApprovalDialog(false);
-                  }
-                  
-                  toast.dismiss(`interaction-${data.data.call_id}`);
-                  
-                  if (currentSessionIdRef.current) {
-                    // Update the database with the human interaction result
-                    updateResearchState(researchId, currentSessionIdRef.current, {
-                      status: 'in_progress',
-                      custom_data: JSON.stringify({
-                        ...data.data,
-                        timestamp: new Date().toISOString(),
-                        type: 'interaction_result'
-                      })
-                    }).catch(err => console.error("Error updating human interaction result:", err));
-                  }
-                  
-                  const humanFeedbackStep = `Human feedback received for ${data.data.interaction_type}: ${data.data.approved ? 'Approved' : 'Rejected'}${data.data.comment ? ` - Comment: ${data.data.comment}` : ''}`;
-                  setReasoningPath(prev => [...prev, humanFeedbackStep]);
-                }
-              } catch (error) {
-                console.error(`[${new Date().toISOString()}] ❌ Error parsing event data:`, error);
+          if (isLoading) {
+            setActiveTab("reasoning");
+          }
+          
+          if (currentSessionIdRef.current) {
+            const updatedPath = [...reasoningPath, step];
+            updateResearchState(researchId, currentSessionIdRef.current, {
+              reasoning_path: updatedPath
+            }).catch(err => console.error("Error updating reasoning path:", err));
+          }
+        } else if (eventType === "complete") {
+          const finalAnswer = data.data.answer || "";
+          const finalSources = data.data.sources || [];
+          const finalFindings = data.data.findings || [];
+          const finalReasoningPath = data.data.reasoning_path || [];
+          
+          setResearchOutput(finalAnswer);
+          setSources(finalSources);
+          setFindings(finalFindings);
+          setReasoningPath(finalReasoningPath);
+          setIsLoading(false);
+          
+          if (currentSessionIdRef.current) {
+            updateResearchState(researchId, currentSessionIdRef.current, {
+              status: 'completed',
+              answer: finalAnswer,
+              sources: finalSources,
+              findings: finalFindings,
+              reasoning_path: finalReasoningPath
+            }).catch(err => console.error("Error updating final state:", err));
+          }
+          
+          setActiveTab("output");
+        } else if (eventType === "error") {
+          uiToast({
+            title: "research error",
+            description: data.data.error || "Unknown error",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          
+          if (currentSessionIdRef.current) {
+            updateResearchState(researchId, currentSessionIdRef.current, {
+              status: 'error',
+            }).catch(err => console.error("Error updating error state:", err));
+          }
+        } else if (eventType === "human_interaction_request") {
+          console.log(`[${new Date().toISOString()}] 🧠 Human interaction requested:`, data.data);
+          
+          const interactionRequest: HumanInteractionRequest = {
+            call_id: data.data.call_id,
+            node_id: data.data.node_id,
+            query: data.data.query || researchObjective,
+            content: data.data.content,
+            interaction_type: data.data.interaction_type
+          };
+          
+          // Convert HumanInteractionRequest to HumanApprovalRequest
+          const approvalRequest: HumanApprovalRequest = {
+            ...interactionRequest,
+            approval_type: interactionRequest.interaction_type
+          };
+          
+          setHumanApprovalRequest(approvalRequest);
+          setShowApprovalDialog(true);
+          
+          window.postMessage(
+            { 
+              type: "human_interaction_request", 
+              data: interactionRequest
+            }, 
+            window.location.origin
+          );
+          
+          if (currentSessionIdRef.current) {
+            // Create an array of human interactions
+            const humanInteractions: HumanInteraction[] = [
+              ...findings.map(f => ({ 
+                type: 'finding', 
+                call_id: f.node_id || '', 
+                node_id: f.node_id || '',
+                content: f.content || '',
+                query: f.query || '',
+                interaction_type: 'finding',
+                status: 'completed' as const
+              })),
+              { 
+                type: 'interaction_request', 
+                call_id: interactionRequest.call_id,
+                node_id: interactionRequest.node_id,
+                query: interactionRequest.query,
+                content: interactionRequest.content,
+                interaction_type: interactionRequest.interaction_type,
+                status: 'pending' as const,
+                timestamp: new Date().toISOString()
               }
-            }
+            ];
+            
+            // Save the human interaction request to the database for persistence
+            await updateResearchState(researchId, currentSessionIdRef.current, {
+              status: 'awaiting_human_input',
+              human_interactions: humanInteractions
+            });
           }
+        } else if (eventType === "human_interaction_result") {
+          console.log(`[${new Date().toISOString()}] 🧠 Human interaction result received:`, data.data);
+          
+          if (humanApprovalRequest?.call_id === data.data.call_id) {
+            setHumanApprovalRequest(null);
+            setShowApprovalDialog(false);
+          }
+          
+          toast.dismiss(`interaction-${data.data.call_id}`);
+          
+          if (currentSessionIdRef.current) {
+            // Update the database with the human interaction result
+            updateResearchState(researchId, currentSessionIdRef.current, {
+              status: 'in_progress',
+              custom_data: JSON.stringify({
+                ...data.data,
+                timestamp: new Date().toISOString(),
+                type: 'interaction_result'
+              })
+            }).catch(err => console.error("Error updating human interaction result:", err));
+          }
+          
+          const humanFeedbackStep = `Human feedback received for ${data.data.interaction_type}: ${data.data.approved ? 'Approved' : 'Rejected'}${data.data.comment ? ` - Comment: ${data.data.comment}` : ''}`;
+          setReasoningPath(prev => [...prev, humanFeedbackStep]);
         }
       } catch (error) {
-        console.error(`[${new Date().toISOString()}] ❌ Fetch error:`, error);
-        uiToast({
-          title: "connection error",
-          description: "failed to connect to research service. This may be due to CORS restrictions. Please contact support.",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        
-        if (researchId && currentSessionIdRef.current) {
-          pollResearchState(researchId);
-        }
+        console.error(`[${new Date().toISOString()}] ❌ Error parsing event data:`, error);
       }
     };
     
-    fetchEventSource();
+    eventSource.onerror = (error) => {
+      console.error(`[${new Date().toISOString()}] ❌ EventSource error:`, error);
+      uiToast({
+        title: "connection error",
+        description: "failed to connect to research service. This may be due to CORS restrictions. Please contact support.",
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      
+      if (researchId && currentSessionIdRef.current) {
+        pollResearchState(researchId);
+      }
+      
+      // Close the connection on error
+      eventSource.close();
+      eventSourceRef.current = null;
+    };
   };
 
   const pollResearchState = async (researchId: string) => {
@@ -961,7 +926,9 @@ const ResearchPage = () => {
               initialUserContext={userContext}
               initialCognitiveStyle={selectedCognitiveStyle}
               initialLLM={selectedLLM}
+              onLLMChange={setSelectedLLM}
               onSubmit={handleResearch}
+              setResearchObjective={setResearchObjective}
             />
           </div>
           
