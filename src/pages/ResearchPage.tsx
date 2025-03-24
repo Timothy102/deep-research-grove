@@ -69,6 +69,7 @@ interface HumanInteraction {
     timestamp: string;
   };
   type?: string;
+  timestamp?: string;
 }
 
 interface HumanInteractionRequest {
@@ -239,7 +240,7 @@ const ResearchPage = () => {
               interactions = [];
             }
           } else if (Array.isArray(sessionState.human_interactions)) {
-            interactions = sessionState.human_interactions;
+            interactions = sessionState.human_interactions as HumanInteraction[];
           }
                 
           // Find the last unanswered interaction request
@@ -651,7 +652,8 @@ const ResearchPage = () => {
                         query: interactionRequest.query,
                         content: interactionRequest.content,
                         interaction_type: interactionRequest.interaction_type,
-                        status: 'pending' as const
+                        status: 'pending' as const,
+                        timestamp: new Date().toISOString()
                       }
                     ];
                     
@@ -1057,4 +1059,3 @@ const ResearchPage = () => {
 };
 
 export default ResearchPage;
-

@@ -1,282 +1,98 @@
-
-import { useState, useEffect, Dispatch, SetStateAction } from "react";
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Loader2, HelpCircle, Info } from "lucide-react";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { UserModel, getUserModels, getDefaultUserModel } from "@/services/userModelService";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { Loader2, Search } from "lucide-react";
+import { getUserModels } from "@/services/userModelService";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const exampleObjective = `I was always interested as to why life needs to exist. Which biological/thermodynamical processes were in play that explain why we need to survive? My objective comes from curiosity, I'd love to understand the fundamentals behind this research objective. Feel free to synthesize more than one theory.`;
-
-type ResearchFormProps = {
-  onSubmit: (query: string, userModel: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => void;
+interface ResearchFormProps {
+  onSubmit: (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => Promise<void>;
   isLoading: boolean;
   initialObjective?: string;
-  setResearchObjective?: Dispatch<SetStateAction<string>>;
+  setResearchObjective?: React.Dispatch<React.SetStateAction<string>>;
   selectedLLM?: string;
-  setSelectedLLM?: Dispatch<SetStateAction<string>>;
-};
+  setSelectedLLM?: React.Dispatch<React.SetStateAction<string>>;
+}
 
-export const ResearchForm = ({ 
+export const ResearchForm: React.FC<ResearchFormProps> = ({ 
   onSubmit, 
   isLoading, 
-  initialObjective = "", 
-  setResearchObjective, 
-  selectedLLM = "auto", 
-  setSelectedLLM 
-}: ResearchFormProps) => {
+  initialObjective = '',
+  setResearchObjective,
+  selectedLLM = 'claude-3.5-sonnet',
+  setSelectedLLM
+}) => {
   const [query, setQuery] = useState(initialObjective);
-  const [currentUnderstanding, setCurrentUnderstanding] = useState("");
-  const [userModel, setUserModel] = useState("");
+  const [userModelText, setUserModelText] = useState("");
   const [useCase, setUseCase] = useState("");
-  const [userModels, setUserModels] = useState<UserModel[]>([]);
-  const [selectedModelId, setSelectedModelId] = useState<string>("");
-  const [localSelectedLLM, setLocalSelectedLLM] = useState(selectedLLM);
-  const [isLoadingModels, setIsLoadingModels] = useState(false);
-  const [showExample, setShowExample] = useState(false);
-
-  useEffect(() => {
-    loadUserModels();
-  }, []);
+  const [userModels, setUserModels] = useState([]);
+  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
+  const [currentUnderstanding, setCurrentUnderstanding] = useState("");
 
   useEffect(() => {
     if (initialObjective) {
       setQuery(initialObjective);
-    }
-  }, [initialObjective]);
-
-  const loadUserModels = async () => {
-    setIsLoadingModels(true);
-    try {
-      const models = await getUserModels();
-      setUserModels(models);
-      
-      const defaultModel = await getDefaultUserModel();
-      if (defaultModel?.id) {
-        setSelectedModelId(defaultModel.id);
-      } else if (models.length > 0 && models[0].id) {
-        setSelectedModelId(models[0].id);
+      if (setResearchObjective) {
+        setResearchObjective(initialObjective);
       }
-    } catch (error) {
-      console.error("Error loading user models:", error);
-    } finally {
-      setIsLoadingModels(false);
     }
-  };
+  }, [initialObjective, setResearchObjective]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-    onSubmit(query, userModel, useCase, selectedModelId, currentUnderstanding);
-  };
-
-  const handleQueryChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setQuery(e.target.value);
-    if (setResearchObjective) {
-      setResearchObjective(e.target.value);
-    }
-  };
-
-  const handleLLMChange = (value: string) => {
-    setLocalSelectedLLM(value);
-    if (setSelectedLLM) {
-      setSelectedLLM(value);
-    }
-  };
-
-  const getSelectedModelDetails = () => {
-    const selected = userModels.find(m => m.id === selectedModelId);
-    if (!selected) return null;
-    
-    return {
-      domain: selected.domain,
-      expertise_level: selected.expertise_level,
-      cognitive_style: selected.cognitive_style,
-      included_sources: selected.included_sources,
-      source_priorities: selected.source_priorities
+  useEffect(() => {
+    const fetchUserModels = async () => {
+      try {
+        const models = await getUserModels();
+        setUserModels(models);
+      } catch (error) {
+        console.error("Error fetching user models:", error);
+      }
     };
-  };
 
-  const handleModelChange = (value: string) => {
-    setSelectedModelId(value === "custom" ? "" : value);
-  };
+    fetchUserModels();
+  }, []);
 
-  const llmOptions = [
-    { value: "auto", label: "auto (default)" },
-    { value: "o3-mini", label: "o3-mini" },
-    { value: "o1", label: "o1" },
-    { value: "gpt4-turbo", label: "gpt4-turbo" },
-    { value: "claude-3.5-sonnet", label: "claude-3.5-sonnet" },
-    { value: "gemini-2.0-flash-lite-preview-02-05", label: "gemini-2.0-flash-lite" },
-    { value: "gemini-2.0-flash", label: "gemini-2.0-flash" },
-    { value: "gemini-2.0-flash-thinking-exp-01-21", label: "gemini-2.0-flash-thinking" },
-    { value: "deepseek-ai/DeepSeek-R1", label: "deepseek-r1" }
-  ];
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (setResearchObjective) {
+      setResearchObjective(query);
+    }
+    await onSubmit(query, userModelText, useCase, selectedModelId, currentUnderstanding);
+  };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Research Objective Section */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="research-objective" className="text-base font-medium lowercase">
-              research objective
-            </Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="p-0 h-auto"
-                  type="button"
-                >
-                  <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-4">
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm lowercase">example research objective</h4>
-                  <p className="text-sm text-muted-foreground">{exampleObjective}</p>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
-        
-        <p className="text-xs text-muted-foreground lowercase mb-1.5">
-          enter a clear research question or objective you want to explore
-        </p>
-        
-        <Textarea
-          id="research-objective"
-          placeholder="What do you want to research? Be specific about your objectives and desired outcomes."
+    <div>
+      <form onSubmit={handleSubmit} className="flex items-center space-x-4">
+        <Input
+          type="text"
+          placeholder="Enter your research objective"
           value={query}
-          onChange={handleQueryChange}
-          className="min-h-24 resize-none"
-          required
+          onChange={(e) => setQuery(e.target.value)}
+          className="flex-1"
         />
-      </div>
-
-      {/* Current Understanding Section */}
-      <div className="space-y-2">
-        <Label htmlFor="current-understanding" className="text-base font-medium lowercase">
-          current understanding
-        </Label>
-        <p className="text-xs text-muted-foreground lowercase mb-1.5">
-          what do you already know about this topic? explain in 2-5 sentences
-        </p>
-        <Textarea
-          id="current-understanding"
-          placeholder="What do you already know about this topic? Explain in 2-5 sentences."
-          value={currentUnderstanding}
-          onChange={(e) => setCurrentUnderstanding(e.target.value)}
-          className="min-h-20 resize-none"
-        />
-      </div>
-
-      {/* Model Selection Grid - Two Columns Side by Side */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* User Model Selection */}
-        <div className="space-y-2">
-          <Label htmlFor="research-model" className="text-base font-medium lowercase">
-            user model
-          </Label>
-          <p className="text-xs text-muted-foreground lowercase mb-1.5">
-            choose your user model to guide the research approach
-          </p>
-          <Select 
-            value={selectedModelId || "custom"} 
-            onValueChange={handleModelChange}
-            disabled={isLoadingModels}
-          >
-            <SelectTrigger id="research-model" className="w-full">
-              <SelectValue placeholder="select a user model" className="lowercase" />
-            </SelectTrigger>
-            <SelectContent>
-              {userModels.map(model => (
-                <SelectItem 
-                  key={model.id} 
-                  value={model.id || `model-${Date.now()}`}
-                  className="lowercase whitespace-normal"
-                >
-                  {model.name?.toLowerCase()} {model.is_default ? "(default)" : ""}
-                </SelectItem>
-              ))}
-              <SelectItem value="custom" className="lowercase">none (custom)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        {/* LLM Selection */}
-        <div className="space-y-2">
-          <Label htmlFor="llm-model" className="text-base font-medium lowercase">
-            LLM
-          </Label>
-          <p className="text-xs text-muted-foreground lowercase mb-1.5">
-            select the LLM to use for this research
-          </p>
-          <Select 
-            value={localSelectedLLM} 
-            onValueChange={handleLLMChange}
-          >
-            <SelectTrigger id="llm-model" className="w-full">
-              <SelectValue placeholder="auto" className="lowercase" />
-            </SelectTrigger>
-            <SelectContent>
-              {llmOptions.map(option => (
-                <SelectItem 
-                  key={option.value} 
-                  value={option.value}
-                  className="lowercase"
-                >
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      
-      <Button 
-        type="submit" 
-        className="w-full transition-all duration-300 hover:scale-[1.02] lowercase" 
-        disabled={isLoading || !query.trim()}
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" /> researching...
-          </>
-        ) : (
-          "start research"
-        )}
-      </Button>
-    </form>
+        <Select onValueChange={setSelectedLLM} defaultValue={selectedLLM}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select LLM" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="claude-3.5-sonnet">Claude 3.5 Sonnet</SelectItem>
+            <SelectItem value="gpt-4">GPT-4</SelectItem>
+            <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              researching...
+            </>
+          ) : (
+            <>
+              <Search className="mr-2 h-4 w-4" />
+              research
+            </>
+          )}
+        </Button>
+      </form>
+    </div>
   );
 };

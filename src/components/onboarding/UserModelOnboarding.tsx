@@ -1,18 +1,12 @@
-
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter 
-} from "@/components/ui/dialog";
-import { UserModel, createUserModel, updateUserOnboardingStatus } from "@/services/userModelService";
-import UserModelForm from "@/components/user-models/UserModelForm";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { createUserModel, markOnboardingCompleted } from "@/services/userModelService";
+import { cn } from '@/lib/utils';
 
 interface UserModelOnboardingProps {
   isOpen: boolean;
@@ -20,105 +14,107 @@ interface UserModelOnboardingProps {
   onCompleted?: () => void;
 }
 
-const UserModelOnboarding = ({ isOpen, onClose, onCompleted }: UserModelOnboardingProps) => {
-  const navigate = useNavigate();
+const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({ 
+  isOpen, 
+  onClose,
+  onCompleted 
+}) => {
+  const [domain, setDomain] = useState("");
+  const [expertiseLevel, setExpertiseLevel] = useState("");
+  const [cognitiveStyle, setCognitiveStyle] = useState("");
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [step, setStep] = useState(1);
-  
-  const handleCreate = async (model: UserModel) => {
-    setIsSubmitting(true);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
     try {
-      await createUserModel({ ...model, is_default: true });
-      await updateUserOnboardingStatus(true);
+      if (!domain || !expertiseLevel || !cognitiveStyle) {
+        toast({
+          title: "missing fields",
+          description: "please fill out all fields",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await createUserModel({
+        domain,
+        expertise_level: expertiseLevel,
+        cognitive_style: cognitiveStyle,
+      });
+
+      await markOnboardingCompleted();
+
       toast({
-        title: "Model created",
-        description: "Your research model has been created successfully",
+        title: "model created",
+        description: "your user model has been created",
       });
       onClose();
       if (onCompleted) {
         onCompleted();
       }
-      navigate("/research");
     } catch (error) {
-      console.error("Error creating model:", error);
+      console.error("Error creating user model:", error);
       toast({
-        title: "Error",
-        description: "Failed to create model",
+        title: "error creating model",
+        description: "there was an error creating your user model",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
-  
-  const handleSkip = async () => {
-    try {
-      await updateUserOnboardingStatus(true);
-      onClose();
-      if (onCompleted) {
-        onCompleted();
-      }
-      navigate("/research");
-    } catch (error) {
-      console.error("Error updating onboarding status:", error);
-    }
-  };
-  
-  if (step === 1) {
-    return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Welcome to Deep Research</DialogTitle>
-            <DialogDescription>
-              Create a personalized research model to get better results
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4 space-y-4">
-            <p>
-              A research model helps tailor your research experience to your specific domain,
-              expertise level, and preferences. This improves the quality and relevance of your results.
-            </p>
-            <p className="text-muted-foreground">
-              You can create multiple models later and switch between them based on your needs.
-            </p>
-          </div>
-          
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={handleSkip} className="sm:order-1 order-2">
-              Skip for now
-            </Button>
-            <Button onClick={() => setStep(2)} className="sm:order-2 order-1">
-              Create a Model
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    );
-  }
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create Your Research Model</DialogTitle>
+          <DialogTitle>tell us about you</DialogTitle>
           <DialogDescription>
-            Define your expertise and preferences to get better research results
+            create a user model to help us tailor your research experience.
           </DialogDescription>
         </DialogHeader>
-        
-        <UserModelForm 
-          onSubmit={handleCreate}
-          isSubmitting={isSubmitting}
-        />
-        
-        <DialogFooter className="mt-4">
-          <Button variant="outline" onClick={() => setStep(1)}>
-            Back
+        <form onSubmit={handleSubmit} className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="domain">domain</Label>
+            <Input
+              id="domain"
+              placeholder="e.g. artificial intelligence"
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="expertise">expertise level</Label>
+            <Input
+              id="expertise"
+              placeholder="e.g. beginner"
+              value={expertiseLevel}
+              onChange={(e) => setExpertiseLevel(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="cognitiveStyle">cognitive style</Label>
+            <Textarea
+              id="cognitiveStyle"
+              placeholder="e.g. i prefer concise answers"
+              value={cognitiveStyle}
+              onChange={(e) => setCognitiveStyle(e.target.value)}
+              className="resize-none"
+            />
+          </div>
+          <Button type="submit" disabled={isLoading}>
+            {isLoading ? (
+              <>
+                creating model...
+              </>
+            ) : (
+              <>create model</>
+            )}
           </Button>
-        </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
