@@ -103,7 +103,7 @@ const ResearchPage = () => {
   const [expertiseLevel, setExpertiseLevel] = useState("");
   const [userContext, setUserContext] = useState("");
   const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("");
-  const [selectedLLM, setSelectedLLM] = useState("claude-3.5-sonnet");
+  const [selectedLLM, setSelectedLLM] = useState("auto");
   const [rawData, setRawData] = useState<Record<string, string>>({});
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
@@ -381,6 +381,7 @@ const ResearchPage = () => {
         }).catch(err => console.error("Error saving initial research state:", err));
       }
       
+      // Always use claude-3.5-sonnet when auto is selected
       const modelToUse = selectedLLM === 'auto' ? 'claude-3.5-sonnet' : selectedLLM;
       startResearchStream(userModelPayload, newResearchId, query, modelToUse);
       

@@ -137,7 +137,8 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
         />
         <Select 
           onValueChange={handleLLMChange} 
-          defaultValue={initialLLM || selectedLLM || "auto"}
+          defaultValue="auto"
+          value={initialLLM || selectedLLM}
         >
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Select LLM" />
