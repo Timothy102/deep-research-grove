@@ -627,10 +627,10 @@ const ResearchPage = () => {
             ];
             
             // Save the human interaction request to the database for persistence
-            await updateResearchState(researchId, currentSessionIdRef.current, {
+            updateResearchState(researchId, currentSessionIdRef.current, {
               status: 'awaiting_human_input',
               human_interactions: humanInteractions
-            });
+            }).catch(err => console.error("Error updating human interaction state:", err));
           }
         } else if (eventType === "human_interaction_result") {
           console.log(`[${new Date().toISOString()}] 🧠 Human interaction result received:`, data.data);
