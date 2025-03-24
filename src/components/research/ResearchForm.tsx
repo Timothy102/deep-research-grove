@@ -32,7 +32,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   isLoading, 
   initialObjective = '',
   setResearchObjective,
-  selectedLLM = 'claude-3.5-sonnet',
+  selectedLLM = 'auto',
   setSelectedLLM,
   initialValue,
   initialDomain = '',
@@ -83,6 +83,9 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Close advanced options when starting research
+    setIsAdvancedOpen(false);
+    
     if (setResearchObjective) {
       setResearchObjective(query);
     }
@@ -96,6 +99,23 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
     } else if (setSelectedLLM) {
       setSelectedLLM(value);
     }
+  };
+
+  // Map model IDs to display names
+  const getModelDisplayName = (modelId: string) => {
+    const modelMap: Record<string, string> = {
+      'auto': 'Auto (Claude 3.5 Sonnet)',
+      'claude-3.5-sonnet': 'Claude 3.5 Sonnet',
+      'o3-mini': 'GPT-4o Mini',
+      'o1': 'GPT-4o',
+      'gpt4-turbo': 'GPT-4 Turbo',
+      'gemini-2.0-flash': 'Gemini 2.0 Flash',
+      'gemini-2.0-flash-lite-preview-02-05': 'Gemini 2.0 Flash Lite',
+      'gemini-2.0-flash-thinking-exp-01-21': 'Gemini 2.0 Flash Thinking',
+      'deepseek-ai/DeepSeek-R1': 'DeepSeek R1'
+    };
+    
+    return modelMap[modelId] || modelId;
   };
 
   return (
@@ -116,14 +136,15 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
             <SelectValue placeholder="Select LLM" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="claude-3.5-sonnet">Claude 3.5 Sonnet</SelectItem>
-            <SelectItem value="o3-mini">GPT-4o Mini</SelectItem>
-            <SelectItem value="o1">GPT-4o</SelectItem>
-            <SelectItem value="gpt4-turbo">GPT-4 Turbo</SelectItem>
-            <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash</SelectItem>
-            <SelectItem value="gemini-2.0-flash-lite-preview-02-05">Gemini 2.0 Flash Lite</SelectItem>
-            <SelectItem value="gemini-2.0-flash-thinking-exp-01-21">Gemini 2.0 Flash Thinking</SelectItem>
-            <SelectItem value="deepseek-ai/DeepSeek-R1">DeepSeek R1</SelectItem>
+            <SelectItem value="auto">{getModelDisplayName('auto')}</SelectItem>
+            <SelectItem value="claude-3.5-sonnet">{getModelDisplayName('claude-3.5-sonnet')}</SelectItem>
+            <SelectItem value="o3-mini">{getModelDisplayName('o3-mini')}</SelectItem>
+            <SelectItem value="o1">{getModelDisplayName('o1')}</SelectItem>
+            <SelectItem value="gpt4-turbo">{getModelDisplayName('gpt4-turbo')}</SelectItem>
+            <SelectItem value="gemini-2.0-flash">{getModelDisplayName('gemini-2.0-flash')}</SelectItem>
+            <SelectItem value="gemini-2.0-flash-lite-preview-02-05">{getModelDisplayName('gemini-2.0-flash-lite-preview-02-05')}</SelectItem>
+            <SelectItem value="gemini-2.0-flash-thinking-exp-01-21">{getModelDisplayName('gemini-2.0-flash-thinking-exp-01-21')}</SelectItem>
+            <SelectItem value="deepseek-ai/DeepSeek-R1">{getModelDisplayName('deepseek-ai/DeepSeek-R1')}</SelectItem>
           </SelectContent>
         </Select>
         <Button type="submit" disabled={isLoading}>

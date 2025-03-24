@@ -40,7 +40,7 @@ const ReasoningPath = ({
   }
   
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">Research Planning</h3>
         <Badge variant="outline" className="text-xs">
@@ -56,13 +56,19 @@ const ReasoningPath = ({
                       
           const stepRawData = nodeId ? rawData[nodeId] : undefined;
           
+          // Find relevant findings for this step
+          const relevantFindings = findings.filter(finding => 
+            finding.node_id === nodeId || 
+            (step.toLowerCase().includes(finding.source?.split('//')[1]?.split('.')[0] || ''))
+          );
+          
           return (
             <ReasoningStep
               key={index}
               step={step}
               index={index}
               sources={sources}
-              findings={findings}
+              findings={relevantFindings}
               defaultExpanded={index === reasoningPath.length - 1}
               isActive={isActive && index === reasoningPath.length - 1}
               rawData={stepRawData}

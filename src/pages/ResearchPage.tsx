@@ -379,7 +379,8 @@ const ResearchPage = () => {
         }).catch(err => console.error("Error saving initial research state:", err));
       }
       
-      startResearchStream(userModelPayload, newResearchId, query);
+      const modelToUse = selectedLLM === 'auto' ? 'claude-3.5-sonnet' : selectedLLM;
+      startResearchStream(userModelPayload, newResearchId, query, modelToUse);
       
       loadHistory().catch(err => console.error("Error loading history after research start:", err));
       
@@ -394,7 +395,7 @@ const ResearchPage = () => {
     }
   };
 
-  const startResearchStream = (userModelData: any, researchId: string, query: string) => {
+  const startResearchStream = (userModelData: any, researchId: string, query: string, modelToUse: string = 'claude-3.5-sonnet') => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
@@ -406,7 +407,7 @@ const ResearchPage = () => {
     const requestBody = {
       research_objective: query,
       user_model: userModelData,
-      model: selectedLLM,
+      model: modelToUse,
       session_id: currentSessionIdRef.current,
       research_id: researchId,
       user_id: user?.id || 'anonymous',
@@ -1067,3 +1068,4 @@ const ResearchPage = () => {
 };
 
 export default ResearchPage;
+

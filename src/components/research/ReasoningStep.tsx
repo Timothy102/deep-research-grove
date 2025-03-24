@@ -235,7 +235,7 @@ const SourceItem = ({ source, content, sourceIndex, isFinding, finding }: Source
       
       {isExpanded && displayContent && (
         <div className="px-2 pb-2 pt-1 ml-7 animate-accordion-down">
-          <div className="text-xs text-muted-foreground bg-background p-2 rounded border text-left whitespace-pre-wrap">
+          <div className="text-xs text-muted-foreground bg-background p-2 rounded border text-left whitespace-pre-wrap max-h-[400px] overflow-auto">
             {displayContent}
           </div>
         </div>
@@ -266,7 +266,7 @@ const FindingsContent = ({ findings }: { findings: Finding[] }) => {
             </a>
           </div>
           {(finding.content || finding.finding) && (
-            <div className="text-sm text-muted-foreground bg-white/80 dark:bg-gray-900/50 p-2 rounded border border-blue-100 dark:border-blue-900 mt-1 whitespace-pre-wrap">
+            <div className="text-sm text-muted-foreground bg-white/80 dark:bg-gray-900/50 p-2 rounded border border-blue-100 dark:border-blue-900 mt-1 whitespace-pre-wrap max-h-[250px] overflow-auto">
               {finding.content || (finding.finding && 
                 `Title: ${finding.finding.title || ''}\nSummary: ${finding.finding.summary || ''}\nConfidence: ${finding.finding.confidence_score?.toFixed(2) || 'N/A'}`
               )}
@@ -463,10 +463,10 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
   };
 
   return (
-    <div className="mb-3 animate-fade-in">
+    <div className="mb-4 animate-fade-in">
       <div 
         className={cn(
-          "flex items-start space-x-2 p-3 rounded-md border transition-all duration-200",
+          "flex items-start space-x-2 p-4 rounded-md border transition-all duration-200",
           expanded 
             ? `shadow-sm border-l-4 ${color.split(' ')[0]}` 
             : `border-l-4 ${color.split(' ')[0]} hover:bg-gray-50 dark:hover:bg-gray-900/30`,
@@ -539,6 +539,25 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
               <div className="line-clamp-3">{answer}</div>
             </div>
           )}
+          
+          {/* Always show findings summary to make them more visible */}
+          {hasFindingsForStep && !expanded && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {relevantFindings.slice(0, 3).map((finding, idx) => (
+                <Badge key={idx} variant="outline" className="bg-blue-50/80 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 py-1">
+                  <Book className="h-3 w-3 mr-1" />
+                  <span className="truncate max-w-[200px]">
+                    {extractDomain(finding.source)}
+                  </span>
+                </Badge>
+              ))}
+              {relevantFindings.length > 3 && (
+                <Badge variant="outline" className="bg-blue-50/80 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 py-1">
+                  +{relevantFindings.length - 3} more
+                </Badge>
+              )}
+            </div>
+          )}
         </div>
       </div>
       
@@ -552,7 +571,7 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
       )}
       
       {expanded && (
-        <div className="ml-11 mt-2 space-y-4">
+        <div className="ml-11 mt-3 space-y-4 px-2 pb-2">
           {isSearchStep && (
             <SearchQueries step={step} />
           )}
