@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -37,7 +36,6 @@ const HumanApprovalDialog = ({
 
   useEffect(() => {
     if (isOpen) {
-      // Prevent body scrolling when dialog is open
       document.body.style.overflow = 'hidden';
     }
     
@@ -49,7 +47,6 @@ const HumanApprovalDialog = ({
       isOpen
     });
     
-    // Cleanup function
     return () => {
       document.body.style.overflow = '';
       console.log(`[${new Date().toISOString()}] 🧹 HumanApprovalDialog unmounting for callId:`, callId);
@@ -119,7 +116,6 @@ const HumanApprovalDialog = ({
     }
   };
 
-  // Return null if dialog shouldn't be shown
   if (!isOpen && typeof isOpen !== 'undefined') return null;
 
   const getApprovalTypeLabel = () => {
@@ -154,7 +150,6 @@ const HumanApprovalDialog = ({
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-[9999] p-4 overflow-hidden">
-      {/* Enhanced backdrop with blur effect */}
       <div 
         className="fixed inset-0 bg-black/50 backdrop-blur-sm" 
         onClick={onClose}

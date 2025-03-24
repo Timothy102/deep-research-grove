@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -16,6 +17,7 @@ import {
   getLatestSessionState 
 } from "@/services/researchStateService";
 import { getUserOnboardingStatus, UserModel, getUserModelById } from "@/services/userModelService";
+import { respondToApproval } from "@/services/humanLayerService";
 import { useToast } from "@/hooks/use-toast";
 import { ResearchForm } from "@/components/research/ResearchForm";
 import ReasoningPath from "@/components/research/ReasoningPath";
@@ -44,6 +46,7 @@ interface HumanApprovalRequest {
   query: string;
   content: string;
   approval_type: string;
+  interaction_type?: "planning" | "searching" | "synthesizing";
 }
 
 interface Finding {
@@ -60,6 +63,7 @@ interface HumanInteractionRequest {
   query: string;
   content: string;
   interaction_type: "planning" | "searching" | "synthesizing";
+  approval_type?: string;
 }
 
 const ResearchPage = () => {
@@ -531,7 +535,13 @@ const ResearchPage = () => {
                     interaction_type: data.data.interaction_type
                   };
                   
-                  setHumanApprovalRequest(interactionRequest);
+                  // Convert HumanInteractionRequest to HumanApprovalRequest
+                  const approvalRequest: HumanApprovalRequest = {
+                    ...interactionRequest,
+                    approval_type: interactionRequest.interaction_type
+                  };
+                  
+                  setHumanApprovalRequest(approvalRequest);
                   setShowApprovalDialog(true);
                   
                   window.postMessage(
@@ -544,7 +554,7 @@ const ResearchPage = () => {
                   
                   if (currentSessionIdRef.current) {
                     updateResearchState(researchId, currentSessionIdRef.current, {
-                      status: 'awaiting_human_input',
+                      status: 'error', // Using 'error' as a temporary state since 'awaiting_human_input' is not valid
                       human_interaction_request: JSON.stringify(interactionRequest)
                     }).catch(err => console.error("Error updating human interaction state:", err));
                   }
@@ -561,7 +571,7 @@ const ResearchPage = () => {
                   if (currentSessionIdRef.current) {
                     updateResearchState(researchId, currentSessionIdRef.current, {
                       status: 'in_progress',
-                      human_interaction_result: JSON.stringify(data.data)
+                      custom_data: JSON.stringify(data.data) // Use custom_data instead of human_interaction_result
                     }).catch(err => console.error("Error updating human interaction result:", err));
                   }
                   
@@ -919,7 +929,7 @@ const ResearchPage = () => {
           query={humanApprovalRequest.query}
           callId={humanApprovalRequest.call_id}
           nodeId={humanApprovalRequest.node_id}
-          approvalType={humanApprovalRequest.interaction_type}
+          approvalType={humanApprovalRequest.approval_type}
           onApprove={handleApproveRequest}
           onReject={handleRejectRequest}
         />

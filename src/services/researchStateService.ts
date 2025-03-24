@@ -7,7 +7,7 @@ export interface ResearchState {
   research_id: string;
   session_id: string;
   user_id: string;
-  status: 'in_progress' | 'completed' | 'error';
+  status: 'in_progress' | 'completed' | 'error' | 'awaiting_human_input';
   query: string;
   answer?: string;
   sources?: string[];
@@ -16,9 +16,11 @@ export interface ResearchState {
   created_at?: string;
   updated_at?: string;
   user_model?: string | Json;
-  active_tab?: string; // Added to persist active tab
-  error?: string; // Added for error messages
-  client_id?: string; // Added to track browser session
+  active_tab?: string;
+  error?: string;
+  client_id?: string;
+  human_interaction_request?: string;
+  custom_data?: string;
 }
 
 // Save initial research state
@@ -49,7 +51,7 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
   const validState = {
     research_id: state.research_id,
     session_id: state.session_id,
-    status: state.status,
+    status: state.status === 'awaiting_human_input' ? 'error' : state.status, // Map awaiting_human_input to error for compatibility
     query: state.query,
     answer: state.answer,
     sources: state.sources,
@@ -58,7 +60,9 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     user_model: state.user_model,
     error: state.error,
     user_id: user.user.id,
-    client_id: clientId
+    client_id: clientId,
+    human_interaction_request: state.human_interaction_request,
+    custom_data: state.custom_data
   };
   
   try {
@@ -94,9 +98,6 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
         
         if (dataWithTab && dataWithTab.length > 0) {
           const result = dataWithTab[0] as ResearchState;
-          if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
-            result.status = 'in_progress'; // Default to 'in_progress' if invalid status
-          }
           return result;
         }
       } else {
@@ -106,12 +107,8 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     
     console.log(`[${new Date().toISOString()}] ✅ Successfully saved research state`);
     
-    // Ensure the returned data has the correct status type
     if (data && data.length > 0) {
       const result = data[0] as ResearchState;
-      if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
-        result.status = 'in_progress'; // Default to 'in_progress' if invalid status
-      }
       return result;
     }
   } catch (error) {
@@ -152,6 +149,18 @@ export async function updateResearchState(
     updates: JSON.stringify(updates).substring(0, 100) + "..." 
   });
   
+  // Ensure status is compatible with the database schema
+  if (updates.status === 'awaiting_human_input') {
+    updates.status = 'error'; // Map awaiting_human_input to error for compatibility
+  }
+  
+  // Handle human_interaction_result by using custom_data instead
+  if ('human_interaction_result' in updates) {
+    const humanInteractionResult = (updates as any).human_interaction_result;
+    updates.custom_data = humanInteractionResult;
+    delete (updates as any).human_interaction_result;
+  }
+  
   // Filter out active_tab if it exists in updates
   const { active_tab, ...otherUpdates } = updates;
   
@@ -184,12 +193,8 @@ export async function updateResearchState(
         }
       } else {
         // If no error, return the result
-        // Ensure the returned data has the correct status type
         if (data && data.length > 0) {
           const result = data[0] as ResearchState;
-          if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
-            result.status = 'in_progress'; // Default to 'in_progress' if invalid status
-          }
           return result;
         }
         return null;
@@ -219,12 +224,8 @@ export async function updateResearchState(
     throw error;
   }
   
-  // Ensure the returned data has the correct status type
   if (data && data.length > 0) {
     const result = data[0] as ResearchState;
-    if (result.status !== 'in_progress' && result.status !== 'completed' && result.status !== 'error') {
-      result.status = 'in_progress'; // Default to 'in_progress' if invalid status
-    }
     return result;
   }
   
