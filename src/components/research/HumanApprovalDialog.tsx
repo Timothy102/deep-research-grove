@@ -8,19 +8,31 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { respondToApproval } from "@/services/humanLayerService";
 
-interface HumanApprovalDialogProps {
-  content: string;
+interface HumanApprovalRequest {
+  call_id: string;
+  node_id: string;
   query: string;
-  callId: string;
-  nodeId: string;
-  approvalType: string;
+  content: string;
+  approval_type: string;
+  interaction_type?: "planning" | "searching" | "synthesizing";
+}
+
+interface HumanApprovalDialogProps {
+  isOpen?: boolean;
+  request?: HumanApprovalRequest;
+  content?: string;
+  query?: string;
+  callId?: string;
+  nodeId?: string;
+  approvalType?: string;
   onClose: () => void;
   onApprove?: (callId: string, nodeId: string) => Promise<void>;
   onReject?: (callId: string, nodeId: string, reason: string) => Promise<void>;
-  isOpen?: boolean;
 }
 
 const HumanApprovalDialog = ({
+  isOpen,
+  request,
   content,
   query,
   callId,
@@ -28,20 +40,26 @@ const HumanApprovalDialog = ({
   approvalType,
   onClose,
   onApprove,
-  onReject,
-  isOpen
+  onReject
 }: HumanApprovalDialogProps) => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [showReasonInput, setShowReasonInput] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Extract values from request or use direct props
+  const actualCallId = request?.call_id || callId || "";
+  const actualNodeId = request?.node_id || nodeId || "";
+  const actualQuery = request?.query || query || "";
+  const actualContent = request?.content || content || "";
+  const actualApprovalType = request?.approval_type || approvalType || "";
 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
       
       // Show a persistent toast notification to draw user's attention
-      toast(`Human input needed: ${approvalType}`, {
-        id: `approval-${callId}`,
+      toast(`Human input needed: ${actualApprovalType}`, {
+        id: `approval-${actualCallId}`,
         duration: Infinity,
         icon: <HelpCircle className="h-5 w-5 text-blue-500" />,
         action: {
@@ -54,31 +72,31 @@ const HumanApprovalDialog = ({
     }
     
     console.log(`[${new Date().toISOString()}] 🔍 HumanApprovalDialog mounted with props:`, { 
-      callId, 
-      nodeId, 
-      content: content?.substring(0, 50) + "...", 
-      approvalType,
+      callId: actualCallId, 
+      nodeId: actualNodeId, 
+      content: actualContent?.substring(0, 50) + "...", 
+      approvalType: actualApprovalType,
       isOpen
     });
     
     return () => {
       document.body.style.overflow = '';
-      toast.dismiss(`approval-${callId}`);
-      console.log(`[${new Date().toISOString()}] 🧹 HumanApprovalDialog unmounting for callId:`, callId);
+      toast.dismiss(`approval-${actualCallId}`);
+      console.log(`[${new Date().toISOString()}] 🧹 HumanApprovalDialog unmounting for callId:`, actualCallId);
     };
-  }, [callId, nodeId, content, approvalType, isOpen]);
+  }, [actualCallId, actualNodeId, actualContent, actualApprovalType, isOpen]);
 
   const handleApprove = async () => {
-    console.log(`[${new Date().toISOString()}] 👍 Approve button clicked for callId:`, callId);
+    console.log(`[${new Date().toISOString()}] 👍 Approve button clicked for callId:`, actualCallId);
     setIsSubmitting(true);
     try {
-      console.log(`[${new Date().toISOString()}] 🚀 Starting approval process for callId:`, callId);
+      console.log(`[${new Date().toISOString()}] 🚀 Starting approval process for callId:`, actualCallId);
       if (onApprove) {
         console.log(`[${new Date().toISOString()}] 📞 Using provided onApprove callback`);
-        await onApprove(callId, nodeId);
+        await onApprove(actualCallId, actualNodeId);
       } else {
         console.log(`[${new Date().toISOString()}] 📡 Using direct API call to HumanLayer`);
-        await respondToApproval(callId, true);
+        await respondToApproval(actualCallId, true);
       }
       console.log(`[${new Date().toISOString()}] ✅ Approval successful`);
       toast.success("Content has been approved");
@@ -88,7 +106,7 @@ const HumanApprovalDialog = ({
     } finally {
       console.log(`[${new Date().toISOString()}] 🏁 Approval process complete, closing dialog`);
       setIsSubmitting(false);
-      toast.dismiss(`approval-${callId}`);
+      toast.dismiss(`approval-${actualCallId}`);
       onClose();
     }
   };
@@ -105,16 +123,16 @@ const HumanApprovalDialog = ({
   };
 
   const handleConfirmReject = async () => {
-    console.log(`[${new Date().toISOString()}] 👎 Confirm reject button clicked for callId:`, callId);
+    console.log(`[${new Date().toISOString()}] 👎 Confirm reject button clicked for callId:`, actualCallId);
     setIsSubmitting(true);
     try {
-      console.log(`[${new Date().toISOString()}] 🚀 Rejecting content with callId:`, callId, "Reason:", rejectionReason);
+      console.log(`[${new Date().toISOString()}] 🚀 Rejecting content with callId:`, actualCallId, "Reason:", rejectionReason);
       if (onReject) {
         console.log(`[${new Date().toISOString()}] 📞 Using provided onReject callback`);
-        await onReject(callId, nodeId, rejectionReason);
+        await onReject(actualCallId, actualNodeId, rejectionReason);
       } else {
         console.log(`[${new Date().toISOString()}] 📡 Using direct API call to HumanLayer`);
-        await respondToApproval(callId, false, rejectionReason);
+        await respondToApproval(actualCallId, false, rejectionReason);
       }
       console.log(`[${new Date().toISOString()}] ✅ Rejection successful`);
       toast.success("Content has been rejected");
@@ -126,7 +144,7 @@ const HumanApprovalDialog = ({
       setIsSubmitting(false);
       setShowReasonInput(false);
       setRejectionReason("");
-      toast.dismiss(`approval-${callId}`);
+      toast.dismiss(`approval-${actualCallId}`);
       onClose();
     }
   };
@@ -134,7 +152,7 @@ const HumanApprovalDialog = ({
   if (!isOpen && typeof isOpen !== 'undefined') return null;
 
   const getApprovalTypeLabel = () => {
-    switch (approvalType) {
+    switch (actualApprovalType) {
       case "synthesis":
       case "synthesizing":
         return (
@@ -157,7 +175,7 @@ const HumanApprovalDialog = ({
       default:
         return (
           <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950/30 dark:text-gray-400 dark:border-gray-800">
-            {approvalType}
+            {actualApprovalType}
           </Badge>
         );
     }
@@ -198,11 +216,11 @@ const HumanApprovalDialog = ({
             {getApprovalTypeLabel()}
           </div>
           <CardDescription className="text-sm text-muted-foreground">
-            {approvalType === "synthesizing" 
+            {actualApprovalType === "synthesizing" 
               ? "Please review this research synthesis before proceeding" 
-              : approvalType === "planning"
+              : actualApprovalType === "planning"
                 ? "Please review this research plan before continuing"
-                : approvalType === "searching"
+                : actualApprovalType === "searching"
                   ? "Please review these search results before continuing"
                   : "Your feedback is required to continue the research"}
           </CardDescription>
@@ -212,14 +230,14 @@ const HumanApprovalDialog = ({
           <div>
             <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Research Objective</h4>
             <div className="text-sm p-3 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
-              {query}
+              {actualQuery}
             </div>
           </div>
           
           <div>
             <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Content for Review</h4>
             <div className="text-sm p-4 bg-gray-50 dark:bg-gray-800 rounded-md overflow-y-auto whitespace-pre-wrap border-l-2 border-primary/30 shadow-sm">
-              {content}
+              {actualContent}
             </div>
           </div>
 
