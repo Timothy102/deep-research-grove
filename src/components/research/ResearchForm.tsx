@@ -120,6 +120,8 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
             <SelectItem value="o1">GPT-4o</SelectItem>
             <SelectItem value="gpt4-turbo">GPT-4 Turbo</SelectItem>
             <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash</SelectItem>
+            <SelectItem value="gemini-2.0-flash-lite-preview-02-05">Gemini 2.0 Flash Lite</SelectItem>
+            <SelectItem value="gemini-2.0-flash-thinking-exp-01-21">Gemini 2.0 Flash Thinking</SelectItem>
             <SelectItem value="deepseek-ai/DeepSeek-R1">DeepSeek R1</SelectItem>
           </SelectContent>
         </Select>

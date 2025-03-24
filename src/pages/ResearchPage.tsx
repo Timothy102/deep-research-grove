@@ -869,7 +869,7 @@ const ResearchPage = () => {
               variant="ghost" 
               size="sm"
               onClick={() => navigate("/models")}
-              className="hidden md:flex items-center gap-1"
+              className="flex items-center gap-1"
             >
               <User className="h-4 w-4" />
               <span>user models</span>

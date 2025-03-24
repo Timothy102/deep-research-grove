@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 interface UserModelOnboardingProps {
   isOpen: boolean;
   onClose: () => void;
-  onCompleted?: (model: any) => void; // Changed from optional function that takes no args to optional function that takes a model
+  onCompleted?: (model: any) => void; 
   onComplete?: (model: any) => Promise<void>;
 }
 
@@ -39,11 +39,12 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
           description: "please fill out all fields",
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
       const modelData = {
-        name: `${domain} model`, // Adding a default name based on domain
+        name: `${domain} model`, 
         domain,
         expertise_level: expertiseLevel,
         cognitive_style: cognitiveStyle,
