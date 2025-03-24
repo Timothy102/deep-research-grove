@@ -9,7 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
 
 interface ResearchFormProps {
   onSubmit: (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => Promise<void>;
@@ -89,7 +88,15 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
     if (setResearchObjective) {
       setResearchObjective(query);
     }
-    await onSubmit(query, userModelText, useCase, selectedModelId, currentUnderstanding);
+    
+    // Make sure to send all parameters to the backend
+    await onSubmit(
+      query, 
+      userModelText, 
+      useCase, 
+      selectedModelId, 
+      currentUnderstanding
+    );
   };
 
   // Choose the right function for LLM selection
@@ -104,7 +111,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   // Map model IDs to display names
   const getModelDisplayName = (modelId: string) => {
     const modelMap: Record<string, string> = {
-      'auto': 'Auto (Claude 3.5 Sonnet)',
+      'auto': 'Auto',
       'claude-3.5-sonnet': 'Claude 3.5 Sonnet',
       'o3-mini': 'GPT-4o Mini',
       'o1': 'GPT-4o',

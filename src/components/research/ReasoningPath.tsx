@@ -48,7 +48,7 @@ const ReasoningPath = ({
         </Badge>
       </div>
       
-      <div className="space-y-4">
+      <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pb-8">
         {reasoningPath.map((step, index) => {
           const nodeId = step.match(/node(?:_id|[\s_]id)?:?\s*['"]?([a-zA-Z0-9_-]+)['"]?/i)?.[1] || 
                       step.match(/node\s+(\d+)|#(\d+)/i)?.[1] || 
