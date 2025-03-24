@@ -2,9 +2,11 @@
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, XCircle, MessageSquare, FileText } from "lucide-react";
+import { CheckCircle2, XCircle, MessageSquare, FileText, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { respondToApproval } from "@/services/humanLayerService";
 
 interface HumanApprovalDialogProps {
   content: string;
@@ -63,7 +65,7 @@ const HumanApprovalDialog = ({
         console.log(`[${new Date().toISOString()}] 📞 Using provided onApprove callback`);
         await onApprove(callId, nodeId);
       } else {
-        console.log(`[${new Date().toISOString()}] 📡 Using direct API call to approval endpoint`);
+        console.log(`[${new Date().toISOString()}] 📡 Using direct API call to HumanLayer`);
         await respondToApproval(callId, true);
       }
       console.log(`[${new Date().toISOString()}] ✅ Approval successful`);
@@ -99,7 +101,7 @@ const HumanApprovalDialog = ({
         console.log(`[${new Date().toISOString()}] 📞 Using provided onReject callback`);
         await onReject(callId, nodeId, rejectionReason);
       } else {
-        console.log(`[${new Date().toISOString()}] 📡 Using direct API call to approval endpoint`);
+        console.log(`[${new Date().toISOString()}] 📡 Using direct API call to HumanLayer`);
         await respondToApproval(callId, false, rejectionReason);
       }
       console.log(`[${new Date().toISOString()}] ✅ Rejection successful`);
@@ -117,42 +119,38 @@ const HumanApprovalDialog = ({
     }
   };
 
-  // Function to call the endpoint directly with body parameters
-  const respondToApproval = async (callId: string, approved: boolean, comment: string = "") => {
-    console.log(`[${new Date().toISOString()}] 📤 Making POST request to approval endpoint with body:`, { call_id: callId, approved, comment });
-    
-    try {
-      const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          call_id: callId,
-          approved: approved,
-          comment: comment
-        })
-      });
-      
-      console.log(`[${new Date().toISOString()}] 📥 API response status:`, response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[${new Date().toISOString()}] ❌ API response error:`, errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const responseData = await response.json();
-      console.log(`[${new Date().toISOString()}] 📦 API response data:`, responseData);
-      return responseData;
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error in respondToApproval:`, error);
-      throw error;
-    }
-  };
-
   // Return null if dialog shouldn't be shown
   if (!isOpen && typeof isOpen !== 'undefined') return null;
+
+  const getApprovalTypeLabel = () => {
+    switch (approvalType) {
+      case "synthesis":
+      case "synthesizing":
+        return (
+          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800">
+            Synthesis
+          </Badge>
+        );
+      case "planning":
+        return (
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800">
+            Planning
+          </Badge>
+        );
+      case "searching":
+        return (
+          <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/30 dark:text-violet-400 dark:border-violet-800">
+            Searching
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950/30 dark:text-gray-400 dark:border-gray-800">
+            {approvalType}
+          </Badge>
+        );
+    }
+  };
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-[9999] p-4 overflow-hidden">
@@ -177,29 +175,36 @@ const HumanApprovalDialog = ({
         </div>
         
         <CardHeader className="space-y-2 p-6 pb-3 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 border-b border-gray-200 dark:border-gray-800">
-          <div className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-primary" />
-            <CardTitle className="text-xl font-semibold">
-              {approvalType === "synthesis" ? "Review Synthesis" : "Approval Required"}
-            </CardTitle>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              <CardTitle className="text-xl font-semibold">
+                Human Feedback Required
+              </CardTitle>
+            </div>
+            {getApprovalTypeLabel()}
           </div>
           <CardDescription className="text-sm text-muted-foreground">
-            {approvalType === "synthesis" 
-              ? "Please review the synthesized content before proceeding" 
-              : "Your approval is required to continue the research"}
+            {approvalType === "synthesizing" 
+              ? "Please review this research synthesis before proceeding" 
+              : approvalType === "planning"
+                ? "Please review this research plan before continuing"
+                : approvalType === "searching"
+                  ? "Please review these search results before continuing"
+                  : "Your feedback is required to continue the research"}
           </CardDescription>
         </CardHeader>
         
         <CardContent className="px-6 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
           <div>
-            <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Query</h4>
+            <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Research Objective</h4>
             <div className="text-sm p-3 bg-gray-50 dark:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700">
               {query}
             </div>
           </div>
           
           <div>
-            <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Content</h4>
+            <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">Content for Review</h4>
             <div className="text-sm p-4 bg-gray-50 dark:bg-gray-800 rounded-md overflow-y-auto whitespace-pre-wrap border-l-2 border-primary/30 shadow-sm">
               {content}
             </div>
@@ -207,7 +212,8 @@ const HumanApprovalDialog = ({
 
           {showReasonInput && (
             <div className="animate-in fade-in slide-in-from-top-2 duration-200 pt-2">
-              <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2">
+              <h4 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-2 flex items-center gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
                 Reason for rejection
               </h4>
               <Textarea

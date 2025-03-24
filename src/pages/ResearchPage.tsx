@@ -54,6 +54,14 @@ interface Finding {
   finding?: any;
 }
 
+interface HumanInteractionRequest {
+  call_id: string;
+  node_id: string;
+  query: string;
+  content: string;
+  interaction_type: "planning" | "searching" | "synthesizing";
+}
+
 const ResearchPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -80,7 +88,7 @@ const ResearchPage = () => {
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
-  const clientIdRef = useRef<string>(getClientId()); // Store the client ID
+  const clientIdRef = useRef<string>(getClientId());
   const { toast: uiToast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
 
@@ -96,7 +104,6 @@ const ResearchPage = () => {
       return;
     }
     
-    // Log the current client ID for debugging
     console.log(`[${new Date().toISOString()}] 🔑 Active client ID:`, clientIdRef.current);
     
     currentSessionIdRef.current = sessionId;
@@ -140,7 +147,7 @@ const ResearchPage = () => {
 
   const loadHistory = async () => {
     try {
-      const historyData = await getResearchHistory(20); // Limit to 20 items
+      const historyData = await getResearchHistory(20);
       setHistory(historyData as ResearchHistoryEntry[]);
       const grouped = groupResearchHistoryByDate(historyData);
       setGroupedHistory(grouped);
@@ -153,7 +160,7 @@ const ResearchPage = () => {
     try {
       console.log(`[${new Date().toISOString()}] 🔄 Loading session data:`, { 
         sessionId, 
-        clientId: clientIdRef.current.substring(0, 15)  // Log partial client ID for privacy
+        clientId: clientIdRef.current.substring(0, 15)  
       });
       
       const sessionState = await getLatestSessionState(sessionId);
@@ -170,7 +177,6 @@ const ResearchPage = () => {
         clientId: sessionState.client_id
       });
       
-      // Verify this session belongs to the current client
       if (sessionState.client_id && sessionState.client_id !== clientIdRef.current) {
         console.warn(`[${new Date().toISOString()}] ⚠️ Session belongs to a different client, resetting state`, {
           sessionClientId: sessionState.client_id.substring(0, 15),
@@ -233,7 +239,7 @@ const ResearchPage = () => {
               session_id: currentSessionIdRef.current,
               model_id: model.id,
               currentUnderstanding: currentUnderstanding,
-              client_id: clientIdRef.current // Add client ID to payload
+              client_id: clientIdRef.current
             };
           }
         } catch (err) {
@@ -245,7 +251,7 @@ const ResearchPage = () => {
             useCase: useCase,
             session_id: currentSessionIdRef.current,
             currentUnderstanding: currentUnderstanding,
-            client_id: clientIdRef.current // Add client ID to payload
+            client_id: clientIdRef.current
           };
         }
       } else {
@@ -256,7 +262,7 @@ const ResearchPage = () => {
           useCase: useCase,
           session_id: currentSessionIdRef.current,
           currentUnderstanding: currentUnderstanding,
-          client_id: clientIdRef.current // Add client ID to payload
+          client_id: clientIdRef.current
         };
       }
       
@@ -320,7 +326,7 @@ const ResearchPage = () => {
             session_id: currentSessionIdRef.current,
             research_id: researchId,
             user_id: user?.id,
-            client_id: clientIdRef.current // Add client ID to request
+            client_id: clientIdRef.current
           })
         });
         
@@ -352,12 +358,10 @@ const ResearchPage = () => {
               try {
                 const data = JSON.parse(line.substring(6));
                 
-                // Extract client_id from event data
                 const eventClientId = data.client_id || userModelData.client_id;
                 const eventSessionId = data.session_id || currentSessionIdRef.current;
                 const eventResearchId = data.research_id || researchId;
                 
-                // Only process events meant for this client - STRICT VALIDATION
                 if (eventClientId !== clientIdRef.current) {
                   console.warn(`[${new Date().toISOString()}] 🚫 Rejected event for different client:`, { 
                     eventClientId: eventClientId?.substring(0, 15), 
@@ -367,7 +371,6 @@ const ResearchPage = () => {
                   continue;
                 }
                 
-                // Verify session and research IDs - STRICT VALIDATION
                 if (eventSessionId !== currentSessionIdRef.current || 
                     eventResearchId !== researchId) {
                   console.warn(`[${new Date().toISOString()}] 🚫 Rejected event for different session/research:`, { 
@@ -517,43 +520,53 @@ const ResearchPage = () => {
                       status: 'error',
                     }).catch(err => console.error("Error updating error state:", err));
                   }
-                } else if (eventType === "human_approval_request") {
-                  console.log(`[${new Date().toISOString()}] 📝 Received human approval request:`, data.data);
+                } else if (eventType === "human_interaction_request") {
+                  console.log(`[${new Date().toISOString()}] 🧠 Human interaction requested:`, data.data);
                   
-                  const approvalRequest = {
+                  const interactionRequest: HumanInteractionRequest = {
                     call_id: data.data.call_id,
                     node_id: data.data.node_id,
                     query: data.data.query || researchObjective,
                     content: data.data.content,
-                    approval_type: data.data.approval_type || "synthesis"
+                    interaction_type: data.data.interaction_type
                   };
                   
-                  console.log(`[${new Date().toISOString()}] 🆔 Setting approval request with ID:`, approvalRequest.call_id);
-                  setHumanApprovalRequest(approvalRequest);
+                  setHumanApprovalRequest(interactionRequest);
+                  setShowApprovalDialog(true);
                   
-                  toast.custom(
-                    (t) => (
-                      <HumanApprovalDialog
-                        content={approvalRequest.content}
-                        query={approvalRequest.query}
-                        callId={approvalRequest.call_id}
-                        nodeId={approvalRequest.node_id}
-                        approvalType={approvalRequest.approval_type}
-                        isOpen={true}
-                        onClose={() => {
-                          console.log(`[${new Date().toISOString()}] 🚪 Dialog closed from toast:`, t);
-                          toast.dismiss(t);
-                        }}
-                        onApprove={handleApproveRequest}
-                        onReject={handleRejectRequest}
-                      />
-                    ),
-                    {
-                      id: `approval-${approvalRequest.call_id}`,
-                      duration: Infinity,
-                      position: "top-center"
-                    }
+                  window.postMessage(
+                    { 
+                      type: "human_interaction_request", 
+                      data: interactionRequest
+                    }, 
+                    window.location.origin
                   );
+                  
+                  if (currentSessionIdRef.current) {
+                    updateResearchState(researchId, currentSessionIdRef.current, {
+                      status: 'awaiting_human_input',
+                      human_interaction_request: JSON.stringify(interactionRequest)
+                    }).catch(err => console.error("Error updating human interaction state:", err));
+                  }
+                } else if (eventType === "human_interaction_result") {
+                  console.log(`[${new Date().toISOString()}] 🧠 Human interaction result received:`, data.data);
+                  
+                  if (humanApprovalRequest?.call_id === data.data.call_id) {
+                    setHumanApprovalRequest(null);
+                    setShowApprovalDialog(false);
+                  }
+                  
+                  toast.dismiss(`interaction-${data.data.call_id}`);
+                  
+                  if (currentSessionIdRef.current) {
+                    updateResearchState(researchId, currentSessionIdRef.current, {
+                      status: 'in_progress',
+                      human_interaction_result: JSON.stringify(data.data)
+                    }).catch(err => console.error("Error updating human interaction result:", err));
+                  }
+                  
+                  const humanFeedbackStep = `Human feedback received for ${data.data.interaction_type}: ${data.data.approved ? 'Approved' : 'Rejected'}${data.data.comment ? ` - Comment: ${data.data.comment}` : ''}`;
+                  setReasoningPath(prev => [...prev, humanFeedbackStep]);
                 }
               } catch (error) {
                 console.error(`[${new Date().toISOString()}] ❌ Error parsing event data:`, error);
@@ -606,7 +619,6 @@ const ResearchPage = () => {
         clientId: data.client_id?.substring(0, 15) || 'none'
       });
       
-      // STRICT VALIDATION: Verify the client ID matches
       if (data.client_id && data.client_id !== clientIdRef.current) {
         console.warn(`[${new Date().toISOString()}] 🚫 Rejected polling response for different client:`, {
           stateClientId: data.client_id.substring(0, 15), 
@@ -615,7 +627,6 @@ const ResearchPage = () => {
         return;
       }
       
-      // STRICT VALIDATION: Verify the session and research ID match
       if ((data?.session_id && data.session_id !== currentSessionIdRef.current) ||
           (data?.research_id && data.research_id !== researchId)) {
         console.warn(`[${new Date().toISOString()}] 🚫 Rejected polling response for different session/research`, {
@@ -717,91 +728,37 @@ const ResearchPage = () => {
 
   const handleApproveRequest = async (callId: string, nodeId: string) => {
     try {
-      console.log("Sending approval for call ID:", callId, "node ID:", nodeId);
-      const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          call_id: callId,
-          approved: true,
-          comment: '',
-          session_id: currentSessionIdRef.current,
-          client_id: clientIdRef.current // Add client ID to request
-        })
-      });
+      console.log(`[${new Date().toISOString()}] 👍 Sending approval for call ID:`, callId, "node ID:", nodeId);
       
-      console.log("Approval response status:", response.status);
+      await respondToApproval(callId, true, '');
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Approval response error:", errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const responseData = await response.json();
-      console.log("Approval response data:", responseData);
-      
-      uiToast({
-        title: "approval submitted",
-        description: "your approval has been processed",
-      });
-      
+      toast.success("Feedback submitted successfully");
       setShowApprovalDialog(false);
       setHumanApprovalRequest(null);
+      
+      return Promise.resolve();
     } catch (error) {
-      console.error("Error submitting approval:", error);
-      uiToast({
-        title: "approval error",
-        description: "there was an error submitting your approval",
-        variant: "destructive",
-      });
+      console.error(`[${new Date().toISOString()}] ❌ Error submitting approval:`, error);
+      toast.error("Failed to submit feedback");
+      throw error;
     }
   };
 
   const handleRejectRequest = async (callId: string, nodeId: string, reason: string) => {
     try {
-      console.log("Sending rejection for call ID:", callId, "node ID:", nodeId, "reason:", reason);
-      const response = await fetch('https://timothy102--vertical-deep-research-respond-to-approval.modal.run', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          call_id: callId,
-          approved: false,
-          comment: reason,
-          session_id: currentSessionIdRef.current,
-          client_id: clientIdRef.current // Add client ID to request
-        })
-      });
+      console.log(`[${new Date().toISOString()}] 👎 Sending rejection for call ID:`, callId, "node ID:", nodeId, "reason:", reason);
       
-      console.log("Rejection response status:", response.status);
+      await respondToApproval(callId, false, reason);
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Rejection response error:", errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const responseData = await response.json();
-      console.log("Rejection response data:", responseData);
-      
-      uiToast({
-        title: "rejection submitted",
-        description: "your rejection has been processed",
-      });
-      
+      toast.success("Feedback submitted successfully");
       setShowApprovalDialog(false);
       setHumanApprovalRequest(null);
+      
+      return Promise.resolve();
     } catch (error) {
-      console.error("Error submitting rejection:", error);
-      uiToast({
-        title: "rejection error",
-        description: "there was an error submitting your rejection",
-        variant: "destructive",
-      });
+      console.error(`[${new Date().toISOString()}] ❌ Error submitting rejection:`, error);
+      toast.error("Failed to submit feedback");
+      throw error;
     }
   };
 
@@ -962,7 +919,7 @@ const ResearchPage = () => {
           query={humanApprovalRequest.query}
           callId={humanApprovalRequest.call_id}
           nodeId={humanApprovalRequest.node_id}
-          approvalType={humanApprovalRequest.approval_type}
+          approvalType={humanApprovalRequest.interaction_type}
           onApprove={handleApproveRequest}
           onReject={handleRejectRequest}
         />
