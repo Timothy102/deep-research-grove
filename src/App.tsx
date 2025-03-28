@@ -4,7 +4,7 @@ import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './components/auth/AuthContext';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SonnerToaster } from 'sonner';
+import { Toaster as SonnerToaster } from 'sonner';
 import { Toaster } from '@/components/ui/toaster';
 import { useEffect, useState } from 'react';
 
