@@ -42,9 +42,9 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         { event: '*', schema: 'public', table: 'research_states' }, 
         (payload) => {
           // When we get an update to research_states, refresh the affected session
-          if (payload.new && payload.new.session_id) {
-            const sessionId = payload.new.session_id;
-            if (expandedSessions[sessionId]) {
+          if (payload.new) {
+            const sessionId = (payload.new as { session_id?: string }).session_id;
+            if (sessionId && expandedSessions[sessionId]) {
               fetchSessionDetails(sessionId);
             }
           }
@@ -136,9 +136,9 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                     // Parse the user_model to get the session_id
                     let sessionId = null;
                     try {
-                      if (item.user_model) {
+                      if (item.user_model && typeof item.user_model === 'string') {
                         const userModel = JSON.parse(item.user_model);
-                        sessionId = userModel.session_id;
+                        sessionId = userModel?.session_id || null;
                       }
                     } catch (e) {
                       console.error("Error parsing user model:", e);

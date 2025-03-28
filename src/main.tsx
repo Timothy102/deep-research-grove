@@ -7,25 +7,19 @@ import HumanApprovalDialog from './components/research/HumanApprovalDialog.tsx';
 import { respondToApproval } from './services/humanLayerService.ts';
 import { supabase } from './integrations/supabase/client';
 
-// Enable realtime on the research_states table
-(async function enableRealtime() {
-  try {
-    const { error } = await supabase.rpc('supabase_realtime.enable_subscription', {
-      table_name: 'research_states'
-    });
-    
-    if (error) {
-      console.error('Failed to enable realtime for research_states:', error);
-    } else {
-      console.log('Realtime enabled for research_states table');
+// Enable realtime subscriptions for the research_states table
+supabase.channel('research_states_changes')
+  .on('postgres_changes', 
+    { event: '*', schema: 'public', table: 'research_states' }, 
+    (payload) => {
+      console.log(`[${new Date().toISOString()}] 📊 Realtime update from research_states:`, payload);
     }
-  } catch (e) {
-    console.error('Error enabling realtime:', e);
-  }
-})();
+  )
+  .subscribe((status) => {
+    console.log(`[${new Date().toISOString()}] 🔌 Realtime status:`, status);
+  });
 
 // Global event handler for human interaction requests 
-// This ensures we can handle them even if the user navigates away from the research page
 window.addEventListener('message', (event) => {
   if (event.data && event.data.type === "human_interaction_request") {
     const { call_id, node_id, query, content, interaction_type } = event.data.data;
