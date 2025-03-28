@@ -368,7 +368,7 @@ export async function getResearchState(researchId: string, sessionId: string): P
 export async function getSessionResearchStates(sessionId: string): Promise<ResearchState[]> {
   const { data: user } = await supabase.auth.getUser();
   
-  if (!user.user) {
+  if (!user?.user) {
     throw new Error("User not authenticated");
   }
   
@@ -377,7 +377,8 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
   
   console.log(`[${new Date().toISOString()}] 🔍 Fetching all research states for session:`, sessionId, "and client:", clientId);
   
-  const { data, error } = await supabase
+  // First try with client_id filter
+  let { data, error } = await supabase
     .from('research_states')
     .select('*')
     .match({ 
@@ -390,6 +391,28 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
   if (error) {
     console.error(`[${new Date().toISOString()}] ❌ Error fetching session research states:`, error);
     throw error;
+  }
+  
+  // If no data found with client_id, try without client_id filter
+  // This ensures we get results from all tabs/sessions
+  if (!data || data.length === 0) {
+    console.log(`[${new Date().toISOString()}] ℹ️ No states found with client_id filter, trying without client_id`);
+    
+    const { data: allClientData, error: allClientError } = await supabase
+      .from('research_states')
+      .select('*')
+      .match({ 
+        session_id: sessionId, 
+        user_id: user.user.id
+      })
+      .order('created_at', { ascending: false });
+      
+    if (allClientError) {
+      console.error(`[${new Date().toISOString()}] ❌ Error fetching session research states (all clients):`, allClientError);
+      throw allClientError;
+    }
+    
+    data = allClientData;
   }
   
   // Ensure all returned items have the correct status type

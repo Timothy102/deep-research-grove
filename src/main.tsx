@@ -5,6 +5,24 @@ import './index.css';
 import { toast } from "sonner";
 import HumanApprovalDialog from './components/research/HumanApprovalDialog.tsx';
 import { respondToApproval } from './services/humanLayerService.ts';
+import { supabase } from './integrations/supabase/client';
+
+// Enable realtime on the research_states table
+(async function enableRealtime() {
+  try {
+    const { error } = await supabase.rpc('supabase_realtime.enable_subscription', {
+      table_name: 'research_states'
+    });
+    
+    if (error) {
+      console.error('Failed to enable realtime for research_states:', error);
+    } else {
+      console.log('Realtime enabled for research_states table');
+    }
+  } catch (e) {
+    console.error('Error enabling realtime:', e);
+  }
+})();
 
 // Global event handler for human interaction requests 
 // This ensures we can handle them even if the user navigates away from the research page
