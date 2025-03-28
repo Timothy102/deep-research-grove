@@ -1,7 +1,8 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import ReasoningStep from "./ReasoningStep";
+import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
 
 interface Finding {
   source: string;
@@ -36,7 +37,104 @@ const ReasoningPath = ({
   rawData = {},
   sessionId = "" 
 }: ReasoningPathProps) => {
-  if (reasoningPath.length === 0 && !isLoading) {
+  const [displayReasoningPath, setDisplayReasoningPath] = useState<string[]>(reasoningPath);
+  const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings);
+  
+  // Load from localStorage on mount and when sessionId changes
+  useEffect(() => {
+    try {
+      // First attempt to load session-specific data if sessionId is provided
+      if (sessionId) {
+        // Try to load session-specific reasoning path
+        const sessionPathKey = `${LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE}.${sessionId}`;
+        const sessionPathCache = localStorage.getItem(sessionPathKey);
+        
+        if (sessionPathCache) {
+          const parsedPath = JSON.parse(sessionPathCache);
+          if (Array.isArray(parsedPath) && parsedPath.length > 0) {
+            if (reasoningPath.length === 0 || parsedPath.length > reasoningPath.length) {
+              console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedPath.length} reasoning steps from session cache`);
+              setDisplayReasoningPath(parsedPath);
+            }
+          }
+        }
+        
+        // Try to load session-specific findings
+        const sessionFindingsKey = `${LOCAL_STORAGE_KEYS.FINDINGS_CACHE}.${sessionId}`;
+        const sessionFindingsCache = localStorage.getItem(sessionFindingsKey);
+        
+        if (sessionFindingsCache) {
+          const parsedFindings = JSON.parse(sessionFindingsCache);
+          if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
+            if (findings.length === 0 || parsedFindings.length > findings.length) {
+              console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedFindings.length} findings from session cache`);
+              setDisplayFindings(parsedFindings);
+            }
+          }
+        }
+      }
+      
+      // Fallback to global cache if needed
+      if (displayReasoningPath.length === 0 && reasoningPath.length === 0) {
+        const pathCache = localStorage.getItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE);
+        if (pathCache) {
+          const parsedPath = JSON.parse(pathCache);
+          if (Array.isArray(parsedPath) && parsedPath.length > 0) {
+            setDisplayReasoningPath(parsedPath);
+          }
+        }
+      }
+      
+      if (displayFindings.length === 0 && findings.length === 0) {
+        const findingsCache = localStorage.getItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
+        if (findingsCache) {
+          const parsedFindings = JSON.parse(findingsCache);
+          if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
+            setDisplayFindings(parsedFindings);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error loading reasoning path or findings from cache:", e);
+    }
+  }, [sessionId]);
+  
+  // Update state and localStorage when props change
+  useEffect(() => {
+    if (reasoningPath.length > 0) {
+      setDisplayReasoningPath(reasoningPath);
+      
+      // Save to both global and session-specific cache
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, JSON.stringify(reasoningPath));
+        
+        if (sessionId) {
+          const sessionPathKey = `${LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE}.${sessionId}`;
+          localStorage.setItem(sessionPathKey, JSON.stringify(reasoningPath));
+        }
+      } catch (e) {
+        console.error("Error saving reasoning path to cache:", e);
+      }
+    }
+    
+    if (findings.length > 0) {
+      setDisplayFindings(findings);
+      
+      // Save to both global and session-specific cache
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(findings));
+        
+        if (sessionId) {
+          const sessionFindingsKey = `${LOCAL_STORAGE_KEYS.FINDINGS_CACHE}.${sessionId}`;
+          localStorage.setItem(sessionFindingsKey, JSON.stringify(findings));
+        }
+      } catch (e) {
+        console.error("Error saving findings to cache:", e);
+      }
+    }
+  }, [reasoningPath, findings, sessionId]);
+
+  if (displayReasoningPath.length === 0 && !isLoading) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <p>Reasoning process will appear here...</p>
@@ -46,7 +144,7 @@ const ReasoningPath = ({
   
   // Group findings by node_id for easier matching
   const findingsByNodeId: Record<string, Finding[]> = {};
-  findings.forEach(finding => {
+  displayFindings.forEach(finding => {
     if (finding.node_id) {
       if (!findingsByNodeId[finding.node_id]) {
         findingsByNodeId[finding.node_id] = [];
@@ -60,12 +158,12 @@ const ReasoningPath = ({
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">Research Planning</h3>
         <Badge variant="outline" className="text-xs">
-          {reasoningPath.length} step{reasoningPath.length !== 1 ? 's' : ''}
+          {displayReasoningPath.length} step{displayReasoningPath.length !== 1 ? 's' : ''}
         </Badge>
       </div>
       
       <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pb-8">
-        {reasoningPath.map((step, index) => {
+        {displayReasoningPath.map((step, index) => {
           // Extract node ID from the step text using multiple patterns
           const nodeId = step.match(/node(?:_id|[\s_]id)?:?\s*['"]?([a-zA-Z0-9_-]+)['"]?/i)?.[1] || 
                       step.match(/node\s+(\d+)|#(\d+)/i)?.[1] || 
@@ -95,7 +193,7 @@ const ReasoningPath = ({
           const nodeFindings = findingsByNodeId[nodeId] || [];
           
           // Also try to match findings by source/URL in the step text
-          const urlFindings = findings.filter(finding => {
+          const urlFindings = displayFindings.filter(finding => {
             if (nodeFindings.includes(finding)) return false; // Skip if already added
             try {
               const url = new URL(finding.source);
@@ -116,8 +214,8 @@ const ReasoningPath = ({
               index={index}
               sources={sources}
               findings={relevantFindings}
-              defaultExpanded={index === reasoningPath.length - 1}
-              isActive={isActive && index === reasoningPath.length - 1}
+              defaultExpanded={index === displayReasoningPath.length - 1}
+              isActive={isActive && index === displayReasoningPath.length - 1}
               rawData={stepRawData}
               sessionId={sessionId}
               answer={answerData}

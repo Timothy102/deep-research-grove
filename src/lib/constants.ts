@@ -7,5 +7,6 @@ export const LOCAL_STORAGE_KEYS = {
   SOURCES_CACHE: "deepresearch.sources_cache",
   FINDINGS_CACHE: "deepresearch.findings_cache",
   REASONING_PATH_CACHE: "deepresearch.reasoning_path_cache",
-  ANSWER_CACHE: "deepresearch.answer_cache"
+  ANSWER_CACHE: "deepresearch.answer_cache",
+  SESSION_DATA_CACHE: "deepresearch.session_data_cache"
 };

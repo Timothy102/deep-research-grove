@@ -7,15 +7,32 @@ import { LOCAL_STORAGE_KEYS } from '@/lib/constants';
 interface SourcesListProps {
   sources: string[];
   className?: string;
+  sessionId?: string;
 }
 
-const SourcesList: React.FC<SourcesListProps> = ({ sources = [], className }) => {
+const SourcesList: React.FC<SourcesListProps> = ({ sources = [], className, sessionId }) => {
   // Use state to handle sources with proper persistence
   const [displaySources, setDisplaySources] = useState<string[]>(sources);
   
   // Load sources from localStorage if available to ensure persistence across refreshes
   useEffect(() => {
     try {
+      // First check for session-specific cache if we have a sessionId
+      if (sessionId) {
+        const sessionCacheKey = `${LOCAL_STORAGE_KEYS.SOURCES_CACHE}.${sessionId}`;
+        const sessionCachedSources = localStorage.getItem(sessionCacheKey);
+        
+        if (sessionCachedSources) {
+          const parsedSources = JSON.parse(sessionCachedSources);
+          if (Array.isArray(parsedSources) && parsedSources.length > 0) {
+            console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedSources.length} sources from session cache for: ${sessionId}`);
+            setDisplaySources(parsedSources);
+            return; // Exit early if we found session-specific sources
+          }
+        }
+      }
+      
+      // Fallback to global cache if no session-specific sources found
       const cachedSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
       if (cachedSources) {
         const parsedSources = JSON.parse(cachedSources);
@@ -32,20 +49,27 @@ const SourcesList: React.FC<SourcesListProps> = ({ sources = [], className }) =>
     } catch (e) {
       console.error("Error loading sources from cache:", e);
     }
-  }, [sources]);
+  }, [sources, sessionId]);
 
   // Update display sources whenever props sources change
   useEffect(() => {
     if (sources.length > 0) {
       setDisplaySources(sources);
-      // Also update localStorage for persistence
+      
+      // Save to localStorage for persistence - both global and session-specific if available
       try {
         localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(sources));
+        
+        if (sessionId) {
+          const sessionCacheKey = `${LOCAL_STORAGE_KEYS.SOURCES_CACHE}.${sessionId}`;
+          localStorage.setItem(sessionCacheKey, JSON.stringify(sources));
+          console.log(`[${new Date().toISOString()}] 💾 Saved ${sources.length} sources to session cache for: ${sessionId}`);
+        }
       } catch (e) {
         console.error("Error saving sources to cache:", e);
       }
     }
-  }, [sources]);
+  }, [sources, sessionId]);
 
   if (displaySources.length === 0) {
     return (
