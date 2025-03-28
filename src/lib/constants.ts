@@ -10,3 +10,8 @@ export const LOCAL_STORAGE_KEYS = {
   ANSWER_CACHE: "deepresearch.answer_cache",
   SESSION_DATA_CACHE: "deepresearch.session_data_cache"
 };
+
+// Session-specific keys
+export const getSessionStorageKey = (baseKey: string, sessionId: string) => {
+  return `${baseKey}.${sessionId}`;
+};

@@ -4,7 +4,7 @@ import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './components/auth/AuthContext';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster as SonnerToaster } from 'sonner';
+import { SonnerToaster } from 'sonner';
 import { Toaster } from '@/components/ui/toaster';
 import { useEffect, useState } from 'react';
 
@@ -76,12 +76,8 @@ function AppRoutes() {
     return null;
   }
 
-  // The key change: Don't automatically redirect from the root to lastPath
-  // Only redirect if explicitly requested with a query parameter
-  const urlParams = new URLSearchParams(window.location.search);
-  const shouldRedirect = urlParams.get('redirect') === 'true';
-  
-  if (window.location.pathname === '/' && lastPath && lastPath !== '/' && shouldRedirect) {
+  // Always redirect from root to lastPath if available
+  if (window.location.pathname === '/' && lastPath && lastPath !== '/') {
     console.log(`[${new Date().toISOString()}] 🔄 Redirecting to last path:`, lastPath);
     return <Navigate to={lastPath} replace />;
   }
