@@ -1,3 +1,4 @@
+
 // Local storage keys for better state persistence
 export const LOCAL_STORAGE_KEYS = {
   LAST_PATH: "deep-research.last-path",
@@ -5,7 +6,8 @@ export const LOCAL_STORAGE_KEYS = {
   FINDINGS_CACHE: "deep-research.findings-cache",
   SOURCES_CACHE: "deep-research.sources-cache",
   OUTPUT_CACHE: "deep-research.output-cache",
-  ACTIVE_TAB: "deep-research.active-tab"
+  ACTIVE_TAB: "deep-research.active-tab",
+  SIDEBAR_STATE: "deep-research.sidebar-state"
 };
 
 // Session-specific keys
@@ -29,6 +31,11 @@ export const BRAND_COLORS = {
     DEFAULT: "#A78BFA", // Violet-400
     dark: "#8B5CF6", // Violet-500
   },
+  claude: {
+    DEFAULT: "#DE5833", // Claude orange
+    light: "#F27D5F",
+    dark: "#C4492A",
+  },
   success: "#10B981", // Emerald-500
   warning: "#F59E0B", // Amber-500
   error: "#EF4444", // Red-500
@@ -36,5 +43,10 @@ export const BRAND_COLORS = {
     light: "#F1F5F9", // Slate-100
     DEFAULT: "#94A3B8", // Slate-400
     dark: "#334155", // Slate-700
+  },
+  background: {
+    light: "#FFFFFF",
+    DEFAULT: "#F8FAFC", // Very light gray
+    dark: "#121212", // Nearly black for dark mode
   }
 };

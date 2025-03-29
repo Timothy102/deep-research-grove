@@ -122,22 +122,22 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
   };
 
   return (
-    <div className={cn("flex flex-col h-full", className)}>
-      <h3 className="font-semibold p-4 flex items-center text-slate-800 dark:text-slate-200 border-b">
-        <History className="h-4 w-4 mr-2 text-indigo-600 dark:text-indigo-400" />
+    <div className={cn("flex flex-col h-full bg-slate-800", className)}>
+      <h3 className="font-semibold p-4 flex items-center text-slate-100 border-b border-slate-700">
+        <History className="h-4 w-4 mr-2 text-indigo-400" />
         research history
       </h3>
       
       <ScrollArea className="flex-1">
         <div className="px-4 pb-4">
           {history.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
+            <div className="text-center py-8 text-slate-400 text-sm">
               No research history yet
             </div>
           ) : (
             history.map((group) => (
               <div key={group.date} className="mb-6">
-                <h4 className="text-sm font-medium text-indigo-600 dark:text-indigo-400 mb-2 mt-4">
+                <h4 className="text-xs font-medium text-indigo-400 mb-2 mt-4">
                   {group.label}
                 </h4>
                 
@@ -163,26 +163,26 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                         key={item.id} 
                         open={isExpanded} 
                         onOpenChange={() => sessionId && toggleSessionDetails(sessionId)}
-                        className="border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden bg-white dark:bg-slate-800"
+                        className="border border-slate-700 rounded-md overflow-hidden bg-slate-800"
                       >
                         <CollapsibleTrigger asChild>
                           <div 
-                            className="cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors p-3"
+                            className="cursor-pointer hover:bg-slate-700 transition-colors p-3"
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex items-center gap-2">
                                 <ChevronRight className={cn(
-                                  "h-4 w-4 transition-transform text-indigo-600 dark:text-indigo-400",
+                                  "h-4 w-4 transition-transform text-indigo-400",
                                   isExpanded && "transform rotate-90"
                                 )} />
-                                <p className="text-sm font-medium truncate text-slate-700 dark:text-slate-300">{item.query}</p>
+                                <p className="text-sm font-medium truncate text-slate-200">{item.query}</p>
                               </div>
                               {sessionId && (
-                                <MessageSquare className="h-3 w-3 ml-2 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
+                                <MessageSquare className="h-3 w-3 ml-2 flex-shrink-0 text-indigo-400" />
                               )}
                             </div>
                             {item.created_at && (
-                              <p className="text-xs text-muted-foreground mt-1 flex items-center">
+                              <p className="text-xs text-slate-400 mt-1 flex items-center">
                                 <Clock className="h-3 w-3 mr-1" />
                                 {format(new Date(item.created_at), 'h:mm a')}
                               </p>
@@ -191,14 +191,14 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                         </CollapsibleTrigger>
                         
                         {sessionId && (
-                          <CollapsibleContent className="p-3 pt-0 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+                          <CollapsibleContent className="p-3 pt-0 border-t border-slate-700 bg-slate-900">
                             {isLoading ? (
                               <div className="flex justify-center py-4">
-                                <Loader2 className="h-4 w-4 animate-spin text-indigo-600 dark:text-indigo-400" />
+                                <Loader2 className="h-4 w-4 animate-spin text-indigo-400" />
                               </div>
                             ) : sessionData ? (
                               sessionData.error ? (
-                                <div className="text-sm text-muted-foreground py-2">
+                                <div className="text-sm text-slate-400 py-2">
                                   Error loading session details
                                 </div>
                               ) : Array.isArray(sessionData) && sessionData.length > 0 ? (
@@ -206,7 +206,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                                   {sessionData.map((state, idx) => (
                                     <div 
                                       key={state.id || idx} 
-                                      className="text-xs border border-slate-200 dark:border-slate-700 rounded-sm p-2 bg-white dark:bg-slate-800"
+                                      className="text-xs border border-slate-700 rounded-sm p-2 bg-slate-800"
                                     >
                                       <div className="flex items-center justify-between mb-1">
                                         <Badge 
@@ -216,7 +216,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                                           {state.status}
                                         </Badge>
                                         {state.created_at && (
-                                          <span className="text-[10px] text-muted-foreground">
+                                          <span className="text-[10px] text-slate-400">
                                             {format(new Date(state.created_at), 'h:mm:ss a')}
                                           </span>
                                         )}
@@ -224,9 +224,9 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                                       
                                       {state.reasoning_path && state.reasoning_path.length > 0 && (
                                         <div className="mt-1">
-                                          <div className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground mb-1">
+                                          <div className="flex items-center justify-between gap-1 text-[10px] text-slate-400 mb-1">
                                             <div className="flex items-center gap-1">
-                                              <Brain className="h-3 w-3 text-indigo-500 dark:text-indigo-400" />
+                                              <Brain className="h-3 w-3 text-indigo-400" />
                                               <span>Reasoning steps: {state.reasoning_path.length}</span>
                                             </div>
                                             
@@ -239,12 +239,12 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                                           
                                           <div className="text-[10px] max-h-[60px] overflow-y-auto pb-1 space-y-1">
                                             {state.reasoning_path.slice(-3).map((step, i) => (
-                                              <div key={i} className="line-clamp-1 text-muted-foreground">
+                                              <div key={i} className="line-clamp-1 text-slate-400">
                                                 • {step}
                                               </div>
                                             ))}
                                             {state.reasoning_path.length > 3 && (
-                                              <div className="text-[9px] text-muted-foreground italic">
+                                              <div className="text-[9px] text-slate-500 italic">
                                                 + {state.reasoning_path.length - 3} more steps
                                               </div>
                                             )}
@@ -253,9 +253,9 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                                       )}
                                       
                                       {state.answer && state.answer.length > 0 && (
-                                        <div className="mt-2 pt-1 border-t border-slate-200 dark:border-slate-700 text-[10px]">
-                                          <div className="font-medium text-[10px] mb-0.5">Answer:</div>
-                                          <div className="line-clamp-2 text-muted-foreground">
+                                        <div className="mt-2 pt-1 border-t border-slate-700 text-[10px]">
+                                          <div className="font-medium text-[10px] mb-0.5 text-slate-300">Answer:</div>
+                                          <div className="line-clamp-2 text-slate-400">
                                             {state.answer}
                                           </div>
                                         </div>
@@ -264,20 +264,20 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                                   ))}
                                 </div>
                               ) : (
-                                <div className="text-sm text-muted-foreground py-2">
+                                <div className="text-sm text-slate-400 py-2">
                                   No research states found
                                 </div>
                               )
                             ) : (
                               <div className="flex justify-center py-2">
-                                <Clock className="h-3 w-3 animate-spin text-indigo-600 dark:text-indigo-400" />
+                                <Clock className="h-3 w-3 animate-spin text-indigo-400" />
                               </div>
                             )}
                             
                             <Button
                               variant="outline"
                               size="sm"
-                              className="w-full mt-2 h-8 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 hover:border-indigo-300 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800 dark:hover:border-indigo-700"
+                              className="w-full mt-2 h-8 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-600 hover:border-slate-500"
                               onClick={() => navigate(`/research/${sessionId}`)}
                             >
                               Open full session
