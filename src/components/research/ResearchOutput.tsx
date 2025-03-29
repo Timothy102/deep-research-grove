@@ -1,36 +1,31 @@
 
 import React from 'react';
-import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from 'lucide-react';
 
-export interface ResearchOutputProps {
+interface ResearchOutputProps {
   output: string;
-  isLoading?: boolean;
+  isLoading: boolean;
 }
 
-const ResearchOutput: React.FC<ResearchOutputProps> = ({ output, isLoading = false }) => {
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-5/6" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-2/3" />
-      </div>
-    );
-  }
-
-  if (!output.trim()) {
-    return (
-      <div className="text-center text-muted-foreground p-8">
-        <p>No research output yet. Start a search to see results here.</p>
-      </div>
-    );
-  }
-
+const ResearchOutput: React.FC<ResearchOutputProps> = ({ output, isLoading }) => {
   return (
-    <div className="prose prose-sm max-w-none dark:prose-invert">
-      <div className="whitespace-pre-wrap">{output}</div>
+    <div className="p-6 min-h-[400px] bg-white">
+      {isLoading && !output ? (
+        <div className="flex flex-col items-center justify-center h-80">
+          <Loader2 className="h-8 w-8 text-blue-600 animate-spin mb-4" />
+          <p className="text-gray-600">Generating research output...</p>
+        </div>
+      ) : output ? (
+        <div className="prose prose-blue max-w-none text-gray-800">
+          {output.split('\n').map((paragraph, idx) => (
+            <p key={idx}>{paragraph}</p>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-80 text-gray-500">
+          <p>No research output yet</p>
+        </div>
+      )}
     </div>
   );
 };

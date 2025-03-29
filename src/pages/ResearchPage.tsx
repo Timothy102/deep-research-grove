@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Loader2, Search, User, LogOut, MessageSquarePlus, Brain, FileText } from "lucide-react";
+import { Brain, Search, FileText } from "lucide-react";
 import { 
   saveResearchHistory, 
   getResearchHistory, 
@@ -15,8 +14,7 @@ import {
   getResearchState, 
   getLatestSessionState 
 } from "@/services/researchStateService";
-import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted } from "@/services/userModelService";
-import { submitHumanFeedback } from "@/services/humanInteractionService";
+import { getUserOnboardingStatus, getUserModelById, markOnboardingCompleted } from "@/services/userModelService";
 import { respondToApproval } from "@/services/humanLayerService";
 import { useToast } from "@/hooks/use-toast";
 import { ResearchForm } from "@/components/research/ResearchForm";
@@ -31,7 +29,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { toast } from "sonner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { getClientId } from "@/integrations/supabase/client";
-import { LOCAL_STORAGE_KEYS, BRAND_COLORS } from "@/lib/constants";
+import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
 
 interface ResearchHistory {
   id: string;
@@ -930,7 +928,7 @@ const ResearchPage = () => {
   const showWelcomeScreen = isFirstLoad && !researchOutput && reasoningPath.length === 0;
 
   return (
-    <div className="flex flex-col h-screen bg-slate-900 text-white overflow-hidden">
+    <div className="flex flex-col h-screen bg-white text-gray-800 overflow-hidden">
       <div className="flex flex-1 overflow-hidden">
         <SideNav 
           historyGroups={groupedHistory}
@@ -938,7 +936,7 @@ const ResearchPage = () => {
         />
         
         <main className="flex-1 flex flex-col overflow-hidden">
-          <header className="border-b border-slate-700 bg-slate-800 shadow-sm p-4">
+          <header className="border-b border-gray-200 bg-white shadow-sm p-4">
             <ResearchForm 
               isLoading={isLoading}
               initialValue={researchObjective}
@@ -956,46 +954,46 @@ const ResearchPage = () => {
           <div className="flex-1 overflow-auto p-4">
             {showWelcomeScreen ? (
               <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                <div className="text-5xl mb-6 text-claude-DEFAULT">🧠</div>
-                <h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-indigo-400 to-blue-400 bg-clip-text text-transparent">Deep Research</h1>
-                <p className="text-slate-400 max-w-lg mb-6">
+                <div className="text-5xl mb-6">🧠</div>
+                <h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Deep Research</h1>
+                <p className="text-gray-600 max-w-lg mb-6">
                   Enter your research objective above to get started. 
                   The AI will help you analyze topics, find sources, and create comprehensive answers.
                 </p>
                 <div className="flex flex-wrap gap-4 justify-center max-w-xl">
-                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 w-60">
-                    <Brain className="h-5 w-5 text-indigo-400 mb-2" />
-                    <h3 className="font-semibold text-slate-200 mb-1">Advanced Reasoning</h3>
-                    <p className="text-sm text-slate-400">Watch the AI's reasoning process step-by-step</p>
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 w-60 shadow-sm">
+                    <Brain className="h-5 w-5 text-blue-600 mb-2" />
+                    <h3 className="font-semibold text-gray-800 mb-1">Advanced Reasoning</h3>
+                    <p className="text-sm text-gray-600">Watch the AI's reasoning process step-by-step</p>
                   </div>
-                  <div className="bg-slate-800 border border-slate-700 rounded-lg p-4 w-60">
-                    <Search className="h-5 w-5 text-indigo-400 mb-2" />
-                    <h3 className="font-semibold text-slate-200 mb-1">Source Tracking</h3>
-                    <p className="text-sm text-slate-400">See all the sources used to generate the answer</p>
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 w-60 shadow-sm">
+                    <Search className="h-5 w-5 text-blue-600 mb-2" />
+                    <h3 className="font-semibold text-gray-800 mb-1">Source Tracking</h3>
+                    <p className="text-sm text-gray-600">See all the sources used to generate the answer</p>
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="bg-slate-800 rounded-lg shadow-lg border border-slate-700 overflow-hidden">
+              <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="bg-slate-900 p-2">
+                  <TabsList className="bg-gray-50 p-2">
                     <TabsTrigger 
                       value="reasoning" 
-                      className="data-[state=active]:bg-indigo-900/40 data-[state=active]:text-indigo-400 text-slate-400"
+                      className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 text-gray-600"
                     >
                       <Brain className="h-4 w-4 mr-2" />
                       <span>Process ({reasoningPath.length})</span>
                     </TabsTrigger>
                     <TabsTrigger 
                       value="output" 
-                      className="data-[state=active]:bg-indigo-900/40 data-[state=active]:text-indigo-400 text-slate-400"
+                      className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 text-gray-600"
                     >
                       <FileText className="h-4 w-4 mr-2" />
                       <span>Output</span>
                     </TabsTrigger>
                     <TabsTrigger 
                       value="sources" 
-                      className="data-[state=active]:bg-indigo-900/40 data-[state=active]:text-indigo-400 text-slate-400"
+                      className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 text-gray-600"
                     >
                       <Search className="h-4 w-4 mr-2" />
                       <span>Sources ({sources.length})</span>
