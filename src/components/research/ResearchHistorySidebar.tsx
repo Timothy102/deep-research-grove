@@ -11,6 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { getSessionResearchStates } from '@/services/researchStateService';
 import { Button } from "@/components/ui/button";
 import { supabase } from '@/integrations/supabase/client';
+import { BRAND_COLORS } from '@/lib/constants';
 
 interface ResearchHistorySidebarProps {
   history: ResearchHistoryGroup[];
@@ -111,10 +112,19 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
     }
   };
 
+  const getStatusVariant = (status: string) => {
+    switch(status) {
+      case 'completed': return "default";
+      case 'error': return "destructive";
+      case 'awaiting_human_input': return "outline";
+      default: return "secondary";
+    }
+  };
+
   return (
     <div className={cn("flex flex-col h-full", className)}>
-      <h3 className="font-semibold p-4 flex items-center">
-        <History className="h-4 w-4 mr-2" />
+      <h3 className="font-semibold p-4 flex items-center text-slate-800 dark:text-slate-200 border-b">
+        <History className="h-4 w-4 mr-2 text-indigo-600 dark:text-indigo-400" />
         research history
       </h3>
       
@@ -127,7 +137,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
           ) : (
             history.map((group) => (
               <div key={group.date} className="mb-6">
-                <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                <h4 className="text-sm font-medium text-indigo-600 dark:text-indigo-400 mb-2 mt-4">
                   {group.label}
                 </h4>
                 
@@ -153,22 +163,22 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                         key={item.id} 
                         open={isExpanded} 
                         onOpenChange={() => sessionId && toggleSessionDetails(sessionId)}
-                        className="border border-border rounded-md overflow-hidden"
+                        className="border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden bg-white dark:bg-slate-800"
                       >
                         <CollapsibleTrigger asChild>
                           <div 
-                            className="cursor-pointer hover:bg-secondary/50 transition-colors p-3"
+                            className="cursor-pointer hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors p-3"
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex items-center gap-2">
                                 <ChevronRight className={cn(
-                                  "h-4 w-4 transition-transform",
+                                  "h-4 w-4 transition-transform text-indigo-600 dark:text-indigo-400",
                                   isExpanded && "transform rotate-90"
                                 )} />
-                                <p className="text-sm font-medium truncate">{item.query}</p>
+                                <p className="text-sm font-medium truncate text-slate-700 dark:text-slate-300">{item.query}</p>
                               </div>
                               {sessionId && (
-                                <MessageSquare className="h-3 w-3 ml-2 flex-shrink-0 text-primary/70" />
+                                <MessageSquare className="h-3 w-3 ml-2 flex-shrink-0 text-indigo-600 dark:text-indigo-400" />
                               )}
                             </div>
                             {item.created_at && (
@@ -181,10 +191,10 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                         </CollapsibleTrigger>
                         
                         {sessionId && (
-                          <CollapsibleContent className="p-3 pt-0 border-t border-border bg-muted/20">
+                          <CollapsibleContent className="p-3 pt-0 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
                             {isLoading ? (
                               <div className="flex justify-center py-4">
-                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                <Loader2 className="h-4 w-4 animate-spin text-indigo-600 dark:text-indigo-400" />
                               </div>
                             ) : sessionData ? (
                               sessionData.error ? (
@@ -196,16 +206,11 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                                   {sessionData.map((state, idx) => (
                                     <div 
                                       key={state.id || idx} 
-                                      className="text-xs border border-border rounded-sm p-2 bg-background"
+                                      className="text-xs border border-slate-200 dark:border-slate-700 rounded-sm p-2 bg-white dark:bg-slate-800"
                                     >
                                       <div className="flex items-center justify-between mb-1">
                                         <Badge 
-                                          variant={
-                                            state.status === 'completed' ? "default" : 
-                                            state.status === 'error' ? "destructive" : 
-                                            state.status === 'awaiting_human_input' ? "outline" :
-                                            "secondary"
-                                          } 
+                                          variant={getStatusVariant(state.status)} 
                                           className="text-[10px] h-4"
                                         >
                                           {state.status}
@@ -221,7 +226,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                                         <div className="mt-1">
                                           <div className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground mb-1">
                                             <div className="flex items-center gap-1">
-                                              <Brain className="h-3 w-3" />
+                                              <Brain className="h-3 w-3 text-indigo-500 dark:text-indigo-400" />
                                               <span>Reasoning steps: {state.reasoning_path.length}</span>
                                             </div>
                                             
@@ -248,7 +253,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                                       )}
                                       
                                       {state.answer && state.answer.length > 0 && (
-                                        <div className="mt-2 pt-1 border-t border-border text-[10px]">
+                                        <div className="mt-2 pt-1 border-t border-slate-200 dark:border-slate-700 text-[10px]">
                                           <div className="font-medium text-[10px] mb-0.5">Answer:</div>
                                           <div className="line-clamp-2 text-muted-foreground">
                                             {state.answer}
@@ -265,14 +270,14 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                               )
                             ) : (
                               <div className="flex justify-center py-2">
-                                <Clock className="h-3 w-3 animate-spin text-muted-foreground" />
+                                <Clock className="h-3 w-3 animate-spin text-indigo-600 dark:text-indigo-400" />
                               </div>
                             )}
                             
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
-                              className="w-full mt-2 h-8 text-xs"
+                              className="w-full mt-2 h-8 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200 hover:border-indigo-300 dark:bg-indigo-900/20 dark:hover:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800 dark:hover:border-indigo-700"
                               onClick={() => navigate(`/research/${sessionId}`)}
                             >
                               Open full session

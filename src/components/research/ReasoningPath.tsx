@@ -40,11 +40,13 @@ const ReasoningPath = ({
   const [displayReasoningPath, setDisplayReasoningPath] = useState<string[]>(reasoningPath);
   const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings);
   
-  // Load from localStorage on mount and when sessionId changes
+  // Enhanced load from localStorage on mount and when sessionId changes
   useEffect(() => {
     try {
       // First attempt to load session-specific data if sessionId is provided
       if (sessionId) {
+        console.log(`[${new Date().toISOString()}] 🔍 Attempting to load reasoning path for session:`, sessionId);
+        
         // Try to load session-specific reasoning path
         const sessionPathKey = `${LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE}.${sessionId}`;
         const sessionPathCache = localStorage.getItem(sessionPathKey);
@@ -52,10 +54,8 @@ const ReasoningPath = ({
         if (sessionPathCache) {
           const parsedPath = JSON.parse(sessionPathCache);
           if (Array.isArray(parsedPath) && parsedPath.length > 0) {
-            if (reasoningPath.length === 0 || parsedPath.length > reasoningPath.length) {
-              console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedPath.length} reasoning steps from session cache`);
-              setDisplayReasoningPath(parsedPath);
-            }
+            console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedPath.length} reasoning steps from session cache`);
+            setDisplayReasoningPath(parsedPath);
           }
         }
         
@@ -66,15 +66,16 @@ const ReasoningPath = ({
         if (sessionFindingsCache) {
           const parsedFindings = JSON.parse(sessionFindingsCache);
           if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
-            if (findings.length === 0 || parsedFindings.length > findings.length) {
-              console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedFindings.length} findings from session cache`);
-              setDisplayFindings(parsedFindings);
-            }
+            console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedFindings.length} findings from session cache`);
+            setDisplayFindings(parsedFindings);
           }
         }
+      } else {
+        // Log the issue if no sessionId is provided
+        console.warn(`[${new Date().toISOString()}] ⚠️ No sessionId provided for loading reasoning path`);
       }
       
-      // Fallback to global cache if needed
+      // Only use global cache if no data has been loaded or provided
       if (displayReasoningPath.length === 0 && reasoningPath.length === 0) {
         const pathCache = localStorage.getItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE);
         if (pathCache) {
@@ -101,6 +102,7 @@ const ReasoningPath = ({
   
   // Update state and localStorage when props change
   useEffect(() => {
+    // Always prioritize incoming props over cached data
     if (reasoningPath.length > 0) {
       setDisplayReasoningPath(reasoningPath);
       
@@ -111,6 +113,7 @@ const ReasoningPath = ({
         if (sessionId) {
           const sessionPathKey = `${LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE}.${sessionId}`;
           localStorage.setItem(sessionPathKey, JSON.stringify(reasoningPath));
+          console.log(`[${new Date().toISOString()}] 💾 Saved ${reasoningPath.length} reasoning steps to session cache`);
         }
       } catch (e) {
         console.error("Error saving reasoning path to cache:", e);
@@ -127,6 +130,7 @@ const ReasoningPath = ({
         if (sessionId) {
           const sessionFindingsKey = `${LOCAL_STORAGE_KEYS.FINDINGS_CACHE}.${sessionId}`;
           localStorage.setItem(sessionFindingsKey, JSON.stringify(findings));
+          console.log(`[${new Date().toISOString()}] 💾 Saved ${findings.length} findings to session cache`);
         }
       } catch (e) {
         console.error("Error saving findings to cache:", e);

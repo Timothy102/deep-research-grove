@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -94,7 +95,7 @@ const ResearchPage = () => {
   const [activeTab, setActiveTab] = useState("reasoning");
   const [history, setHistory] = useState<ResearchHistoryEntry[]>([]);
   const [groupedHistory, setGroupedHistory] = useState<any[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Start with sidebar closed
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
@@ -922,12 +923,12 @@ const ResearchPage = () => {
   };
 
   return (
-    <div className="flex flex-col min-h-screen max-h-screen">
-      <header className="border-b">
+    <div className="flex flex-col min-h-screen max-h-screen bg-gradient-to-b from-indigo-50 to-blue-50 dark:from-slate-900 dark:to-slate-950">
+      <header className="border-b bg-white dark:bg-slate-900 shadow-sm">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-2">
-            <Brain className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold">deep research</h1>
+            <Brain className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            <h1 className="text-lg font-semibold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent dark:from-indigo-400 dark:to-blue-400">deep research</h1>
           </div>
           
           <div className="flex items-center space-x-2">
@@ -935,7 +936,7 @@ const ResearchPage = () => {
               variant="ghost" 
               size="sm"
               onClick={() => navigate("/models")}
-              className="flex items-center gap-1"
+              className="flex items-center gap-1 text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400"
             >
               <User className="h-4 w-4" />
               <span>user models</span>
@@ -944,7 +945,7 @@ const ResearchPage = () => {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="hidden md:flex"
+              className="text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400"
               onClick={() => setSidebarOpen(!sidebarOpen)}
             >
               {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
@@ -954,6 +955,7 @@ const ResearchPage = () => {
               variant="ghost" 
               size="icon"
               onClick={handleNewChat}
+              className="text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400"
             >
               <MessageSquarePlus className="h-4 w-4" />
             </Button>
@@ -962,6 +964,7 @@ const ResearchPage = () => {
               variant="ghost" 
               size="icon"
               onClick={handleLogout}
+              className="text-slate-700 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400"
             >
               <LogOut className="h-4 w-4" />
             </Button>
@@ -971,7 +974,7 @@ const ResearchPage = () => {
 
       <div className="flex flex-1 overflow-hidden">
         {sidebarOpen && !isMobile && (
-          <aside className="w-72 border-r overflow-y-auto flex-shrink-0">
+          <aside className="w-72 border-r overflow-y-auto flex-shrink-0 bg-white dark:bg-slate-900 shadow-md">
             <ResearchHistorySidebar 
               isOpen={sidebarOpen}
               history={groupedHistory}
@@ -983,7 +986,7 @@ const ResearchPage = () => {
         )}
 
         <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-4 border-b">
+          <div className="p-4 border-b bg-white dark:bg-slate-900 shadow-sm">
             <ResearchForm 
               isLoading={isLoading}
               initialValue={researchObjective}
@@ -998,18 +1001,18 @@ const ResearchPage = () => {
             />
           </div>
           
-          <div className="flex-1 overflow-auto p-4">
+          <div className="flex-1 overflow-auto p-4 bg-white dark:bg-slate-900 rounded-lg mx-4 my-4 shadow-sm">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="mb-4">
-                <TabsTrigger value="reasoning" className="flex items-center space-x-1">
+              <TabsList className="mb-4 bg-slate-100 dark:bg-slate-800">
+                <TabsTrigger value="reasoning" className="flex items-center space-x-1 data-[state=active]:bg-indigo-100 data-[state=active]:text-indigo-700 dark:data-[state=active]:bg-indigo-900/30 dark:data-[state=active]:text-indigo-400">
                   <Brain className="h-4 w-4" />
                   <span>process ({reasoningPath.length})</span>
                 </TabsTrigger>
-                <TabsTrigger value="output" className="flex items-center space-x-1">
+                <TabsTrigger value="output" className="flex items-center space-x-1 data-[state=active]:bg-indigo-100 data-[state=active]:text-indigo-700 dark:data-[state=active]:bg-indigo-900/30 dark:data-[state=active]:text-indigo-400">
                   <FileText className="h-4 w-4" />
                   <span>output</span>
                 </TabsTrigger>
-                <TabsTrigger value="sources" className="flex items-center space-x-1">
+                <TabsTrigger value="sources" className="flex items-center space-x-1 data-[state=active]:bg-indigo-100 data-[state=active]:text-indigo-700 dark:data-[state=active]:bg-indigo-900/30 dark:data-[state=active]:text-indigo-400">
                   <Search className="h-4 w-4" />
                   <span>sources ({sources.length})</span>
                 </TabsTrigger>
