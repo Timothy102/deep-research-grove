@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -94,7 +93,6 @@ const ResearchPage = () => {
   const [findings, setFindings] = useState<Finding[]>([]);
   const [reasoningPath, setReasoningPath] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState(() => {
-    // Check localStorage for the active tab
     const savedTab = localStorage.getItem(LOCAL_STORAGE_KEYS.ACTIVE_TAB);
     return savedTab || "output";
   });
@@ -118,7 +116,6 @@ const ResearchPage = () => {
   const { toast: uiToast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  // Save active tab to localStorage when it changes
   useEffect(() => {
     localStorage.setItem(LOCAL_STORAGE_KEYS.ACTIVE_TAB, activeTab);
   }, [activeTab]);
@@ -144,7 +141,6 @@ const ResearchPage = () => {
     loadHistory();
     loadSessionData(sessionId);
     
-    // Set first load to false after a slight delay to ensure clean UI
     const timer = setTimeout(() => {
       setIsFirstLoad(false);
     }, 100);
@@ -224,7 +220,6 @@ const ResearchPage = () => {
       if (sessionState.research_id) {
         researchIdRef.current = sessionState.research_id;
         
-        // Restore all session state
         if (sessionState.query) {
           setResearchObjective(sessionState.query);
         }
@@ -245,7 +240,6 @@ const ResearchPage = () => {
           setReasoningPath(sessionState.reasoning_path);
         }
         
-        // Check for pending human interactions
         if (sessionState.status === 'awaiting_human_input' && sessionState.human_interactions) {
           let interactions: HumanInteraction[] = [];
           
@@ -260,13 +254,11 @@ const ResearchPage = () => {
             interactions = sessionState.human_interactions as HumanInteraction[];
           }
                 
-          // Find the last unanswered interaction request
           const lastInteraction = interactions
             .filter(interaction => interaction.type === 'interaction_request')
             .pop();
             
           if (lastInteraction) {
-            // Restore the human interaction request
             const approvalRequest: HumanApprovalRequest = {
               call_id: lastInteraction.call_id,
               node_id: lastInteraction.node_id,
@@ -285,7 +277,6 @@ const ResearchPage = () => {
         if (sessionState.active_tab) {
           setActiveTab(sessionState.active_tab);
         } else {
-          // Set appropriate active tab based on status
           if (sessionState.status === 'awaiting_human_input') {
             setActiveTab('reasoning');
           } else if (sessionState.status === 'in_progress') {
@@ -397,7 +388,6 @@ const ResearchPage = () => {
         }).catch(err => console.error("Error saving initial research state:", err));
       }
       
-      // Always use claude-3.5-sonnet when auto is selected
       const modelToUse = selectedLLM === 'auto' ? 'claude-3.5-sonnet' : selectedLLM;
       startResearchStream(userModelPayload, newResearchId, query, modelToUse);
       
@@ -937,40 +927,16 @@ const ResearchPage = () => {
     }
   };
 
-  const loadHistoryItem = (item: ResearchHistoryEntry) => {
-    setResearchObjective(item.query);
-    
-    try {
-      const userModelData = JSON.parse(item.user_model || "{}");
-      if (userModelData.domain) setDomain(userModelData.domain);
-      if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
-      if (userModelData.userContext) setUserContext(userModelData.userContext);
-      
-      if (userModelData.cognitiveStyle) {
-        setSelectedCognitiveStyle(userModelData.cognitiveStyle);
-      }
-      
-      if (userModelData.session_id && userModelData.session_id !== currentSessionIdRef.current) {
-        navigate(`/research/${userModelData.session_id}`);
-        return;
-      }
-    } catch (e) {
-      console.error("Error parsing user model from history:", e);
-    }
-  };
-
   const showWelcomeScreen = isFirstLoad && !researchOutput && reasoningPath.length === 0;
 
   return (
     <div className="flex flex-col h-screen bg-slate-900 text-white overflow-hidden">
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
         <SideNav 
           historyGroups={groupedHistory}
           onHistoryItemClick={loadHistoryItem}
         />
         
-        {/* Main content */}
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="border-b border-slate-700 bg-slate-800 shadow-sm p-4">
             <ResearchForm 
