@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
-import { Brain, Search, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Search, User, LogOut, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Brain, FileText } from "lucide-react";
 import { 
   saveResearchHistory, 
   getResearchHistory, 
@@ -14,14 +15,15 @@ import {
   getResearchState, 
   getLatestSessionState 
 } from "@/services/researchStateService";
-import { getUserOnboardingStatus, getUserModelById, markOnboardingCompleted } from "@/services/userModelService";
+import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted } from "@/services/userModelService";
+import { submitHumanFeedback } from "@/services/humanInteractionService";
 import { respondToApproval } from "@/services/humanLayerService";
 import { useToast } from "@/hooks/use-toast";
 import { ResearchForm } from "@/components/research/ResearchForm";
 import ReasoningPath from "@/components/research/ReasoningPath";
 import SourcesList from "@/components/research/SourcesList";
 import ResearchOutput from "@/components/research/ResearchOutput";
-import SideNav from "@/components/research/SideNav";
+import ResearchHistorySidebar from "@/components/research/ResearchHistorySidebar";
 import HumanApprovalDialog from "@/components/research/HumanApprovalDialog";
 import UserModelOnboarding from "@/components/onboarding/UserModelOnboarding";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -29,7 +31,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { toast } from "sonner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { getClientId } from "@/integrations/supabase/client";
-import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
 
 interface ResearchHistory {
   id: string;
@@ -90,12 +91,10 @@ const ResearchPage = () => {
   const [sources, setSources] = useState<string[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
   const [reasoningPath, setReasoningPath] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState(() => {
-    const savedTab = localStorage.getItem(LOCAL_STORAGE_KEYS.ACTIVE_TAB);
-    return savedTab || "output";
-  });
+  const [activeTab, setActiveTab] = useState("reasoning");
   const [history, setHistory] = useState<ResearchHistoryEntry[]>([]);
   const [groupedHistory, setGroupedHistory] = useState<any[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
@@ -106,17 +105,12 @@ const ResearchPage = () => {
   const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("");
   const [selectedLLM, setSelectedLLM] = useState("auto");
   const [rawData, setRawData] = useState<Record<string, string>>({});
-  const [isFirstLoad, setIsFirstLoad] = useState(true);
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
   const clientIdRef = useRef<string>(getClientId());
   const { toast: uiToast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
-
-  useEffect(() => {
-    localStorage.setItem(LOCAL_STORAGE_KEYS.ACTIVE_TAB, activeTab);
-  }, [activeTab]);
 
   useEffect(() => {
     if (!user) {
@@ -139,12 +133,7 @@ const ResearchPage = () => {
     loadHistory();
     loadSessionData(sessionId);
     
-    const timer = setTimeout(() => {
-      setIsFirstLoad(false);
-    }, 100);
-    
     return () => {
-      clearTimeout(timer);
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
       }
@@ -167,6 +156,7 @@ const ResearchPage = () => {
     setSources([]);
     setFindings([]);
     setReasoningPath([]);
+    setActiveTab("reasoning");
     researchIdRef.current = null;
     
     if (eventSourceRef.current) {
@@ -218,6 +208,7 @@ const ResearchPage = () => {
       if (sessionState.research_id) {
         researchIdRef.current = sessionState.research_id;
         
+        // Restore all session state
         if (sessionState.query) {
           setResearchObjective(sessionState.query);
         }
@@ -238,6 +229,7 @@ const ResearchPage = () => {
           setReasoningPath(sessionState.reasoning_path);
         }
         
+        // Check for pending human interactions
         if (sessionState.status === 'awaiting_human_input' && sessionState.human_interactions) {
           let interactions: HumanInteraction[] = [];
           
@@ -252,11 +244,13 @@ const ResearchPage = () => {
             interactions = sessionState.human_interactions as HumanInteraction[];
           }
                 
+          // Find the last unanswered interaction request
           const lastInteraction = interactions
             .filter(interaction => interaction.type === 'interaction_request')
             .pop();
             
           if (lastInteraction) {
+            // Restore the human interaction request
             const approvalRequest: HumanApprovalRequest = {
               call_id: lastInteraction.call_id,
               node_id: lastInteraction.node_id,
@@ -275,6 +269,7 @@ const ResearchPage = () => {
         if (sessionState.active_tab) {
           setActiveTab(sessionState.active_tab);
         } else {
+          // Set appropriate active tab based on status
           if (sessionState.status === 'awaiting_human_input') {
             setActiveTab('reasoning');
           } else if (sessionState.status === 'in_progress') {
@@ -386,6 +381,7 @@ const ResearchPage = () => {
         }).catch(err => console.error("Error saving initial research state:", err));
       }
       
+      // Always use claude-3.5-sonnet when auto is selected
       const modelToUse = selectedLLM === 'auto' ? 'claude-3.5-sonnet' : selectedLLM;
       startResearchStream(userModelPayload, newResearchId, query, modelToUse);
       
@@ -867,6 +863,28 @@ const ResearchPage = () => {
     navigate(`/research/${newSessionId}`);
   };
 
+  const loadHistoryItem = (item: ResearchHistoryEntry) => {
+    setResearchObjective(item.query);
+    
+    try {
+      const userModelData = JSON.parse(item.user_model || "{}");
+      if (userModelData.domain) setDomain(userModelData.domain);
+      if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
+      if (userModelData.userContext) setUserContext(userModelData.userContext);
+      
+      if (userModelData.cognitiveStyle) {
+        setSelectedCognitiveStyle(userModelData.cognitiveStyle);
+      }
+      
+      if (userModelData.session_id && userModelData.session_id !== currentSessionIdRef.current) {
+        navigate(`/research/${userModelData.session_id}`);
+        return;
+      }
+    } catch (e) {
+      console.error("Error parsing user model from history:", e);
+    }
+  };
+
   const handleApproveRequest = async (callId: string, nodeId: string) => {
     try {
       console.log(`[${new Date().toISOString()}] 👍 Sending approval for call ID:`, callId, "node ID:", nodeId);
@@ -903,40 +921,69 @@ const ResearchPage = () => {
     }
   };
 
-  const loadHistoryItem = (item: ResearchHistoryEntry) => {
-    setResearchObjective(item.query);
-    
-    try {
-      const userModelData = JSON.parse(item.user_model || "{}");
-      if (userModelData.domain) setDomain(userModelData.domain);
-      if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
-      if (userModelData.userContext) setUserContext(userModelData.userContext);
-      
-      if (userModelData.cognitiveStyle) {
-        setSelectedCognitiveStyle(userModelData.cognitiveStyle);
-      }
-      
-      if (userModelData.session_id && userModelData.session_id !== currentSessionIdRef.current) {
-        navigate(`/research/${userModelData.session_id}`);
-        return;
-      }
-    } catch (e) {
-      console.error("Error parsing user model from history:", e);
-    }
-  };
-
-  const showWelcomeScreen = isFirstLoad && !researchOutput && reasoningPath.length === 0;
-
   return (
-    <div className="flex flex-col h-screen bg-white text-gray-800 overflow-hidden">
+    <div className="flex flex-col min-h-screen max-h-screen">
+      <header className="border-b">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center space-x-2">
+            <Brain className="h-5 w-5 text-primary" />
+            <h1 className="text-lg font-semibold">deep research</h1>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => navigate("/models")}
+              className="flex items-center gap-1"
+            >
+              <User className="h-4 w-4" />
+              <span>user models</span>
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="hidden md:flex"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleNewChat}
+            >
+              <MessageSquarePlus className="h-4 w-4" />
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
       <div className="flex flex-1 overflow-hidden">
-        <SideNav 
-          historyGroups={groupedHistory}
-          onHistoryItemClick={loadHistoryItem}
-        />
-        
+        {sidebarOpen && !isMobile && (
+          <aside className="w-72 border-r overflow-y-auto flex-shrink-0">
+            <ResearchHistorySidebar 
+              isOpen={sidebarOpen}
+              history={groupedHistory}
+              onHistoryItemClick={(item) => loadHistoryItem(item)}
+              onSelectItem={(item) => loadHistoryItem(item)}
+              onToggle={() => setSidebarOpen(!sidebarOpen)}
+            />
+          </aside>
+        )}
+
         <main className="flex-1 flex flex-col overflow-hidden">
-          <header className="border-b border-gray-200 bg-white shadow-sm p-4">
+          <div className="p-4 border-b">
             <ResearchForm 
               isLoading={isLoading}
               initialValue={researchObjective}
@@ -949,79 +996,45 @@ const ResearchPage = () => {
               onSubmit={handleResearch}
               setResearchObjective={setResearchObjective}
             />
-          </header>
+          </div>
           
           <div className="flex-1 overflow-auto p-4">
-            {showWelcomeScreen ? (
-              <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                <div className="text-5xl mb-6">🧠</div>
-                <h1 className="text-3xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Deep Research</h1>
-                <p className="text-gray-600 max-w-lg mb-6">
-                  Enter your research objective above to get started. 
-                  The AI will help you analyze topics, find sources, and create comprehensive answers.
-                </p>
-                <div className="flex flex-wrap gap-4 justify-center max-w-xl">
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 w-60 shadow-sm">
-                    <Brain className="h-5 w-5 text-blue-600 mb-2" />
-                    <h3 className="font-semibold text-gray-800 mb-1">Advanced Reasoning</h3>
-                    <p className="text-sm text-gray-600">Watch the AI's reasoning process step-by-step</p>
-                  </div>
-                  <div className="bg-white border border-gray-200 rounded-lg p-4 w-60 shadow-sm">
-                    <Search className="h-5 w-5 text-blue-600 mb-2" />
-                    <h3 className="font-semibold text-gray-800 mb-1">Source Tracking</h3>
-                    <p className="text-sm text-gray-600">See all the sources used to generate the answer</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="bg-gray-50 p-2">
-                    <TabsTrigger 
-                      value="reasoning" 
-                      className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 text-gray-600"
-                    >
-                      <Brain className="h-4 w-4 mr-2" />
-                      <span>Process ({reasoningPath.length})</span>
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="output" 
-                      className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 text-gray-600"
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      <span>Output</span>
-                    </TabsTrigger>
-                    <TabsTrigger 
-                      value="sources" 
-                      className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 text-gray-600"
-                    >
-                      <Search className="h-4 w-4 mr-2" />
-                      <span>Sources ({sources.length})</span>
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="reasoning" className="m-0">
-                    <ReasoningPath 
-                      reasoningPath={reasoningPath} 
-                      sources={sources}
-                      findings={findings}
-                      isActive={activeTab === "reasoning"}
-                      isLoading={isLoading}
-                      rawData={rawData}
-                      sessionId={currentSessionIdRef.current || ""}
-                    />
-                  </TabsContent>
-                  
-                  <TabsContent value="output" className="m-0">
-                    <ResearchOutput output={researchOutput} isLoading={isLoading} />
-                  </TabsContent>
-                  
-                  <TabsContent value="sources" className="m-0">
-                    <SourcesList sources={sources} />
-                  </TabsContent>
-                </Tabs>
-              </div>
-            )}
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="mb-4">
+                <TabsTrigger value="reasoning" className="flex items-center space-x-1">
+                  <Brain className="h-4 w-4" />
+                  <span>process ({reasoningPath.length})</span>
+                </TabsTrigger>
+                <TabsTrigger value="output" className="flex items-center space-x-1">
+                  <FileText className="h-4 w-4" />
+                  <span>output</span>
+                </TabsTrigger>
+                <TabsTrigger value="sources" className="flex items-center space-x-1">
+                  <Search className="h-4 w-4" />
+                  <span>sources ({sources.length})</span>
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="reasoning" className="mt-0">
+                <ReasoningPath 
+                  reasoningPath={reasoningPath} 
+                  sources={sources}
+                  findings={findings}
+                  isActive={activeTab === "reasoning"}
+                  isLoading={isLoading}
+                  rawData={rawData}
+                  sessionId={currentSessionIdRef.current || ""}
+                />
+              </TabsContent>
+              
+              <TabsContent value="output" className="mt-0">
+                <ResearchOutput output={researchOutput} isLoading={isLoading} />
+              </TabsContent>
+              
+              <TabsContent value="sources" className="mt-0">
+                <SourcesList sources={sources} />
+              </TabsContent>
+            </Tabs>
           </div>
         </main>
       </div>

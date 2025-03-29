@@ -97,7 +97,7 @@ function AppRoutes() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="ui-theme">
+      <ThemeProvider defaultTheme="system" storageKey="ui-theme">
         <AuthProvider>
           <TooltipProvider>
             <BrowserRouter>
