@@ -44,7 +44,7 @@ const SideNav: React.FC<SideNavProps> = ({
   return (
     <div className={`flex h-full ${className}`}>
       {/* Narrow sidebar with icons */}
-      <div className="flex flex-col items-center w-14 bg-slate-900 text-white py-4 border-r border-slate-800">
+      <div className="flex flex-col items-center w-14 bg-white text-gray-700 py-4 border-r border-gray-200">
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -52,7 +52,7 @@ const SideNav: React.FC<SideNavProps> = ({
                 variant="ghost" 
                 size="icon" 
                 onClick={createNewChat}
-                className="h-10 w-10 rounded-full bg-slate-800 hover:bg-slate-700 text-white mb-6"
+                className="h-10 w-10 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 mb-6"
               >
                 <Plus className="h-5 w-5" />
               </Button>
@@ -71,7 +71,7 @@ const SideNav: React.FC<SideNavProps> = ({
                   variant="ghost" 
                   size="icon" 
                   onClick={() => setShowHistory(!showHistory)}
-                  className={`h-10 w-10 rounded-full ${showHistory ? 'bg-slate-700' : 'bg-transparent'} hover:bg-slate-700 text-white`}
+                  className={`h-10 w-10 rounded-full ${showHistory ? 'bg-gray-200' : 'bg-transparent'} hover:bg-gray-200 text-gray-700`}
                 >
                   <MessageSquare className="h-5 w-5" />
                 </Button>
@@ -89,7 +89,7 @@ const SideNav: React.FC<SideNavProps> = ({
                   variant="ghost" 
                   size="icon" 
                   onClick={() => navigate('/models')}
-                  className="h-10 w-10 rounded-full hover:bg-slate-700 text-white"
+                  className="h-10 w-10 rounded-full hover:bg-gray-200 text-gray-700"
                 >
                   <Folder className="h-5 w-5" />
                 </Button>
@@ -107,7 +107,7 @@ const SideNav: React.FC<SideNavProps> = ({
                   variant="ghost" 
                   size="icon" 
                   onClick={() => navigate('/profile')}
-                  className="h-10 w-10 rounded-full hover:bg-slate-700 text-white"
+                  className="h-10 w-10 rounded-full hover:bg-gray-200 text-gray-700"
                 >
                   <Settings className="h-5 w-5" />
                 </Button>

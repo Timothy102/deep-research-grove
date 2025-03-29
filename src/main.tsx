@@ -14,6 +14,9 @@ if (isFirstVisit) {
   // Initialize storage for first-time users
   localStorage.setItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE, 'hidden');
   localStorage.setItem(LOCAL_STORAGE_KEYS.ACTIVE_TAB, 'output');
+  
+  // Set light theme by default
+  localStorage.setItem('ui-theme', 'light');
 }
 
 // Enable realtime subscriptions for the research_states table
