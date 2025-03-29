@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Loader2, ExternalLink } from 'lucide-react';
 import { Finding } from '@/types/researchTypes';
@@ -74,7 +75,7 @@ const ReasoningPath: React.FC<ReasoningPathProps> = ({
   };
 
   return (
-    <div className="p-4 bg-white min-h-[400px]">
+    <div className="p-6 min-h-[400px] bg-white border-t border-gray-200">
       {reasoningPath.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-80">
           <p className="text-gray-500">No reasoning data available</p>
@@ -97,10 +98,12 @@ const ReasoningPath: React.FC<ReasoningPathProps> = ({
           
           {isLoading && (
             <div className="flex items-center p-4 border border-gray-200 bg-gray-50 rounded-lg">
-              <div className="loading-dot bg-blue-500"></div>
-              <div className="loading-dot bg-blue-500"></div>
-              <div className="loading-dot bg-blue-500"></div>
-              <span className="ml-2 text-gray-600">Thinking...</span>
+              <div className="animate-pulse flex space-x-2">
+                <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+              </div>
+              <span className="ml-3 text-gray-600">Thinking...</span>
             </div>
           )}
         </div>
@@ -139,7 +142,7 @@ const ReasoningPath: React.FC<ReasoningPathProps> = ({
                   {findings
                     .filter(f => f.node_id === `${selectedStepIndex + 1}`)
                     .map((finding, index) => (
-                      <li key={index}>{finding.text}</li>
+                      <li key={index}>{finding.text || finding.content}</li>
                     ))}
                 </ul>
               </div>
@@ -151,10 +154,12 @@ const ReasoningPath: React.FC<ReasoningPathProps> = ({
                 <ul className="space-y-2">
                   {sources.map((source, index) => (
                     <li key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                      <a href={source} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
-                        {source}
-                      </a>
-                      <ExternalLink size={16} className="text-blue-600" />
+                      <span className="text-blue-600 break-all">{source}</span>
+                      {source.startsWith('http') && (
+                        <a href={source} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 ml-2">
+                          <ExternalLink size={16} />
+                        </a>
+                      )}
                     </li>
                   ))}
                 </ul>

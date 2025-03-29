@@ -122,7 +122,7 @@ const SideNav: React.FC<SideNavProps> = ({
 
       {/* Expandable history sidebar */}
       <div 
-        className={`transition-all duration-300 overflow-hidden ${showHistory ? 'w-72' : 'w-0'}`}
+        className={`transition-all duration-300 overflow-hidden border-r border-gray-200 ${showHistory ? 'w-72' : 'w-0'}`}
       >
         {showHistory && (
           <ResearchHistorySidebar 
