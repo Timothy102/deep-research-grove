@@ -205,3 +205,18 @@
 .dark .step-indicator {
   @apply bg-gray-800 text-gray-300 border border-gray-700;
 }
+
+/* Fix for input text color in dark mode */
+.dark input,
+.dark textarea,
+.dark .text-input,
+.dark [type="text"],
+.dark [type="email"],
+.dark [type="url"],
+.dark [type="password"],
+.dark [type="number"],
+.dark [type="search"],
+.dark [type="tel"] {
+  @apply text-gray-100 placeholder:text-gray-500;
+  color-scheme: dark;
+}

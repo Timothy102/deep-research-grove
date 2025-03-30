@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, User, LogOut, MessageSquarePlus, Brain, FileText } from "lucide-react";
+import { Loader2, Search, User, LogOut, MessageSquarePlus } from "lucide-react";
 import { 
   saveResearchHistory, 
   getResearchHistory, 
@@ -979,8 +979,8 @@ const ResearchPage = () => {
       <header className="border-b">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-2">
-            <Brain className="h-5 w-5 text-primary" />
-            <h1 className="text-lg font-semibold">deep research</h1>
+            <img src="/arcadia.png" alt="Nexus Logo" className="h-6 w-6" />
+            <h1 className="text-lg font-semibold">nexus</h1>
           </div>
           
           <div className="flex items-center space-x-2">
@@ -1048,11 +1048,9 @@ const ResearchPage = () => {
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="mb-4">
                     <TabsTrigger value="reasoning" className="flex items-center space-x-1">
-                      <Brain className="h-4 w-4" />
                       <span>process ({reasoningPath.length})</span>
                     </TabsTrigger>
                     <TabsTrigger value="output" className="flex items-center space-x-1">
-                      <FileText className="h-4 w-4" />
                       <span>output</span>
                     </TabsTrigger>
                     <TabsTrigger value="sources" className="flex items-center space-x-1">
