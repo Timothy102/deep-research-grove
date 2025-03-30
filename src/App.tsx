@@ -36,6 +36,18 @@ function SidebarButtons() {
     return savedState !== null ? savedState === 'true' : false;
   });
 
+  useEffect(() => {
+    const handleSidebarToggle = (event: CustomEvent) => {
+      setSidebarOpen(event.detail.open);
+    };
+    
+    window.addEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
+    
+    return () => {
+      window.removeEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
+    };
+  }, []);
+
   const toggleSidebar = () => {
     const newState = !sidebarOpen;
     setSidebarOpen(newState);
@@ -43,6 +55,11 @@ function SidebarButtons() {
     // Dispatch a custom event that ResearchPage can listen for
     window.dispatchEvent(new CustomEvent('sidebar-toggle', { detail: { open: newState } }));
   };
+
+  // Hide buttons completely when sidebar is open
+  if (sidebarOpen) {
+    return null;
+  }
 
   return (
     <div className="fixed left-0 top-1/2 -translate-y-1/2 flex flex-col items-center z-50 p-2 space-y-4">
