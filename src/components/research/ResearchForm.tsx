@@ -178,48 +178,72 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-4 pt-2">
-          <div className="space-y-2">
-            <Label htmlFor="domain">Domain / Field</Label>
-            <Input
-              id="domain"
-              placeholder="e.g. Computer Science, Medicine, Finance..."
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
-            />
+          {/* Grid layout for 2 columns */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="domain">Domain / Field</Label>
+              <Input
+                id="domain"
+                placeholder="e.g. Computer Science, Medicine, Finance..."
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="expertise-level">Expertise Level</Label>
+              <Select value={expertiseLevel} onValueChange={setExpertiseLevel}>
+                <SelectTrigger id="expertise-level">
+                  <SelectValue placeholder="Select expertise level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="beginner">Beginner</SelectItem>
+                  <SelectItem value="intermediate">Intermediate</SelectItem>
+                  <SelectItem value="advanced">Advanced</SelectItem>
+                  <SelectItem value="expert">Expert</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="cognitive-style">Cognitive Style</Label>
+              <Select value={cognitiveStyle} onValueChange={setCognitiveStyle}>
+                <SelectTrigger id="cognitive-style">
+                  <SelectValue placeholder="Select cognitive style" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="systematic">Systematic</SelectItem>
+                  <SelectItem value="general">General</SelectItem>
+                  <SelectItem value="first-principles">First Principles</SelectItem>
+                  <SelectItem value="creative">Creative</SelectItem>
+                  <SelectItem value="practical">Practical Applier</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="user-model">User Model ID (Optional)</Label>
+              <Select
+                value={selectedModelId || "none"}
+                onValueChange={(value) => setSelectedModelId(value === "none" ? undefined : value)}
+              >
+                <SelectTrigger id="user-model">
+                  <SelectValue placeholder="Select a user model" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {userModels.map((model: any) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      {model.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="expertise-level">Expertise Level</Label>
-            <Select value={expertiseLevel} onValueChange={setExpertiseLevel}>
-              <SelectTrigger id="expertise-level">
-                <SelectValue placeholder="Select expertise level" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="beginner">Beginner</SelectItem>
-                <SelectItem value="intermediate">Intermediate</SelectItem>
-                <SelectItem value="advanced">Advanced</SelectItem>
-                <SelectItem value="expert">Expert</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="cognitive-style">Cognitive Style</Label>
-            <Select value={cognitiveStyle} onValueChange={setCognitiveStyle}>
-              <SelectTrigger id="cognitive-style">
-                <SelectValue placeholder="Select cognitive style" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="systematic">Systematic</SelectItem>
-                <SelectItem value="general">General</SelectItem>
-                <SelectItem value="first-principles">First Principles</SelectItem>
-                <SelectItem value="creative">Creative</SelectItem>
-                <SelectItem value="practical">Practical Applier</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
+          {/* Full width for Current Understanding */}
+          <div className="space-y-2 col-span-full">
             <Label htmlFor="current-understanding">Current Understanding (Optional)</Label>
             <Textarea
               id="current-understanding"
@@ -228,26 +252,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
               onChange={(e) => setCurrentUnderstanding(e.target.value)}
               rows={3}
             />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="user-model">User Model ID (Optional)</Label>
-            <Select
-              value={selectedModelId || "none"}
-              onValueChange={(value) => setSelectedModelId(value === "none" ? undefined : value)}
-            >
-              <SelectTrigger id="user-model">
-                <SelectValue placeholder="Select a user model" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {userModels.map((model: any) => (
-                  <SelectItem key={model.id} value={model.id}>
-                    {model.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </CollapsibleContent>
       </Collapsible>
