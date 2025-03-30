@@ -112,7 +112,7 @@ function SidebarButtons() {
   }
 
   return (
-    <div className="fixed left-0 top-10 flex flex-col items-center z-50 p-2 space-y-4">
+    <div className="fixed left-0 top-20 flex flex-col items-center z-50 p-2 space-y-4">
       <Button
         variant="ghost"
         size="icon"
