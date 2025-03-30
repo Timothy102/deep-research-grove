@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { PanelLeftOpen, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LOCAL_STORAGE_KEYS } from '@/lib/constants';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 import ResearchPage from './pages/ResearchPage';
 import ProfilePage from './pages/ProfilePage';
@@ -31,18 +31,10 @@ const queryClient = new QueryClient();
 
 function SidebarButtons() {
   const navigate = useNavigate();
-  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     const savedState = localStorage.getItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE);
     return savedState !== null ? savedState === 'true' : false;
   });
-
-  // Only show on research pages
-  const isResearchPage = location.pathname.includes('/research');
-  
-  if (!isResearchPage) {
-    return null;
-  }
 
   useEffect(() => {
     const handleSidebarToggle = (event: CustomEvent) => {

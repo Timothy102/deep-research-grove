@@ -33,7 +33,7 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
 
   if (!output.trim()) {
     return (
-      <div className="text-center space-y-6 mt-8">
+      <div className="text-center space-y-6">
         {userName ? (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold">Hey, {userName}</h2>
@@ -47,16 +47,11 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
                     className="cursor-pointer hover:border-primary transition-colors duration-200"
                     onClick={() => onSelectModel && onSelectModel(model.id)}
                   >
-                    <CardContent className="p-2">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium truncate">{model.name}</span>
-                        {model.is_default && (
-                          <Badge variant="outline" className="text-xs ml-1 px-1 py-0">Default</Badge>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {model.domain && <span>{model.domain}</span>}
-                      </div>
+                    <CardContent className="p-2 flex items-center justify-between">
+                      <span className="text-sm truncate">{model.name}</span>
+                      {model.is_default && (
+                        <Badge variant="outline" className="text-xs ml-1 px-1 py-0">Default</Badge>
+                      )}
                     </CardContent>
                   </Card>
                 ))}
