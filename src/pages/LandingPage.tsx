@@ -41,7 +41,7 @@ const LandingPage = () => {
           </p>
           
           <p className="text-base">
-            I think to go from open ai's implementation to a phd-level research technology, it requires exactly 3 things:
+            We believe moving from open ai's implementation to a phd-level research technology requires exactly 3 things:
           </p>
           
           <ul className="list-none space-y-3 text-base pl-4">
@@ -55,7 +55,7 @@ const LandingPage = () => {
           </p>
           
           <p className="text-base">
-            This might be AGI then — an intelligence capable of both identifying optimal research objectives and self-optimizing to build the most effective context graphs to navigate. Humans think like graph traversal engines too, but we don't maximize our behavior against research objectives. An agent should converge to an optimal context graph faster. That's what we're trying to achieve with this project. 
+            This might be AGI then — an intelligence capable of both identifying optimal research objectives and self-optimizing to build the most effective context graphs to navigate. That's what we're trying to achieve with this project. 
           </p>
           
           <p className="text-base">
