@@ -31,6 +31,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { toast } from "sonner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { getClientId } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 
 interface ResearchHistory {
   id: string;
@@ -943,15 +944,6 @@ const ResearchPage = () => {
             
             <Button 
               variant="ghost" 
-              size="icon" 
-              className="hidden md:flex"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-            >
-              {sidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-            </Button>
-            
-            <Button 
-              variant="ghost" 
               size="icon"
               onClick={handleNewChat}
             >
@@ -969,73 +961,93 @@ const ResearchPage = () => {
         </div>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
-        {sidebarOpen && !isMobile && (
-          <aside className="w-72 border-r overflow-y-auto flex-shrink-0">
-            <ResearchHistorySidebar 
-              isOpen={sidebarOpen}
-              history={groupedHistory}
-              onHistoryItemClick={(item) => loadHistoryItem(item)}
-              onSelectItem={(item) => loadHistoryItem(item)}
-              onToggle={() => setSidebarOpen(!sidebarOpen)}
-            />
-          </aside>
-        )}
+      <div className="flex flex-1 overflow-hidden relative">
+        <ResearchHistorySidebar 
+          isOpen={sidebarOpen}
+          history={groupedHistory}
+          onHistoryItemClick={(item) => loadHistoryItem(item)}
+          onSelectItem={(item) => loadHistoryItem(item)}
+          onToggle={() => setSidebarOpen(!sidebarOpen)}
+        />
 
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-4 border-b">
-            <ResearchForm 
-              isLoading={isLoading}
-              initialValue={researchObjective}
-              initialDomain={domain}
-              initialExpertiseLevel={expertiseLevel}
-              initialUserContext={userContext}
-              initialCognitiveStyle={selectedCognitiveStyle}
-              initialLLM={selectedLLM}
-              onLLMChange={setSelectedLLM}
-              onSubmit={handleResearch}
-              setResearchObjective={setResearchObjective}
-            />
-          </div>
-          
-          <div className="flex-1 overflow-auto p-4">
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="mb-4">
-                <TabsTrigger value="reasoning" className="flex items-center space-x-1">
-                  <Brain className="h-4 w-4" />
-                  <span>process ({reasoningPath.length})</span>
-                </TabsTrigger>
-                <TabsTrigger value="output" className="flex items-center space-x-1">
-                  <FileText className="h-4 w-4" />
-                  <span>output</span>
-                </TabsTrigger>
-                <TabsTrigger value="sources" className="flex items-center space-x-1">
-                  <Search className="h-4 w-4" />
-                  <span>sources ({sources.length})</span>
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="reasoning" className="mt-0">
-                <ReasoningPath 
-                  reasoningPath={reasoningPath} 
-                  sources={sources}
-                  findings={findings}
-                  isActive={activeTab === "reasoning"}
+        <main className={cn(
+          "flex-1 flex flex-col overflow-hidden transition-all duration-200 ease-in-out",
+          sidebarOpen && "lg:ml-72"
+        )}>
+          {researchObjective ? (
+            <>
+              <div className="p-4 border-b">
+                <ResearchForm 
                   isLoading={isLoading}
-                  rawData={rawData}
-                  sessionId={currentSessionIdRef.current || ""}
+                  initialValue={researchObjective}
+                  initialDomain={domain}
+                  initialExpertiseLevel={expertiseLevel}
+                  initialUserContext={userContext}
+                  initialCognitiveStyle={selectedCognitiveStyle}
+                  initialLLM={selectedLLM}
+                  onLLMChange={setSelectedLLM}
+                  onSubmit={handleResearch}
+                  setResearchObjective={setResearchObjective}
                 />
-              </TabsContent>
+              </div>
               
-              <TabsContent value="output" className="mt-0">
-                <ResearchOutput output={researchOutput} isLoading={isLoading} />
-              </TabsContent>
-              
-              <TabsContent value="sources" className="mt-0">
-                <SourcesList sources={sources} />
-              </TabsContent>
-            </Tabs>
-          </div>
+              <div className="flex-1 overflow-auto p-4">
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="reasoning" className="flex items-center space-x-1">
+                      <Brain className="h-4 w-4" />
+                      <span>process ({reasoningPath.length})</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="output" className="flex items-center space-x-1">
+                      <FileText className="h-4 w-4" />
+                      <span>output</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="sources" className="flex items-center space-x-1">
+                      <Search className="h-4 w-4" />
+                      <span>sources ({sources.length})</span>
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="reasoning" className="mt-0">
+                    <ReasoningPath 
+                      reasoningPath={reasoningPath} 
+                      sources={sources}
+                      findings={findings}
+                      isActive={activeTab === "reasoning"}
+                      isLoading={isLoading}
+                      rawData={rawData}
+                      sessionId={currentSessionIdRef.current || ""}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="output" className="mt-0">
+                    <ResearchOutput output={researchOutput} isLoading={isLoading} />
+                  </TabsContent>
+                  
+                  <TabsContent value="sources" className="mt-0">
+                    <SourcesList sources={sources} />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-4">
+              <div className="max-w-2xl w-full">
+                <ResearchForm 
+                  isLoading={isLoading}
+                  initialValue={researchObjective}
+                  initialDomain={domain}
+                  initialExpertiseLevel={expertiseLevel}
+                  initialUserContext={userContext}
+                  initialCognitiveStyle={selectedCognitiveStyle}
+                  initialLLM={selectedLLM}
+                  onLLMChange={setSelectedLLM}
+                  onSubmit={handleResearch}
+                  setResearchObjective={setResearchObjective}
+                />
+              </div>
+            </div>
+          )}
         </main>
       </div>
       
