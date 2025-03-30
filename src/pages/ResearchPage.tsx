@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -149,22 +150,49 @@ const ResearchPage = () => {
     }
     
     checkOnboardingStatus();
-    resetResearchState();
-    loadHistory();
-    loadSessionData(sessionId);
     loadUserModels();
+    
+    // Check if this is a new chat request 
+    const isNewChat = localStorage.getItem('newChatRequested') === 'true';
+    if (isNewChat) {
+      // Clear the flag
+      localStorage.removeItem('newChatRequested');
+      // Reset the state completely
+      resetResearchState();
+    } else {
+      // Try to load existing session data
+      loadSessionData(sessionId);
+    }
     
     const handleSidebarToggle = (event: CustomEvent) => {
       setSidebarOpen(event.detail.open);
     };
     
+    const handleNewChatRequest = (event: CustomEvent) => {
+      console.log(`[${new Date().toISOString()}] 🔄 New chat requested for session:`, event.detail.sessionId);
+      
+      // If we're already on this page with this sessionId, we need to force a reset
+      if (event.detail.sessionId === sessionId) {
+        resetResearchState();
+        setResearchObjective("");
+      } else {
+        // Set a flag that will be checked on the next load
+        localStorage.setItem('newChatRequested', 'true');
+      }
+    };
+    
     window.addEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
+    window.addEventListener('new-chat-requested', handleNewChatRequest as EventListener);
+    
+    // Load history after initial setup
+    loadHistory();
     
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
       }
       window.removeEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
+      window.removeEventListener('new-chat-requested', handleNewChatRequest as EventListener);
     };
   }, [user, navigate, sessionId]);
 
@@ -211,12 +239,23 @@ const ResearchPage = () => {
   };
 
   const resetResearchState = () => {
+    console.log(`[${new Date().toISOString()}] 🔄 Resetting research state completely`);
+    
     setResearchOutput("");
     setSources([]);
     setFindings([]);
     setReasoningPath([]);
     setActiveTab("reasoning");
+    setResearchObjective("");  // Clear the research objective
+    setDomain("");
+    setExpertiseLevel("");
+    setUserContext("");
+    setSelectedCognitiveStyle("");
     researchIdRef.current = null;
+    
+    // Clear any research state from local storage
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
+    localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID);
     
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
@@ -913,6 +952,10 @@ const ResearchPage = () => {
 
   const handleNewChat = () => {
     const newSessionId = uuidv4();
+    
+    // Set a flag to indicate this is a new chat
+    localStorage.setItem('newChatRequested', 'true');
+    
     navigate(`/research/${newSessionId}`);
   };
 

@@ -59,6 +59,17 @@ function SidebarButtons() {
 
   const handleNewChat = () => {
     const newSessionId = crypto.randomUUID();
+    
+    // Clear the current research objective and state before navigating
+    // This will force the research page to reset completely
+    localStorage.removeItem('currentResearchObjective');
+    
+    // Dispatch a custom event that the ResearchPage component can listen for
+    window.dispatchEvent(new CustomEvent('new-chat-requested', { 
+      detail: { sessionId: newSessionId }
+    }));
+    
+    // Navigate to the new session
     navigate(`/research/${newSessionId}`);
   };
 
