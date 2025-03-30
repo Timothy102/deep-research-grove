@@ -8,10 +8,18 @@ export const LOCAL_STORAGE_KEYS = {
   FINDINGS_CACHE: "deepresearch.findings_cache",
   REASONING_PATH_CACHE: "deepresearch.reasoning_path_cache",
   ANSWER_CACHE: "deepresearch.answer_cache",
-  SESSION_DATA_CACHE: "deepresearch.session_data_cache"
+  SESSION_DATA_CACHE: "deepresearch.session_data_cache",
+  SIDEBAR_STATE: "deepresearch.sidebar_state"
 };
 
 // Session-specific keys
 export const getSessionStorageKey = (baseKey: string, sessionId: string) => {
   return `${baseKey}.${sessionId}`;
+};
+
+// UI Constants
+export const UI = {
+  SIDEBAR_WIDTH: 320,
+  SIDEBAR_WIDTH_COLLAPSED: 60,
+  DEFAULT_THEME: 'light'
 };

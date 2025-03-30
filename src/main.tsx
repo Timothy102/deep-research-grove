@@ -7,6 +7,10 @@ import HumanApprovalDialog from './components/research/HumanApprovalDialog.tsx';
 import { respondToApproval } from './services/humanLayerService.ts';
 import { supabase } from './integrations/supabase/client';
 
+// Set default theme to light
+document.documentElement.classList.add('light');
+document.documentElement.style.colorScheme = 'light';
+
 // Enable realtime subscriptions for the research_states table
 supabase.channel('research_states_changes')
   .on('postgres_changes', 

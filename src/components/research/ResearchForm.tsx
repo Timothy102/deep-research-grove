@@ -1,256 +1,311 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search } from "lucide-react";
-import { getUserModels } from "@/services/userModelService";
+import { Send } from "lucide-react";
+import { getUserModelById } from '@/services/userModelService';
+import { getUserModels } from '@/services/userModelService';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { Slider } from "@/components/ui/slider"
+import { Textarea } from "@/components/ui/textarea"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Separator } from "@/components/ui/separator"
+import { useToast } from "@/hooks/use-toast";
+import { z } from "zod"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useForm } from "react-hook-form"
 
 interface ResearchFormProps {
-  onSubmit: (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => Promise<void>;
   isLoading: boolean;
-  initialObjective?: string;
-  setResearchObjective?: React.Dispatch<React.SetStateAction<string>>;
-  selectedLLM?: string;
-  setSelectedLLM?: React.Dispatch<React.SetStateAction<string>>;
   initialValue?: string;
   initialDomain?: string;
   initialExpertiseLevel?: string;
   initialUserContext?: string;
   initialCognitiveStyle?: string;
   initialLLM?: string;
-  onLLMChange?: React.Dispatch<React.SetStateAction<string>>;
+  onLLMChange?: (llm: string) => void;
+  onSubmit: (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => void;
+  setResearchObjective: (value: string) => void;
+  simplified?: boolean;
 }
 
+const formSchema = z.object({
+  domain: z.string().min(2, {
+    message: "Domain must be at least 2 characters.",
+  }),
+  expertiseLevel: z.string().min(2, {
+    message: "Expertise level must be at least 2 characters.",
+  }),
+  userContext: z.string().min(10, {
+    message: "User context must be at least 10 characters.",
+  }),
+  cognitiveStyle: z.string().min(2, {
+    message: "Cognitive style must be at least 2 characters.",
+  }),
+  includedSources: z.array(z.string()).optional(),
+  sourcePriorities: z.array(z.number()).optional(),
+  useCase: z.string().min(2, {
+    message: "Use case must be at least 2 characters.",
+  }),
+  currentUnderstanding: z.string().optional(),
+})
+
 export const ResearchForm: React.FC<ResearchFormProps> = ({ 
-  onSubmit, 
-  isLoading, 
-  initialObjective = '',
-  setResearchObjective,
-  selectedLLM = 'auto',
-  setSelectedLLM,
-  initialValue,
+  isLoading,
+  initialValue = '',
   initialDomain = '',
-  initialExpertiseLevel = 'intermediate',
+  initialExpertiseLevel = '',
   initialUserContext = '',
-  initialCognitiveStyle = 'general',
-  initialLLM,
-  onLLMChange
+  initialCognitiveStyle = '',
+  initialLLM = 'auto',
+  onLLMChange,
+  onSubmit,
+  setResearchObjective,
+  simplified = false
 }) => {
-  const [query, setQuery] = useState(initialObjective || initialValue || '');
-  const [userModelText, setUserModelText] = useState("");
-  const [useCase, setUseCase] = useState("");
-  const [userModels, setUserModels] = useState([]);
+  const [query, setQuery] = useState(initialValue);
+  const [userModels, setUserModels] = useState<any[]>([]);
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
-  const [currentUnderstanding, setCurrentUnderstanding] = useState("");
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-  const [domain, setDomain] = useState(initialDomain || '');
-  const [expertiseLevel, setExpertiseLevel] = useState(initialExpertiseLevel || 'intermediate');
-  const [userContext, setUserContext] = useState(initialUserContext || '');
-  const [cognitiveStyle, setCognitiveStyle] = useState(initialCognitiveStyle || 'general');
-
+  const [userModelDetails, setUserModelDetails] = useState<any>(null);
+  const [useCase, setUseCase] = useState('research');
+  const [currentUnderstanding, setCurrentUnderstanding] = useState('');
+  const { toast } = useToast()
+  
   useEffect(() => {
-    if (initialObjective) {
-      setQuery(initialObjective);
-      if (setResearchObjective) {
-        setResearchObjective(initialObjective);
-      }
-    } else if (initialValue) {
-      setQuery(initialValue);
-      if (setResearchObjective) {
-        setResearchObjective(initialValue);
-      }
-    }
-  }, [initialObjective, initialValue, setResearchObjective]);
-
+    setQuery(initialValue);
+  }, [initialValue]);
+  
   useEffect(() => {
-    const fetchUserModels = async () => {
+    const loadUserModels = async () => {
       try {
         const models = await getUserModels();
         setUserModels(models);
+        
+        if (models.length > 0) {
+          setSelectedModelId(models[0].id);
+          await loadUserModelDetails(models[0].id);
+        }
       } catch (error) {
-        console.error("Error fetching user models:", error);
+        console.error("Error loading user models:", error);
       }
     };
-
-    fetchUserModels();
+    
+    loadUserModels();
   }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  
+  const loadUserModelDetails = async (modelId: string) => {
+    try {
+      const model = await getUserModelById(modelId);
+      setUserModelDetails(model);
+    } catch (error) {
+      console.error("Error loading user model details:", error);
+    }
+  };
+  
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Close advanced options when starting research
-    setIsAdvancedOpen(false);
     
-    if (setResearchObjective) {
-      setResearchObjective(query);
-    }
+    if (!query.trim()) return;
     
-    // Make sure to send all parameters to the backend
-    await onSubmit(
-      query, 
-      userModelText, 
-      useCase, 
-      selectedModelId, 
-      currentUnderstanding
-    );
-  };
-
-  // Choose the right function for LLM selection
-  const handleLLMChange = (value: string) => {
-    if (onLLMChange) {
-      onLLMChange(value);
-    } else if (setSelectedLLM) {
-      setSelectedLLM(value);
-    }
-  };
-
-  // Map model IDs to display names
-  const getModelDisplayName = (modelId: string) => {
-    const modelMap: Record<string, string> = {
-      'auto': 'Auto',
-      'claude-3.5-sonnet': 'Claude 3.5 Sonnet',
-      'o3-mini': 'GPT-4o Mini',
-      'o1': 'GPT-4o',
-      'gpt4-turbo': 'GPT-4 Turbo',
-      'gemini-2.0-flash': 'Gemini 2.0 Flash',
-      'gemini-2.0-flash-lite-preview-02-05': 'Gemini 2.0 Flash Lite',
-      'gemini-2.0-flash-thinking-exp-01-21': 'Gemini 2.0 Flash Thinking',
-      'deepseek-ai/DeepSeek-R1': 'DeepSeek R1'
-    };
+    const userModelText = JSON.stringify({
+      domain: initialDomain || userModelDetails?.domain || '',
+      expertise_level: initialExpertiseLevel || userModelDetails?.expertise_level || '',
+      cognitiveStyle: initialCognitiveStyle || userModelDetails?.cognitive_style || '',
+      session_id: '', // Will be set by the handler
+    });
     
-    return modelMap[modelId] || modelId;
+    onSubmit(query, userModelText, useCase, selectedModelId, currentUnderstanding);
   };
-
-  return (
-    <div className="space-y-4">
-      <form onSubmit={handleSubmit} className="flex items-center space-x-4">
-        <Input
-          type="text"
-          placeholder="Enter your research objective"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="flex-1"
-        />
-        <Select 
-          onValueChange={handleLLMChange} 
-          defaultValue="auto"
-          value={initialLLM || selectedLLM}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select LLM" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="auto">{getModelDisplayName('auto')}</SelectItem>
-            <SelectItem value="claude-3.5-sonnet">{getModelDisplayName('claude-3.5-sonnet')}</SelectItem>
-            <SelectItem value="o3-mini">{getModelDisplayName('o3-mini')}</SelectItem>
-            <SelectItem value="o1">{getModelDisplayName('o1')}</SelectItem>
-            <SelectItem value="gpt4-turbo">{getModelDisplayName('gpt4-turbo')}</SelectItem>
-            <SelectItem value="gemini-2.0-flash">{getModelDisplayName('gemini-2.0-flash')}</SelectItem>
-            <SelectItem value="gemini-2.0-flash-lite-preview-02-05">{getModelDisplayName('gemini-2.0-flash-lite-preview-02-05')}</SelectItem>
-            <SelectItem value="gemini-2.0-flash-thinking-exp-01-21">{getModelDisplayName('gemini-2.0-flash-thinking-exp-01-21')}</SelectItem>
-            <SelectItem value="deepseek-ai/DeepSeek-R1">{getModelDisplayName('deepseek-ai/DeepSeek-R1')}</SelectItem>
-          </SelectContent>
-        </Select>
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              researching...
-            </>
-          ) : (
-            <>
-              <Search className="mr-2 h-4 w-4" />
-              research
-            </>
-          )}
-        </Button>
-      </form>
-
-      <Collapsible open={isAdvancedOpen} onOpenChange={setIsAdvancedOpen} className="space-y-2">
-        <CollapsibleTrigger asChild>
-          <Button variant="outline" size="sm" className="flex items-center w-full justify-between">
-            <span>Advanced options</span>
-            {isAdvancedOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+  
+  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setQuery(e.target.value);
+    setResearchObjective(e.target.value);
+  };
+  
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      domain: initialDomain,
+      expertiseLevel: initialExpertiseLevel,
+      userContext: initialUserContext,
+      cognitiveStyle: initialCognitiveStyle,
+      useCase: useCase,
+      currentUnderstanding: currentUnderstanding,
+    },
+  })
+  
+  function onSubmitForm(values: z.infer<typeof formSchema>) {
+    toast({
+      title: "You submitted the following values:",
+      description: (
+        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
+          <code className="text-white">{JSON.stringify(values, null, 2)}</code>
+        </pre>
+      ),
+    })
+  }
+  
+  if (simplified) {
+    return (
+      <form onSubmit={handleSubmit} className="w-full">
+        <div className="relative">
+          <Input
+            placeholder="How can I help you today?"
+            value={query}
+            onChange={handleQueryChange}
+            disabled={isLoading}
+            className="pr-20 py-6 text-base rounded-xl bg-slate-50 border-slate-200"
+          />
+          <Button 
+            type="submit" 
+            size="icon" 
+            disabled={isLoading || !query.trim()}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-slate-900 hover:bg-slate-700"
+          >
+            <Send className="h-4 w-4" />
           </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-4 pt-2">
-          <div className="space-y-2">
-            <Label htmlFor="domain">Domain / Field</Label>
-            <Input
-              id="domain"
-              placeholder="e.g. Computer Science, Medicine, Finance..."
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="expertise-level">Expertise Level</Label>
-            <Select value={expertiseLevel} onValueChange={setExpertiseLevel}>
-              <SelectTrigger id="expertise-level">
-                <SelectValue placeholder="Select expertise level" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="beginner">Beginner</SelectItem>
-                <SelectItem value="intermediate">Intermediate</SelectItem>
-                <SelectItem value="advanced">Advanced</SelectItem>
-                <SelectItem value="expert">Expert</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="cognitive-style">Cognitive Style</Label>
-            <Select value={cognitiveStyle} onValueChange={setCognitiveStyle}>
-              <SelectTrigger id="cognitive-style">
-                <SelectValue placeholder="Select cognitive style" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="systematic">Systematic</SelectItem>
-                <SelectItem value="general">General</SelectItem>
-                <SelectItem value="first-principles">First Principles</SelectItem>
-                <SelectItem value="creative">Creative</SelectItem>
-                <SelectItem value="practical">Practical Applier</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="current-understanding">Current Understanding (Optional)</Label>
-            <Textarea
-              id="current-understanding"
-              placeholder="Describe your current understanding of the topic..."
-              value={currentUnderstanding}
-              onChange={(e) => setCurrentUnderstanding(e.target.value)}
-              rows={3}
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="user-model">User Model ID (Optional)</Label>
-            <Select
-              value={selectedModelId || "none"}
-              onValueChange={(value) => setSelectedModelId(value === "none" ? undefined : value)}
-            >
-              <SelectTrigger id="user-model">
-                <SelectValue placeholder="Select a user model" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {userModels.map((model: any) => (
-                  <SelectItem key={model.id} value={model.id}>
-                    {model.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    </div>
+        </div>
+      </form>
+    );
+  }
+  
+  // Render the full form with all options if not simplified
+  return (
+    <Form {...form}>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="domain"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Domain</FormLabel>
+              <FormControl>
+                <Input placeholder="deep research" {...field} value={initialDomain} onChange={(e) => {
+                  form.setValue("domain", e.target.value)
+                }}/>
+              </FormControl>
+              <FormDescription>
+                What field of study are you researching?
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="expertiseLevel"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Expertise Level</FormLabel>
+              <FormControl>
+                <Input placeholder="expert" {...field} value={initialExpertiseLevel} onChange={(e) => {
+                  form.setValue("expertiseLevel", e.target.value)
+                }}/>
+              </FormControl>
+              <FormDescription>
+                What is your level of expertise in this field?
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="userContext"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>User Context</FormLabel>
+              <FormControl>
+                <Textarea
+                  placeholder="I am a researcher looking for information on..."
+                  className="resize-none"
+                  {...field}
+                  value={initialUserContext}
+                  onChange={(e) => {
+                    form.setValue("userContext", e.target.value)
+                  }}
+                />
+              </FormControl>
+              <FormDescription>
+                What is your context for this research?
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="cognitiveStyle"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Cognitive Style</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={initialCognitiveStyle}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a cognitive style" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="analytical">Analytical</SelectItem>
+                  <SelectItem value="creative">Creative</SelectItem>
+                  <SelectItem value="practical">Practical</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                What is your preferred cognitive style?
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="useCase"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Use Case</FormLabel>
+              <FormControl>
+                <Input placeholder="research" {...field} value={useCase} onChange={(e) => {
+                  setUseCase(e.target.value);
+                  form.setValue("useCase", e.target.value)
+                }}/>
+              </FormControl>
+              <FormDescription>
+                What is the use case for this research?
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="relative">
+          <Input
+            placeholder="How can I help you today?"
+            value={query}
+            onChange={handleQueryChange}
+            disabled={isLoading}
+            className="pr-20"
+          />
+          <Button 
+            type="submit" 
+            size="icon" 
+            disabled={isLoading || !query.trim()}
+            className="absolute right-2 top-1/2 transform -translate-y-1/2"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </div>
+      </form>
+    </Form>
   );
 };

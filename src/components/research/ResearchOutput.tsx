@@ -22,14 +22,18 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({ output, isLoading = fal
 
   if (!output.trim()) {
     return (
-      <div className="text-center text-muted-foreground p-8">
-        <p>No research output yet. Start a search to see results here.</p>
+      <div className="flex flex-col items-center justify-center text-center h-full py-20">
+        <div className="text-4xl mb-4">✨</div>
+        <h2 className="text-3xl font-medium text-slate-700 mb-2">Welcome</h2>
+        <p className="text-slate-500 max-w-md">
+          Start a search to see research results here.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="prose prose-sm max-w-none dark:prose-invert">
+    <div className="prose prose-slate max-w-none">
       <div className="whitespace-pre-wrap">{output}</div>
     </div>
   );
