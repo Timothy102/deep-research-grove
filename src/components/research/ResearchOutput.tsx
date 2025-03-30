@@ -3,7 +3,6 @@ import React from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ProgressIndicator } from './ProgressIndicator';
 
 export interface ResearchOutputProps {
   output: string;
@@ -14,9 +13,9 @@ export interface ResearchOutputProps {
 }
 
 const ResearchOutput: React.FC<ResearchOutputProps> = ({ 
-  output = "", 
+  output, 
   isLoading = false, 
-  userName = "",
+  userName,
   userModels = [],
   onSelectModel
 }) => {
@@ -32,38 +31,32 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
     );
   }
 
-  if (!output || !output.trim()) {
+  if (!output.trim()) {
     return (
-      <div className="text-center space-y-6 py-8">
+      <div className="text-center space-y-6 mt-8">
         {userName ? (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold">Hey, {userName}</h2>
             <p className="text-muted-foreground text-lg">Who are you today?</p>
             
-            {Array.isArray(userModels) && userModels.length > 0 ? (
+            {userModels.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-w-4xl mx-auto mt-4">
                 {userModels.map((model) => (
                   <Card 
-                    key={model?.id || Math.random().toString(36).substring(7)}
+                    key={model.id} 
                     className="cursor-pointer hover:border-primary transition-colors duration-200"
-                    onClick={() => {
-                      if (onSelectModel && model?.id) {
-                        onSelectModel(model.id);
-                      }
-                    }}
+                    onClick={() => onSelectModel && onSelectModel(model.id)}
                   >
                     <CardContent className="p-2">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium truncate">{model?.name || "Unnamed Model"}</span>
-                        {model?.is_default && (
+                        <span className="text-sm font-medium truncate">{model.name}</span>
+                        {model.is_default && (
                           <Badge variant="outline" className="text-xs ml-1 px-1 py-0">Default</Badge>
                         )}
                       </div>
-                      {model?.domain && (
-                        <div className="text-xs text-muted-foreground truncate">
-                          {model.domain}
-                        </div>
-                      )}
+                      <div className="text-xs text-muted-foreground truncate">
+                        {model.domain && <span>{model.domain}</span>}
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
