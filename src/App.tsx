@@ -9,8 +9,9 @@ import { Toaster } from '@/components/ui/toaster';
 import { useEffect, useState } from 'react';
 import { Plus, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { LOCAL_STORAGE_KEYS } from '@/lib/constants';
+import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData } from '@/lib/constants';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
 
 import ResearchPage from './pages/ResearchPage';
 import ProfilePage from './pages/ProfilePage';
@@ -58,31 +59,51 @@ function SidebarButtons() {
   };
 
   const handleNewChat = () => {
-    const newSessionId = crypto.randomUUID();
-    
-    // Clear the current research objective and all states
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.RESEARCH_OBJECTIVE);
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE);
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE);
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.STEPS_CACHE);
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.RAW_DATA_CACHE);
-    
-    // Set new session ID
-    localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, newSessionId);
-    
-    // Dispatch a custom event that the ResearchPage component can listen for
-    window.dispatchEvent(new CustomEvent('new-chat-requested', { 
-      detail: { 
-        sessionId: newSessionId,
-        isNew: true
-      }
-    }));
-    
-    // Navigate to the new session
-    navigate(`/research/${newSessionId}`);
+    try {
+      const newSessionId = crypto.randomUUID();
+      
+      // Clear the current session state from localStorage
+      Object.keys(LOCAL_STORAGE_KEYS).forEach(key => {
+        const fullKey = LOCAL_STORAGE_KEYS[key as keyof typeof LOCAL_STORAGE_KEYS];
+        if (fullKey !== LOCAL_STORAGE_KEYS.SESSION_HISTORY && fullKey !== LOCAL_STORAGE_KEYS.SIDEBAR_STATE) {
+          localStorage.removeItem(fullKey);
+        }
+      });
+      
+      // Set new session ID
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, newSessionId);
+      
+      // Create an empty session data structure
+      saveSessionData(newSessionId, {
+        state: {
+          session_id: newSessionId,
+          status: 'in_progress',
+          query: '',
+          created_at: new Date().toISOString()
+        },
+        sources: [],
+        reasoningPath: [],
+        findings: []
+      });
+      
+      // Dispatch a custom event that the ResearchPage component can listen for
+      window.dispatchEvent(new CustomEvent('new-chat-requested', { 
+        detail: { 
+          sessionId: newSessionId,
+          isNew: true,
+          reset: true
+        }
+      }));
+      
+      // Show a toast
+      toast.success("Created new research session");
+      
+      // Navigate to the new session
+      navigate(`/research/${newSessionId}`);
+    } catch (error) {
+      console.error("Error creating new chat:", error);
+      toast.error("Failed to create new chat. Please try again.");
+    }
   };
 
   // Only show buttons on research page

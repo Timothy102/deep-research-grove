@@ -5,7 +5,8 @@ import { Separator } from "@/components/ui/separator";
 import { ExternalLink, Copy, CheckCircle2, MessageSquare } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
-import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
+import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData } from "@/lib/constants";
+import { toast } from "sonner";
 
 export type Finding = {
   content: string;
@@ -19,6 +20,7 @@ export type ResearchResult = {
   reasoning_path: string[];
   confidence: number;
   session_id?: string;
+  research_id?: string;
 };
 
 const SourcesList = ({ sources }: { sources: string[] }) => {
@@ -135,10 +137,24 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(result));
         
         if (result.session_id) {
+          // Use comprehensive session data storage
+          saveSessionData(result.session_id, {
+            answer: result,
+            sources: result.sources,
+            reasoningPath: result.reasoning_path,
+            researchId: result.research_id,
+            state: {
+              query: result.query,
+              session_id: result.session_id,
+              research_id: result.research_id,
+              created_at: new Date().toISOString()
+            }
+          });
+          
+          // Also save individual cache components for backward compatibility
           const sessionCacheKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, result.session_id);
           localStorage.setItem(sessionCacheKey, JSON.stringify(result));
           
-          // Also update sources and reasoning path caches for this session
           const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, result.session_id);
           localStorage.setItem(sessionSourcesKey, JSON.stringify(result.sources));
           
@@ -167,6 +183,18 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
 
   const handleSessionClick = () => {
     if (result.session_id) {
+      // Save current session ID for proper restoration
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, result.session_id);
+      
+      // Trigger session-selected event for better coordination
+      window.dispatchEvent(new CustomEvent('session-selected', { 
+        detail: { 
+          sessionId: result.session_id,
+          query: result.query,
+          isNew: false
+        }
+      }));
+      
       navigate(`/research/${result.session_id}`);
     }
   };

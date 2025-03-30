@@ -1,17 +1,17 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { CalendarDays, Clock, ChevronsLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils";
+import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
+import { toast } from "sonner";
 
 interface ResearchHistorySidebarProps {
   isOpen: boolean;
@@ -28,6 +28,35 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
   onSelectItem,
   onToggle
 }) => {
+  const handleSessionSelect = (item: any) => {
+    try {
+      // Store current session ID to ensure proper state restoration
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, item.session_id);
+      
+      // Dispatch a custom event for session restoration
+      window.dispatchEvent(new CustomEvent('session-selected', { 
+        detail: { 
+          sessionId: item.session_id,
+          query: item.query,
+          isNew: false,
+          historyItem: item
+        }
+      }));
+      
+      // Then handle the click through passed callbacks
+      onHistoryItemClick(item);
+      onSelectItem(item);
+      
+      // Close the sidebar
+      onToggle();
+      
+      toast.success("Loading previous research session...");
+    } catch (error) {
+      console.error("Error selecting history session:", error);
+      toast.error("Failed to load session. Please try again.");
+    }
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={onToggle}>
       <SheetContent side="left" className="w-3/4 sm:w-2/3 md:w-1/2 lg:w-2/5 xl:w-1/4 p-0 shadow-xl">
@@ -55,11 +84,8 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                   {group.items.map((item: any) => (
                     <li 
                       key={item.id} 
-                      className="px-6 py-3 hover:bg-secondary cursor-pointer transition-colors duration-200"
-                      onClick={() => {
-                        onHistoryItemClick(item);
-                        onSelectItem(item);
-                      }}
+                      className="px-6 py-3 hover:bg-secondary cursor-pointer transition-colors duration-200 history-item"
+                      onClick={() => handleSessionSelect(item)}
                     >
                       <div className="flex items-center space-x-2">
                         <CalendarDays className="h-4 w-4 text-muted-foreground" />
