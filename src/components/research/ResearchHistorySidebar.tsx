@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { History, Clock, MessageSquare, Brain, ChevronRight, Loader2, PanelLeftOpen, PanelLeftClose } from "lucide-react";
@@ -155,11 +156,11 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
               ) : (
                 history.map((group) => (
                   <div key={group.date} className="mb-6">
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">
+                    <h4 className="text-sm font-medium text-muted-foreground">
                       {group.label}
                     </h4>
                     
-                    <div className="space-y-2">
+                    <div className="space-y-2 mt-2">
                       {group.items.map((item) => {
                         // Parse the user_model to get the session_id
                         let sessionId = null;

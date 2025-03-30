@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster as SonnerToaster } from 'sonner';
 import { Toaster } from '@/components/ui/toaster';
 import { useEffect, useState } from 'react';
-import { PanelLeftOpen, Settings } from 'lucide-react';
+import { PanelLeftOpen, Settings, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LOCAL_STORAGE_KEYS } from '@/lib/constants';
 import { useNavigate } from 'react-router-dom';
@@ -71,6 +71,16 @@ function SidebarButtons() {
         aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
       >
         <PanelLeftOpen className="h-5 w-5" />
+      </Button>
+      
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleSidebar}
+        className="rounded-full bg-background border shadow-sm"
+        aria-label="Research history"
+      >
+        <History className="h-5 w-5" />
       </Button>
       
       <Button
