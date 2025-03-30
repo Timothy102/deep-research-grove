@@ -220,3 +220,24 @@
   @apply text-gray-100 placeholder:text-gray-500;
   color-scheme: dark;
 }
+
+/* Fix for processing textboxes in dark mode */
+.dark [class*="processing"],
+.dark .processing,
+.dark div:has(.processing),
+.dark div:has([class*="processing"]) {
+  @apply bg-gray-800/70 text-gray-200 border-gray-700;
+}
+
+.dark .searching-badge,
+.dark [class*="searching"] {
+  @apply bg-gray-800/70 text-gray-200 border-gray-700;
+}
+
+/* Ensure all badges in reasoning steps have proper dark mode styling */
+.dark .badge,
+.dark [class*="badge"],
+.dark div:has(.badge) {
+  @apply bg-gray-800/70 text-gray-200 border-gray-700;
+}
+
