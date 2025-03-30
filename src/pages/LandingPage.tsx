@@ -27,7 +27,7 @@ const LandingPage = () => {
             variant="outline"
             className="text-sm"
           >
-            {user ? "Dashboard" : "Login"}
+            {user ? "Start Now" : "Login"}
           </Button>
           <ThemeToggle />
         </div>
