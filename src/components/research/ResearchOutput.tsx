@@ -33,14 +33,14 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
 
   if (!output.trim()) {
     return (
-      <div className="text-center p-8 space-y-6">
+      <div className="text-center space-y-6">
         {userName ? (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold">Hey, {userName}</h2>
             <p className="text-muted-foreground text-lg">Who are you today?</p>
             
             {userModels.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto mt-6">
+              <div className="text-left space-y-4 max-w-3xl mx-auto mt-6">
                 {userModels.map((model) => (
                   <Card 
                     key={model.id} 

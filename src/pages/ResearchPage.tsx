@@ -1094,6 +1094,15 @@ const ResearchPage = () => {
           ) : (
             <div className="flex-1 flex items-center justify-center p-4">
               <div className="max-w-4xl w-full">
+                <div className="mb-8">
+                  <ResearchOutput 
+                    output="" 
+                    userName={user?.email?.split('@')[0] || "researcher"}
+                    userModels={userModels}
+                    onSelectModel={selectUserModel}
+                  />
+                </div>
+                
                 <ResearchForm 
                   isLoading={isLoading}
                   initialValue={researchObjective}
@@ -1106,15 +1115,6 @@ const ResearchPage = () => {
                   onSubmit={handleResearch}
                   setResearchObjective={setResearchObjective}
                 />
-                
-                <div className="mt-8">
-                  <ResearchOutput 
-                    output="" 
-                    userName={user?.email?.split('@')[0] || "researcher"}
-                    userModels={userModels}
-                    onSelectModel={selectUserModel}
-                  />
-                </div>
               </div>
             </div>
           )}
