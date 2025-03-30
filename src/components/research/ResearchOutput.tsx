@@ -24,7 +24,7 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({ output, isLoading = fal
     return (
       <div className="flex flex-col items-center justify-center text-center h-full py-20">
         <div className="text-4xl mb-4">✨</div>
-        <h2 className="text-3xl font-medium text-slate-700 mb-2">Welcome</h2>
+        <h2 className="text-2xl font-medium text-slate-700 mb-2">Welcome</h2>
         <p className="text-slate-500 max-w-md">
           Start a search to see research results here.
         </p>

@@ -236,7 +236,7 @@ const ResearchPage = () => {
               initialValue={researchObjective}
               onSubmit={handleResearch}
               setResearchObjective={setResearchObjective}
-              simplified={true}
+              simplified={false}
             />
           </div>
         </div>
