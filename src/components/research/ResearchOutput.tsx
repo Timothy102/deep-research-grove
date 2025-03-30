@@ -3,6 +3,7 @@ import React from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ProgressIndicator } from './ProgressIndicator';
 
 export interface ResearchOutputProps {
   output: string;
@@ -39,7 +40,7 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
             <h2 className="text-2xl font-bold">Hey, {userName}</h2>
             <p className="text-muted-foreground text-lg">Who are you today?</p>
             
-            {userModels.length > 0 ? (
+            {userModels && userModels.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-w-4xl mx-auto mt-4">
                 {userModels.map((model) => (
                   <Card 
