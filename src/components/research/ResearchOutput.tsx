@@ -14,9 +14,9 @@ export interface ResearchOutputProps {
 }
 
 const ResearchOutput: React.FC<ResearchOutputProps> = ({ 
-  output, 
+  output = "", 
   isLoading = false, 
-  userName,
+  userName = "",
   userModels = [],
   onSelectModel
 }) => {
@@ -32,7 +32,7 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
     );
   }
 
-  if (!output.trim()) {
+  if (!output || !output.trim()) {
     return (
       <div className="text-center space-y-6 py-8">
         {userName ? (
@@ -40,22 +40,26 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
             <h2 className="text-2xl font-bold">Hey, {userName}</h2>
             <p className="text-muted-foreground text-lg">Who are you today?</p>
             
-            {userModels && userModels.length > 0 ? (
+            {Array.isArray(userModels) && userModels.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-w-4xl mx-auto mt-4">
                 {userModels.map((model) => (
                   <Card 
-                    key={model.id} 
+                    key={model?.id || Math.random().toString(36).substring(7)}
                     className="cursor-pointer hover:border-primary transition-colors duration-200"
-                    onClick={() => onSelectModel && onSelectModel(model.id)}
+                    onClick={() => {
+                      if (onSelectModel && model?.id) {
+                        onSelectModel(model.id);
+                      }
+                    }}
                   >
                     <CardContent className="p-2">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium truncate">{model.name}</span>
-                        {model.is_default && (
+                        <span className="text-sm font-medium truncate">{model?.name || "Unnamed Model"}</span>
+                        {model?.is_default && (
                           <Badge variant="outline" className="text-xs ml-1 px-1 py-0">Default</Badge>
                         )}
                       </div>
-                      {model.domain && (
+                      {model?.domain && (
                         <div className="text-xs text-muted-foreground truncate">
                           {model.domain}
                         </div>
