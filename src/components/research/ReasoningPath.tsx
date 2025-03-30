@@ -1,228 +1,173 @@
 
-import { useState, useEffect } from "react";
+import React, { useState } from 'react';
+import { Loader2, ExternalLink } from 'lucide-react';
+import { Finding } from '@/types/researchTypes';
 import { Badge } from "@/components/ui/badge";
-import ReasoningStep from "./ReasoningStep";
-import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
-
-interface Finding {
-  source: string;
-  content?: string;
-  node_id?: string;
-  query?: string;
-  raw_data?: string;
-  finding?: {
-    title?: string;
-    summary?: string;
-    confidence_score?: number;
-    url?: string;
-  };
-}
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface ReasoningPathProps {
   reasoningPath: string[];
-  sources?: string[];
-  findings?: Finding[];
-  isActive?: boolean;
-  isLoading?: boolean;
+  sources: string[];
+  findings: Finding[];
+  isActive: boolean;
+  isLoading: boolean;
   rawData?: Record<string, string>;
-  sessionId?: string;
+  sessionId: string;
 }
 
-const ReasoningPath = ({ 
-  reasoningPath, 
-  sources = [], 
-  findings = [], 
-  isActive = false, 
-  isLoading = false, 
-  rawData = {},
-  sessionId = "" 
-}: ReasoningPathProps) => {
-  const [displayReasoningPath, setDisplayReasoningPath] = useState<string[]>(reasoningPath);
-  const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings);
-  
-  // Load from localStorage on mount and when sessionId changes
-  useEffect(() => {
-    try {
-      // First attempt to load session-specific data if sessionId is provided
-      if (sessionId) {
-        // Try to load session-specific reasoning path
-        const sessionPathKey = `${LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE}.${sessionId}`;
-        const sessionPathCache = localStorage.getItem(sessionPathKey);
-        
-        if (sessionPathCache) {
-          const parsedPath = JSON.parse(sessionPathCache);
-          if (Array.isArray(parsedPath) && parsedPath.length > 0) {
-            if (reasoningPath.length === 0 || parsedPath.length > reasoningPath.length) {
-              console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedPath.length} reasoning steps from session cache`);
-              setDisplayReasoningPath(parsedPath);
-            }
-          }
-        }
-        
-        // Try to load session-specific findings
-        const sessionFindingsKey = `${LOCAL_STORAGE_KEYS.FINDINGS_CACHE}.${sessionId}`;
-        const sessionFindingsCache = localStorage.getItem(sessionFindingsKey);
-        
-        if (sessionFindingsCache) {
-          const parsedFindings = JSON.parse(sessionFindingsCache);
-          if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
-            if (findings.length === 0 || parsedFindings.length > findings.length) {
-              console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedFindings.length} findings from session cache`);
-              setDisplayFindings(parsedFindings);
-            }
-          }
-        }
-      }
-      
-      // Fallback to global cache if needed
-      if (displayReasoningPath.length === 0 && reasoningPath.length === 0) {
-        const pathCache = localStorage.getItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE);
-        if (pathCache) {
-          const parsedPath = JSON.parse(pathCache);
-          if (Array.isArray(parsedPath) && parsedPath.length > 0) {
-            setDisplayReasoningPath(parsedPath);
-          }
-        }
-      }
-      
-      if (displayFindings.length === 0 && findings.length === 0) {
-        const findingsCache = localStorage.getItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
-        if (findingsCache) {
-          const parsedFindings = JSON.parse(findingsCache);
-          if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
-            setDisplayFindings(parsedFindings);
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Error loading reasoning path or findings from cache:", e);
-    }
-  }, [sessionId]);
-  
-  // Update state and localStorage when props change
-  useEffect(() => {
-    if (reasoningPath.length > 0) {
-      setDisplayReasoningPath(reasoningPath);
-      
-      // Save to both global and session-specific cache
-      try {
-        localStorage.setItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, JSON.stringify(reasoningPath));
-        
-        if (sessionId) {
-          const sessionPathKey = `${LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE}.${sessionId}`;
-          localStorage.setItem(sessionPathKey, JSON.stringify(reasoningPath));
-        }
-      } catch (e) {
-        console.error("Error saving reasoning path to cache:", e);
-      }
-    }
-    
-    if (findings.length > 0) {
-      setDisplayFindings(findings);
-      
-      // Save to both global and session-specific cache
-      try {
-        localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(findings));
-        
-        if (sessionId) {
-          const sessionFindingsKey = `${LOCAL_STORAGE_KEYS.FINDINGS_CACHE}.${sessionId}`;
-          localStorage.setItem(sessionFindingsKey, JSON.stringify(findings));
-        }
-      } catch (e) {
-        console.error("Error saving findings to cache:", e);
-      }
-    }
-  }, [reasoningPath, findings, sessionId]);
+const ReasoningPath: React.FC<ReasoningPathProps> = ({
+  reasoningPath,
+  sources,
+  findings,
+  isActive,
+  isLoading,
+  rawData,
+  sessionId
+}) => {
+  const [selectedStepIndex, setSelectedStepIndex] = useState<number | null>(null);
 
-  if (displayReasoningPath.length === 0 && !isLoading) {
+  const handleStepClick = (index: number) => {
+    setSelectedStepIndex(index);
+  };
+
+  const ReasoningStep = ({ step, stepNumber, onClick, isSelected, sources, sourceFindings, rawData, sessionId }: {
+    step: string;
+    stepNumber: number;
+    onClick?: () => void;
+    isSelected: boolean;
+    sources: string[];
+    sourceFindings: Finding[];
+    rawData?: string;
+    sessionId: string;
+  }) => {
+    const hasFindings = sourceFindings && sourceFindings.length > 0;
+    const hasRawData = rawData && rawData.length > 0;
+
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        <p>Reasoning process will appear here...</p>
+      <div
+        className={`p-4 border rounded-lg cursor-pointer transition-colors duration-200 ${isSelected ? 'bg-blue-50 border-blue-300' : 'border-gray-200 hover:bg-gray-50'}`}
+        onClick={onClick}
+      >
+        <div className="flex justify-between items-start">
+          <h3 className="text-lg font-semibold text-gray-800">Step {stepNumber}</h3>
+          {onClick && (
+            <Badge variant="outline">Click to view details</Badge>
+          )}
+        </div>
+        <p className="text-gray-700 mt-2">{step}</p>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          {hasFindings && (
+            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-700">
+              Findings: {sourceFindings.length}
+            </Badge>
+          )}
+          {hasRawData && (
+            <Badge className="bg-violet-100 text-violet-700 border-violet-700">
+              Raw Data Available
+            </Badge>
+          )}
+        </div>
       </div>
     );
-  }
-  
-  // Group findings by node_id for easier matching
-  const findingsByNodeId: Record<string, Finding[]> = {};
-  displayFindings.forEach(finding => {
-    if (finding.node_id) {
-      if (!findingsByNodeId[finding.node_id]) {
-        findingsByNodeId[finding.node_id] = [];
-      }
-      findingsByNodeId[finding.node_id].push(finding);
-    }
-  });
-  
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">Research Planning</h3>
-        <Badge variant="outline" className="text-xs">
-          {displayReasoningPath.length} step{displayReasoningPath.length !== 1 ? 's' : ''}
-        </Badge>
-      </div>
-      
-      <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pb-8">
-        {displayReasoningPath.map((step, index) => {
-          // Extract node ID from the step text using multiple patterns
-          const nodeId = step.match(/node(?:_id|[\s_]id)?:?\s*['"]?([a-zA-Z0-9_-]+)['"]?/i)?.[1] || 
-                      step.match(/node\s+(\d+)|#(\d+)/i)?.[1] || 
-                      step.match(/step-(\d+)/i)?.[1] ||
-                      `step-${index}`;
-                      
-          const stepRawData = nodeId ? rawData[nodeId] : undefined;
-          
-          // Find answer data from raw data if available
-          let answerData = null;
-          if (stepRawData) {
-            try {
-              const parsedData = JSON.parse(stepRawData);
-              if (parsedData.event === "answer" && parsedData.data && parsedData.data.answer) {
-                answerData = parsedData.data.answer;
-              }
-            } catch (e) {
-              // If multiple JSON objects, try to extract answer data
-              const answerMatch = stepRawData.match(/"event"\s*:\s*"answer"[\s\S]*?"answer"\s*:\s*"([^"]+)"/);
-              if (answerMatch && answerMatch[1]) {
-                answerData = answerMatch[1];
-              }
-            }
-          }
-          
-          // Get findings for this specific node_id
-          const nodeFindings = findingsByNodeId[nodeId] || [];
-          
-          // Also try to match findings by source/URL in the step text
-          const urlFindings = displayFindings.filter(finding => {
-            if (nodeFindings.includes(finding)) return false; // Skip if already added
-            try {
-              const url = new URL(finding.source);
-              const domain = url.hostname.replace('www.', '');
-              return step.toLowerCase().includes(domain.split('.')[0]);
-            } catch {
-              return false;
-            }
-          });
-          
-          // Combine both sets of findings
-          const relevantFindings = [...nodeFindings, ...urlFindings];
-          
-          return (
-            <ReasoningStep
-              key={index}
+    <div className="p-6 min-h-[400px] bg-white border-t border-gray-200">
+      {reasoningPath.length === 0 ? (
+        <div className="flex flex-col items-center justify-center h-80">
+          <p className="text-gray-500">No reasoning data available</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {reasoningPath.map((step, index) => (
+            <ReasoningStep 
+              key={index} 
               step={step}
-              index={index}
+              stepNumber={index + 1}
+              onClick={index < reasoningPath.length - 1 ? () => handleStepClick(index) : undefined}
+              isSelected={selectedStepIndex === index}
               sources={sources}
-              findings={relevantFindings}
-              defaultExpanded={index === displayReasoningPath.length - 1}
-              isActive={isActive && index === displayReasoningPath.length - 1}
-              rawData={stepRawData}
+              sourceFindings={findings.filter(f => f.node_id === `${index + 1}`)}
+              rawData={rawData?.[`${index + 1}`]}
               sessionId={sessionId}
-              answer={answerData}
             />
-          );
-        })}
-      </div>
+          ))}
+          
+          {isLoading && (
+            <div className="flex items-center p-4 border border-gray-200 bg-gray-50 rounded-lg">
+              <div className="animate-pulse flex space-x-2">
+                <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+              </div>
+              <span className="ml-3 text-gray-600">Thinking...</span>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Modal for viewing step details */}
+      {selectedStepIndex !== null && selectedStepIndex < reasoningPath.length && (
+        <Dialog open={selectedStepIndex !== null} onOpenChange={() => setSelectedStepIndex(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle>Step {selectedStepIndex + 1} Details</DialogTitle>
+              <DialogDescription>
+                Detailed information and sources for this step in the reasoning process.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <h4 className="text-lg font-semibold text-gray-800 mb-2">Reasoning Step</h4>
+              <p className="text-gray-700">{reasoningPath[selectedStepIndex]}</p>
+            </div>
+
+            {rawData?.[`${selectedStepIndex + 1}`] && (
+              <div className="py-4">
+                <h4 className="text-lg font-semibold text-gray-800 mb-2">Raw Data</h4>
+                <ScrollArea className="h-[200px] w-full rounded-md border p-4">
+                  <pre className="whitespace-pre-wrap break-words text-sm text-gray-600">
+                    {rawData[`${selectedStepIndex + 1}`]}
+                  </pre>
+                </ScrollArea>
+              </div>
+            )}
+
+            {findings.filter(f => f.node_id === `${selectedStepIndex + 1}`).length > 0 && (
+              <div className="py-4">
+                <h4 className="text-lg font-semibold text-gray-800 mb-2">Findings</h4>
+                <ul className="list-disc pl-5 text-gray-700">
+                  {findings
+                    .filter(f => f.node_id === `${selectedStepIndex + 1}`)
+                    .map((finding, index) => (
+                      <li key={index}>{finding.text || finding.content}</li>
+                    ))}
+                </ul>
+              </div>
+            )}
+
+            {sources.length > 0 && (
+              <div className="py-4">
+                <h4 className="text-lg font-semibold text-gray-800 mb-2">Sources</h4>
+                <ul className="space-y-2">
+                  {sources.map((source, index) => (
+                    <li key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                      <span className="text-blue-600 break-all">{source}</span>
+                      {source.startsWith('http') && (
+                        <a href={source} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 ml-2">
+                          <ExternalLink size={16} />
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

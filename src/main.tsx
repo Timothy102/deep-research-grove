@@ -6,10 +6,18 @@ import { toast } from "sonner";
 import HumanApprovalDialog from './components/research/HumanApprovalDialog.tsx';
 import { respondToApproval } from './services/humanLayerService.ts';
 import { supabase } from './integrations/supabase/client';
+import { LOCAL_STORAGE_KEYS } from './lib/constants.ts';
 
-// Set default theme to light
-document.documentElement.classList.add('light');
-document.documentElement.style.colorScheme = 'light';
+// Check if this is the user's first visit
+const isFirstVisit = !localStorage.getItem(LOCAL_STORAGE_KEYS.LAST_PATH);
+if (isFirstVisit) {
+  // Initialize storage for first-time users
+  localStorage.setItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE, 'hidden');
+  localStorage.setItem(LOCAL_STORAGE_KEYS.ACTIVE_TAB, 'output');
+  
+  // Set light theme by default
+  localStorage.setItem('ui-theme', 'light');
+}
 
 // Enable realtime subscriptions for the research_states table
 supabase.channel('research_states_changes')
