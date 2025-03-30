@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, User, LogOut, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Brain, FileText } from "lucide-react";
+import { Loader2, Search, User, LogOut, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Brain, FileText, Settings } from "lucide-react";
 import { 
   saveResearchHistory, 
   getResearchHistory, 
@@ -15,7 +15,7 @@ import {
   getResearchState, 
   getLatestSessionState 
 } from "@/services/researchStateService";
-import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted } from "@/services/userModelService";
+import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted, getUserModels } from "@/services/userModelService";
 import { submitHumanFeedback } from "@/services/humanInteractionService";
 import { respondToApproval } from "@/services/humanLayerService";
 import { useToast } from "@/hooks/use-toast";
@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { getClientId } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
 
 interface ResearchHistory {
   id: string;
@@ -95,7 +96,10 @@ const ResearchPage = () => {
   const [activeTab, setActiveTab] = useState("reasoning");
   const [history, setHistory] = useState<ResearchHistoryEntry[]>([]);
   const [groupedHistory, setGroupedHistory] = useState<any[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const savedState = localStorage.getItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE);
+    return savedState !== null ? savedState === 'true' : false;
+  });
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
@@ -106,6 +110,7 @@ const ResearchPage = () => {
   const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("");
   const [selectedLLM, setSelectedLLM] = useState("auto");
   const [rawData, setRawData] = useState<Record<string, string>>({});
+  const [userModels, setUserModels] = useState<UserModel[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
@@ -133,6 +138,7 @@ const ResearchPage = () => {
     resetResearchState();
     loadHistory();
     loadSessionData(sessionId);
+    loadUserModels();
     
     return () => {
       if (eventSourceRef.current) {
@@ -140,6 +146,38 @@ const ResearchPage = () => {
       }
     };
   }, [user, navigate, sessionId]);
+
+  const loadUserModels = async () => {
+    try {
+      const models = await getUserModels();
+      setUserModels(models);
+    } catch (error) {
+      console.error("Error loading user models:", error);
+    }
+  };
+
+  const toggleSidebar = () => {
+    const newState = !sidebarOpen;
+    setSidebarOpen(newState);
+    localStorage.setItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE, String(newState));
+  };
+
+  const selectUserModel = async (modelId: string) => {
+    try {
+      const model = await getUserModelById(modelId);
+      if (model) {
+        setDomain(model.domain);
+        setExpertiseLevel(model.expertise_level);
+        setSelectedCognitiveStyle(model.cognitive_style);
+        
+        // Inform the user that the model has been selected
+        toast.success(`Selected user model: ${model.name}`);
+      }
+    } catch (error) {
+      console.error("Error selecting user model:", error);
+      toast.error("Failed to select user model");
+    }
+  };
 
   const checkOnboardingStatus = async () => {
     try {
@@ -962,17 +1000,40 @@ const ResearchPage = () => {
       </header>
 
       <div className="flex flex-1 overflow-hidden relative">
+        <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-start items-center py-4 px-2 z-10 space-y-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleSidebar}
+            className="rounded-full"
+            aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+          >
+            {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/profile")}
+            className="rounded-full"
+            aria-label="Profile settings"
+          >
+            <Settings className="h-5 w-5" />
+          </Button>
+        </div>
+
         <ResearchHistorySidebar 
           isOpen={sidebarOpen}
           history={groupedHistory}
           onHistoryItemClick={(item) => loadHistoryItem(item)}
           onSelectItem={(item) => loadHistoryItem(item)}
-          onToggle={() => setSidebarOpen(!sidebarOpen)}
+          onToggle={toggleSidebar}
         />
 
         <main className={cn(
           "flex-1 flex flex-col overflow-hidden transition-all duration-200 ease-in-out",
-          sidebarOpen && "lg:ml-72"
+          sidebarOpen && "lg:ml-72",
+          !sidebarOpen && "ml-12"
         )}>
           {researchObjective ? (
             <>
@@ -1032,7 +1093,7 @@ const ResearchPage = () => {
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center p-4">
-              <div className="max-w-2xl w-full">
+              <div className="max-w-4xl w-full">
                 <ResearchForm 
                   isLoading={isLoading}
                   initialValue={researchObjective}
@@ -1045,6 +1106,15 @@ const ResearchPage = () => {
                   onSubmit={handleResearch}
                   setResearchObjective={setResearchObjective}
                 />
+                
+                <div className="mt-8">
+                  <ResearchOutput 
+                    output="" 
+                    userName={user?.email?.split('@')[0] || "researcher"}
+                    userModels={userModels}
+                    onSelectModel={selectUserModel}
+                  />
+                </div>
               </div>
             </div>
           )}
@@ -1075,6 +1145,7 @@ const ResearchPage = () => {
             setDomain(model.domain);
             setExpertiseLevel(model.expertise_level);
             setSelectedCognitiveStyle(model.cognitive_style);
+            loadUserModels();
           }}
         />
       )}
