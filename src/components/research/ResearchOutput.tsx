@@ -40,24 +40,23 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
             <p className="text-muted-foreground text-lg">Who are you today?</p>
             
             {userModels.length > 0 ? (
-              <div className="text-left space-y-4 max-w-3xl mx-auto mt-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-w-4xl mx-auto mt-6">
                 {userModels.map((model) => (
                   <Card 
                     key={model.id} 
                     className="cursor-pointer hover:border-primary transition-colors duration-200"
                     onClick={() => onSelectModel && onSelectModel(model.id)}
                   >
-                    <CardContent className="p-4 space-y-2">
+                    <CardContent className="p-3 space-y-1">
                       <div className="flex justify-between items-start">
-                        <h3 className="font-semibold text-lg">{model.name}</h3>
+                        <h3 className="font-medium text-base">{model.name}</h3>
                         {model.is_default && (
-                          <Badge variant="outline" className="ml-2">Default</Badge>
+                          <Badge variant="outline" className="ml-1 text-xs">Default</Badge>
                         )}
                       </div>
-                      <div className="text-sm text-muted-foreground space-y-1">
+                      <div className="text-xs text-muted-foreground">
                         <p>Domain: {model.domain}</p>
                         <p>Expertise: {model.expertise_level}</p>
-                        <p>Style: {model.cognitive_style}</p>
                       </div>
                     </CardContent>
                   </Card>
