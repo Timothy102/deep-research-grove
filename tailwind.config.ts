@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -142,5 +143,9 @@ export default {
 		'bg-blue-900-30',
 		'bg-indigo-900-30',
 		'bg-sky-900-30',
+		'processing-badge',
+		'finding-badge',
+		'node-id-badge',
+		'step-indicator'
 	]
 } satisfies Config;

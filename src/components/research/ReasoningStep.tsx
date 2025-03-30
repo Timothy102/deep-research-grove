@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -197,7 +196,7 @@ const SourceItem = ({ source, content, sourceIndex, isFinding, finding }: Source
         onClick={() => displayContent && setIsExpanded(!isExpanded)}
       >
         <span className={cn(
-          "inline-block w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0",
+          "inline-block w-5 h-5 rounded-full flex items-center justify-center text-[10px] shrink-0 step-indicator",
           isFinding
             ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
             : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
@@ -208,7 +207,7 @@ const SourceItem = ({ source, content, sourceIndex, isFinding, finding }: Source
         <div className="flex-1 overflow-hidden">
           <div className="flex items-center gap-1.5">
             {isFinding && (
-              <Badge variant="outline" className="h-4 py-0 px-1 text-[9px] bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+              <Badge variant="outline" className="h-4 py-0 px-1 text-[9px] bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800 finding-badge">
                 finding
               </Badge>
             )}
@@ -514,7 +513,6 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
     }
   }, [isSearchStep, hasFindingsForStep, findings.length, isActive, index, sources.length, hasAnswer]);
 
-  // Extract answer if not provided directly but exists in rawData
   let displayAnswer = answer;
   if (!displayAnswer && rawData) {
     try {
@@ -523,7 +521,6 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
         displayAnswer = rawDataObj.data.answer || "";
       }
     } catch (e) {
-      // If multiple JSON objects, try to find the answer event
       if (typeof rawData === "string") {
         const answerMatch = rawData.match(/"event"\s*:\s*"answer"[\s\S]*?"answer"\s*:\s*"([^"]+)"/);
         if (answerMatch && answerMatch[1]) {
@@ -536,6 +533,32 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
   const handleFeedbackToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowFeedbackInput(!showFeedbackInput);
+  };
+
+  const renderProcessingBadge = () => {
+    return (
+      <Badge 
+        variant="outline" 
+        className={cn(
+          "processing-badge font-normal text-xs bg-gray-200 text-gray-700 border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600",
+        )}
+      >
+        processing
+      </Badge>
+    );
+  };
+
+  const renderNodeIdBadge = () => {
+    return (
+      <Badge 
+        variant="outline" 
+        className={cn(
+          "node-id-badge font-normal text-xs bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-800/70 dark:text-slate-300 dark:border-slate-700"
+        )}
+      >
+        Node ID: {nodeId}
+      </Badge>
+    );
   };
 
   return (
@@ -568,23 +591,27 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
             }
           </Button>
           
-          <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0">
+          <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 step-indicator">
             <span className="text-xs font-medium">{index + 1}</span>
           </div>
         </div>
         
         <div className="flex flex-col flex-1">
           <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <Badge className={cn("font-normal flex items-center gap-1", color)}>
-              {icon}
-              <span>{label}</span>
-              {isLastStep && (
-                <span className="ml-1 animate-pulse">●</span>
-              )}
-            </Badge>
+            {type === "step" ? (
+              renderProcessingBadge()
+            ) : (
+              <Badge className={cn("font-normal flex items-center gap-1", color)}>
+                {icon}
+                <span>{label}</span>
+                {isLastStep && (
+                  <span className="ml-1 animate-pulse">●</span>
+                )}
+              </Badge>
+            )}
             
             {hasFindingsForStep && (
-              <Badge variant="outline" className="font-normal text-xs bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800">
+              <Badge variant="outline" className="font-normal text-xs bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border-blue-200 dark:border-blue-800 finding-badge">
                 {relevantFindings.length} finding{relevantFindings.length !== 1 ? 's' : ''}
               </Badge>
             )}
@@ -596,9 +623,7 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
               </Badge>
             )}
             
-            <Badge variant="outline" className="font-normal text-xs bg-slate-50 text-slate-700 dark:bg-slate-950 dark:text-slate-300 border-slate-200 dark:border-slate-800">
-              Node ID: {nodeId}
-            </Badge>
+            {renderNodeIdBadge()}
             
             <Button
               variant="outline"
@@ -613,7 +638,6 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
           
           <p className="text-sm">{formattedStep}</p>
           
-          {/* Display answer immediately if available, even when not expanded */}
           {displayAnswer && !expanded && (
             <div className="mt-2 text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20 p-2 rounded border border-emerald-100 dark:border-emerald-900">
               <div className="font-medium text-xs mb-1 flex items-center gap-1">
@@ -624,11 +648,10 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
             </div>
           )}
           
-          {/* Always show findings summary to make them more visible */}
           {hasFindingsForStep && !expanded && (
             <div className="mt-2 flex flex-wrap gap-2">
               {relevantFindings.slice(0, 3).map((finding, idx) => (
-                <Badge key={idx} variant="outline" className="bg-blue-50/80 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 py-1">
+                <Badge key={idx} variant="outline" className="bg-blue-50/80 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 py-1 finding-badge">
                   <Book className="h-3 w-3 mr-1" />
                   <span className="truncate max-w-[200px]">
                     {finding.finding?.title || extractDomain(finding.source)}
@@ -636,7 +659,7 @@ const ReasoningStep: React.FC<ReasoningStepProps> = ({
                 </Badge>
               ))}
               {relevantFindings.length > 3 && (
-                <Badge variant="outline" className="bg-blue-50/80 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 py-1">
+                <Badge variant="outline" className="bg-blue-50/80 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800 py-1 finding-badge">
                   +{relevantFindings.length - 3} more
                 </Badge>
               )}

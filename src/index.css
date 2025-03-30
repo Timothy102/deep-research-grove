@@ -1,3 +1,4 @@
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
@@ -185,4 +186,22 @@
 
 .dark .bg-gray-100 {
   @apply bg-gray-800-40 text-gray-300 border-gray-700;
+}
+
+/* Fix for processing badge in dark mode */
+.dark .processing-badge {
+  @apply bg-gray-700 text-gray-200 border-gray-600;
+}
+
+.dark .finding-badge {
+  @apply bg-blue-900/60 text-blue-200 border-blue-700;
+}
+
+.dark .node-id-badge {
+  @apply bg-gray-800/70 text-gray-300 border-gray-700;
+}
+
+/* Fix for step indicators in dark mode */
+.dark .step-indicator {
+  @apply bg-gray-800 text-gray-300 border border-gray-700;
 }
