@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, User, LogOut, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, Brain, FileText, Settings } from "lucide-react";
+import { Loader2, Search, User, LogOut, MessageSquarePlus, Brain, FileText } from "lucide-react";
 import { 
   saveResearchHistory, 
   getResearchHistory, 
@@ -140,10 +140,17 @@ const ResearchPage = () => {
     loadSessionData(sessionId);
     loadUserModels();
     
+    const handleSidebarToggle = (event: CustomEvent) => {
+      setSidebarOpen(event.detail.open);
+    };
+    
+    window.addEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
+    
     return () => {
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
       }
+      window.removeEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
     };
   }, [user, navigate, sessionId]);
 
@@ -170,7 +177,6 @@ const ResearchPage = () => {
         setExpertiseLevel(model.expertise_level);
         setSelectedCognitiveStyle(model.cognitive_style);
         
-        // Inform the user that the model has been selected
         toast.success(`Selected user model: ${model.name}`);
       }
     } catch (error) {
@@ -247,7 +253,6 @@ const ResearchPage = () => {
       if (sessionState.research_id) {
         researchIdRef.current = sessionState.research_id;
         
-        // Restore all session state
         if (sessionState.query) {
           setResearchObjective(sessionState.query);
         }
@@ -268,7 +273,6 @@ const ResearchPage = () => {
           setReasoningPath(sessionState.reasoning_path);
         }
         
-        // Check for pending human interactions
         if (sessionState.status === 'awaiting_human_input' && sessionState.human_interactions) {
           let interactions: HumanInteraction[] = [];
           
@@ -283,13 +287,11 @@ const ResearchPage = () => {
             interactions = sessionState.human_interactions as HumanInteraction[];
           }
                 
-          // Find the last unanswered interaction request
           const lastInteraction = interactions
             .filter(interaction => interaction.type === 'interaction_request')
             .pop();
             
           if (lastInteraction) {
-            // Restore the human interaction request
             const approvalRequest: HumanApprovalRequest = {
               call_id: lastInteraction.call_id,
               node_id: lastInteraction.node_id,
@@ -308,7 +310,6 @@ const ResearchPage = () => {
         if (sessionState.active_tab) {
           setActiveTab(sessionState.active_tab);
         } else {
-          // Set appropriate active tab based on status
           if (sessionState.status === 'awaiting_human_input') {
             setActiveTab('reasoning');
           } else if (sessionState.status === 'in_progress') {
@@ -420,7 +421,6 @@ const ResearchPage = () => {
         }).catch(err => console.error("Error saving initial research state:", err));
       }
       
-      // Always use claude-3.5-sonnet when auto is selected
       const modelToUse = selectedLLM === 'auto' ? 'claude-3.5-sonnet' : selectedLLM;
       startResearchStream(userModelPayload, newResearchId, query, modelToUse);
       
@@ -1000,28 +1000,6 @@ const ResearchPage = () => {
       </header>
 
       <div className="flex flex-1 overflow-hidden relative">
-        <div className="absolute left-0 top-0 bottom-0 flex flex-col justify-start items-center py-4 px-2 z-10 space-y-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            className="rounded-full"
-            aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-          >
-            {sidebarOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate("/profile")}
-            className="rounded-full"
-            aria-label="Profile settings"
-          >
-            <Settings className="h-5 w-5" />
-          </Button>
-        </div>
-
         <ResearchHistorySidebar 
           isOpen={sidebarOpen}
           history={groupedHistory}
@@ -1033,7 +1011,7 @@ const ResearchPage = () => {
         <main className={cn(
           "flex-1 flex flex-col overflow-hidden transition-all duration-200 ease-in-out",
           sidebarOpen && "lg:ml-72",
-          !sidebarOpen && "ml-12"
+          !sidebarOpen && "ml-0"
         )}>
           {researchObjective ? (
             <>

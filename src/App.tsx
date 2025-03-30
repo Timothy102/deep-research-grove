@@ -7,6 +7,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster as SonnerToaster } from 'sonner';
 import { Toaster } from '@/components/ui/toaster';
 import { useEffect, useState } from 'react';
+import { PanelLeftOpen, Settings } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { LOCAL_STORAGE_KEYS } from '@/lib/constants';
+import { useNavigate } from 'react-router-dom';
 
 import ResearchPage from './pages/ResearchPage';
 import ProfilePage from './pages/ProfilePage';
@@ -25,9 +29,50 @@ const configureModalApiProxy = () => {
 
 const queryClient = new QueryClient();
 
+function SidebarButtons() {
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const savedState = localStorage.getItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE);
+    return savedState !== null ? savedState === 'true' : false;
+  });
+
+  const toggleSidebar = () => {
+    const newState = !sidebarOpen;
+    setSidebarOpen(newState);
+    localStorage.setItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE, String(newState));
+    // Dispatch a custom event that ResearchPage can listen for
+    window.dispatchEvent(new CustomEvent('sidebar-toggle', { detail: { open: newState } }));
+  };
+
+  return (
+    <div className="fixed left-0 top-1/2 -translate-y-1/2 flex flex-col items-center z-50 p-2 space-y-4">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleSidebar}
+        className="rounded-full bg-background border shadow-sm"
+        aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+      >
+        <PanelLeftOpen className="h-5 w-5" />
+      </Button>
+      
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => navigate("/profile")}
+        className="rounded-full bg-background border shadow-sm"
+        aria-label="Profile settings"
+      >
+        <Settings className="h-5 w-5" />
+      </Button>
+    </div>
+  );
+}
+
 function AppRoutes() {
-  const [lastPath, setLastPath] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
+  const [lastPath, setLastPath] = useState<string | null>(null);
 
   useEffect(() => {
     // Configure CORS proxy
@@ -35,8 +80,14 @@ function AppRoutes() {
     
     // Get the last path from local storage on initial load
     const savedPath = localStorage.getItem('lastPath');
-    if (savedPath) {
+    if (savedPath && window.location.pathname === '/') {
       setLastPath(savedPath);
+      // Only redirect if explicitly coming from another page
+      // Don't redirect if the user is intentionally visiting the root
+      const referrer = document.referrer;
+      if (referrer && referrer.includes(window.location.host)) {
+        setShouldRedirect(true);
+      }
     }
     setIsLoading(false);
 
@@ -76,21 +127,24 @@ function AppRoutes() {
     return null;
   }
 
-  // Always redirect from root to lastPath if available
-  if (window.location.pathname === '/' && lastPath && lastPath !== '/') {
+  // Only redirect if we explicitly want to
+  if (shouldRedirect && lastPath && lastPath !== '/' && window.location.pathname === '/') {
     console.log(`[${new Date().toISOString()}] 🔄 Redirecting to last path:`, lastPath);
     return <Navigate to={lastPath} replace />;
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/auth" element={<AuthPage />} />
-      <Route path="/research/:sessionId?" element={<ResearchPage />} />
-      <Route path="/profile" element={<ProfilePage />} />
-      <Route path="/models" element={<UserModelsPage />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <>
+      <SidebarButtons />
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/research/:sessionId?" element={<ResearchPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/models" element={<UserModelsPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
   );
 }
 
