@@ -33,7 +33,7 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
 
   if (!output.trim()) {
     return (
-      <div className="text-center space-y-6 mt-8">
+      <div className="text-center space-y-6 py-8">
         {userName ? (
           <div className="space-y-4">
             <h2 className="text-2xl font-bold">Hey, {userName}</h2>
@@ -54,9 +54,11 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
                           <Badge variant="outline" className="text-xs ml-1 px-1 py-0">Default</Badge>
                         )}
                       </div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {model.domain && <span>{model.domain}</span>}
-                      </div>
+                      {model.domain && (
+                        <div className="text-xs text-muted-foreground truncate">
+                          {model.domain}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}

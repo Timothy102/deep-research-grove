@@ -11,6 +11,7 @@ import { PanelLeftOpen, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LOCAL_STORAGE_KEYS } from '@/lib/constants';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
 
 import ResearchPage from './pages/ResearchPage';
 import ProfilePage from './pages/ProfilePage';
@@ -37,8 +38,8 @@ function SidebarButtons() {
     return savedState !== null ? savedState === 'true' : false;
   });
 
-  // Only show on research pages
-  const isResearchPage = location.pathname.includes('/research');
+  // Only show on research pages with session ID
+  const isResearchPage = location.pathname.includes('/research/');
   
   if (!isResearchPage) {
     return null;
@@ -164,7 +165,8 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth" element={<AuthPage />} />
-        <Route path="/research/:sessionId?" element={<ResearchPage />} />
+        <Route path="/research" element={<Navigate to={`/research/${uuidv4()}`} replace />} />
+        <Route path="/research/:sessionId" element={<ResearchPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/models" element={<UserModelsPage />} />
         <Route path="*" element={<NotFound />} />
