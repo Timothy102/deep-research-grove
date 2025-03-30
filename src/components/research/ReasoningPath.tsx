@@ -41,18 +41,15 @@ const ReasoningPath = ({
   const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings);
   const [sessionLoaded, setSessionLoaded] = useState(false);
   
-  // Load from localStorage on mount and when sessionId changes
   useEffect(() => {
     if (!sessionId) return;
     
     try {
-      // First try to load comprehensive session data
       const sessionData = getSessionData(sessionId);
       
       if (sessionData) {
         console.log(`[${new Date().toISOString()}] 📂 Loading session data for ${sessionId}`);
         
-        // Update reasoning path if available
         if (sessionData.reasoningPathKey && Array.isArray(sessionData.reasoningPathKey)) {
           if (reasoningPath.length === 0 || sessionData.reasoningPathKey.length > reasoningPath.length) {
             setDisplayReasoningPath(sessionData.reasoningPathKey);
@@ -60,7 +57,6 @@ const ReasoningPath = ({
           }
         }
         
-        // Update findings if available
         if (sessionData.findingsKey && Array.isArray(sessionData.findingsKey)) {
           if (findings.length === 0 || sessionData.findingsKey.length > findings.length) {
             setDisplayFindings(sessionData.findingsKey);
@@ -72,8 +68,6 @@ const ReasoningPath = ({
         return;
       }
       
-      // Fallback to individual components
-      // Try to load session-specific reasoning path
       const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
       const sessionPathCache = localStorage.getItem(sessionPathKey);
       
@@ -87,7 +81,6 @@ const ReasoningPath = ({
         }
       }
       
-      // Try to load session-specific findings
       const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
       const sessionFindingsCache = localStorage.getItem(sessionFindingsKey);
       
@@ -108,7 +101,6 @@ const ReasoningPath = ({
     }
   }, [sessionId]);
   
-  // Fallback to global cache if needed
   useEffect(() => {
     if (sessionLoaded) return;
     
@@ -139,12 +131,10 @@ const ReasoningPath = ({
     }
   }, [sessionLoaded, displayReasoningPath.length, displayFindings.length, reasoningPath.length, findings.length]);
   
-  // Update state and localStorage when props change
   useEffect(() => {
     if (reasoningPath.length > 0) {
       setDisplayReasoningPath(reasoningPath);
       
-      // Save to both global and session-specific cache
       try {
         localStorage.setItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, JSON.stringify(reasoningPath));
         
@@ -152,7 +142,6 @@ const ReasoningPath = ({
           const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
           localStorage.setItem(sessionPathKey, JSON.stringify(reasoningPath));
           
-          // Also update comprehensive session data
           saveSessionData(sessionId, {
             reasoningPath: reasoningPath
           });
@@ -165,7 +154,6 @@ const ReasoningPath = ({
     if (findings.length > 0) {
       setDisplayFindings(findings);
       
-      // Save to both global and session-specific cache
       try {
         localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(findings));
         
@@ -173,7 +161,6 @@ const ReasoningPath = ({
           const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
           localStorage.setItem(sessionFindingsKey, JSON.stringify(findings));
           
-          // Also update comprehensive session data
           saveSessionData(sessionId, {
             findings: findings
           });
@@ -183,14 +170,12 @@ const ReasoningPath = ({
       }
     }
     
-    // Save raw data if available
     if (sessionId && Object.keys(rawData).length > 0) {
       try {
         const rawDataKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.RAW_DATA_CACHE, sessionId);
         localStorage.setItem(rawDataKey, JSON.stringify(rawData));
         localStorage.setItem(LOCAL_STORAGE_KEYS.RAW_DATA_CACHE, JSON.stringify(rawData));
         
-        // Update comprehensive session data
         saveSessionData(sessionId, {
           rawData: rawData
         });
@@ -219,7 +204,7 @@ const ReasoningPath = ({
   });
   
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 px-2 md:px-4 mx-auto max-w-3xl">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">Research Planning</h3>
         <Badge variant="outline" className="text-xs">
@@ -227,7 +212,7 @@ const ReasoningPath = ({
         </Badge>
       </div>
       
-      <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pb-8">
+      <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pb-8 md:pb-20">
         {displayReasoningPath.map((step, index) => {
           const nodeId = step.match(/node(?:_id|[\s_]id)?:?\s*['"]?([a-zA-Z0-9_-]+)['"]?/i)?.[1] || 
                       step.match(/node\s+(\d+)|#(\d+)/i)?.[1] || 

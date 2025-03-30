@@ -112,12 +112,12 @@ function SidebarButtons() {
   }
 
   return (
-    <div className="fixed left-0 top-20 flex flex-col items-center z-50 p-2 space-y-4">
+    <div className="fixed left-3 bottom-4 flex flex-row items-center z-40 p-2 space-x-3 bg-background/80 backdrop-blur-sm rounded-full shadow-md border">
       <Button
         variant="ghost"
         size="icon"
         onClick={handleNewChat}
-        className="rounded-full bg-background border shadow-sm"
+        className="rounded-full bg-background hover:bg-secondary"
         aria-label="New chat"
       >
         <Plus className="h-5 w-5" />
@@ -127,7 +127,7 @@ function SidebarButtons() {
         variant="ghost"
         size="icon"
         onClick={toggleSidebar}
-        className="rounded-full bg-background border shadow-sm"
+        className="rounded-full bg-background hover:bg-secondary"
         aria-label="Research history"
       >
         <History className="h-5 w-5" />

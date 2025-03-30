@@ -41,3 +41,43 @@ textarea:placeholder-shown {
   background-color: hsl(var(--primary) / 0.1);
   border-color: hsl(var(--primary) / 0.3);
 }
+
+/* Research planning section improvements */
+.research-planning-container {
+  margin: 0 auto;
+  max-width: calc(100% - 2rem);
+  position: relative;
+  z-index: 10;
+}
+
+/* Improve the Research History sidebar button positioning */
+.sidebar-button-container {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  bottom: 1rem;
+  left: 1rem;
+  border-radius: 9999px;
+  padding: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(8px);
+}
+
+/* Ensure research steps have proper spacing at the bottom to avoid button overlap */
+.reasoning-steps-container {
+  margin-bottom: 4rem;
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 640px) {
+  .sidebar-button-container {
+    bottom: 0.5rem;
+    left: 0.5rem;
+  }
+  
+  .research-planning-container {
+    max-width: 100%;
+    padding: 0 0.5rem;
+  }
+}

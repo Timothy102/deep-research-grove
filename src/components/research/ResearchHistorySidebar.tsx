@@ -59,7 +59,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
 
   return (
     <Sheet open={isOpen} onOpenChange={onToggle}>
-      <SheetContent side="left" className="w-3/4 sm:w-2/3 md:w-1/2 lg:w-2/5 xl:w-1/4 p-0 shadow-xl">
+      <SheetContent side="left" className="w-3/4 sm:w-2/3 md:w-1/2 lg:w-2/5 xl:w-1/4 p-0 shadow-xl z-50">
         <SheetHeader className="pl-6 pr-4 pt-6 pb-0">
           <div className="flex items-center justify-between">
             <SheetTitle>Research History</SheetTitle>
@@ -71,7 +71,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
           </div>
         </SheetHeader>
         
-        <div className="py-2">
+        <div className="py-2 overflow-y-auto max-h-[calc(100vh-120px)]">
           {history.length === 0 ? (
             <div className="px-6 py-4 text-sm text-muted-foreground">
               No research history available. Start a new search to see results here.
