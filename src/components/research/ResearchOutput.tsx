@@ -42,12 +42,8 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
             <h2 className="text-2xl font-bold">Hey, {userName}</h2>
             <p className="text-muted-foreground text-lg">Who are you today?</p>
             
-            <div className="flex items-center justify-between mb-2 max-w-4xl mx-auto">
-              <span className="text-sm text-muted-foreground">Your user models</span>
-            </div>
-            
             {userModels && userModels.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 max-w-4xl mx-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-w-4xl mx-auto">
                 {userModels.map((model) => (
                   <Card 
                     key={model?.id || Math.random().toString()} 

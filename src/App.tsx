@@ -1,3 +1,4 @@
+
 import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './components/auth/AuthContext';
@@ -6,10 +7,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster as SonnerToaster } from 'sonner';
 import { Toaster } from '@/components/ui/toaster';
 import { useEffect, useState } from 'react';
-import { PanelLeftOpen, History } from 'lucide-react';
+import { Plus, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LOCAL_STORAGE_KEYS } from '@/lib/constants';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import ResearchPage from './pages/ResearchPage';
 import ProfilePage from './pages/ProfilePage';
@@ -30,6 +31,7 @@ const queryClient = new QueryClient();
 
 function SidebarButtons() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     const savedState = localStorage.getItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE);
     return savedState !== null ? savedState === 'true' : false;
@@ -55,17 +57,26 @@ function SidebarButtons() {
     window.dispatchEvent(new CustomEvent('sidebar-toggle', { detail: { open: newState } }));
   };
 
-  // Always show the buttons regardless of sidebar state
+  const handleNewChat = () => {
+    const newSessionId = crypto.randomUUID();
+    navigate(`/research/${newSessionId}`);
+  };
+
+  // Only show buttons on research page
+  if (!location.pathname.includes('/research')) {
+    return null;
+  }
+
   return (
-    <div className="fixed left-0 top-1/4 -translate-y-1/2 flex flex-col items-center z-50 p-2 space-y-4">
+    <div className="fixed left-0 top-20 flex flex-col items-center z-50 p-2 space-y-4">
       <Button
         variant="ghost"
         size="icon"
-        onClick={toggleSidebar}
+        onClick={handleNewChat}
         className="rounded-full bg-background border shadow-sm"
-        aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
+        aria-label="New chat"
       >
-        <PanelLeftOpen className="h-5 w-5" />
+        <Plus className="h-5 w-5" />
       </Button>
       
       <Button

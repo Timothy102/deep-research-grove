@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
   Sheet,
@@ -49,7 +50,6 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
           ) : (
             history.map((group, index) => (
               <div key={index} className="mb-4">
-                {index !== 0 && <Separator className="my-2" />}
                 <h3 className="px-6 py-2 text-sm font-medium">{group.date === 'Today' ? 'Today' : group.date}</h3>
                 <ul>
                   {group.items.map((item: any) => (
