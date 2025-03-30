@@ -208,28 +208,8 @@ const ResearchPage = () => {
       )}
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-auto px-6 py-6">
-          {!researchOutput && reasoningPath.length === 0 ? (
-            <ResearchOutput output="" isLoading={false} />
-          ) : isLoading ? (
-            <ReasoningPath 
-              reasoningPath={reasoningPath} 
-              sources={sources}
-              findings={findings}
-              isActive={true}
-              isLoading={isLoading}
-              rawData={{}}
-              sessionId={currentSessionIdRef.current || ""}
-            />
-          ) : (
-            <ResearchOutput 
-              output={researchOutput} 
-              isLoading={isLoading} 
-            />
-          )}
-        </div>
-        
-        <div className="p-6 border-t bg-white">
+        {/* Top part with the research form */}
+        <div className="border-b p-6">
           <div className="max-w-3xl mx-auto">
             <ResearchForm 
               isLoading={isLoading}
@@ -238,6 +218,30 @@ const ResearchPage = () => {
               setResearchObjective={setResearchObjective}
               simplified={false}
             />
+          </div>
+        </div>
+
+        {/* Main content area */}
+        <div className="flex-1 overflow-auto p-6">
+          <div className="max-w-3xl mx-auto">
+            {!researchOutput && reasoningPath.length === 0 ? (
+              <ResearchOutput output="" isLoading={false} />
+            ) : isLoading ? (
+              <ReasoningPath 
+                reasoningPath={reasoningPath} 
+                sources={sources}
+                findings={findings}
+                isActive={true}
+                isLoading={isLoading}
+                rawData={{}}
+                sessionId={currentSessionIdRef.current || ""}
+              />
+            ) : (
+              <ResearchOutput 
+                output={researchOutput} 
+                isLoading={isLoading} 
+              />
+            )}
           </div>
         </div>
       </main>

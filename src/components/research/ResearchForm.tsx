@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -183,42 +184,45 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   return (
     <Form {...form}>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="domain"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Domain</FormLabel>
-              <FormControl>
-                <Input placeholder="deep research" {...field} value={initialDomain} onChange={(e) => {
-                  form.setValue("domain", e.target.value)
-                }}/>
-              </FormControl>
-              <FormDescription>
-                What field of study are you researching?
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="expertiseLevel"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Expertise Level</FormLabel>
-              <FormControl>
-                <Input placeholder="expert" {...field} value={initialExpertiseLevel} onChange={(e) => {
-                  form.setValue("expertiseLevel", e.target.value)
-                }}/>
-              </FormControl>
-              <FormDescription>
-                What is your level of expertise in this field?
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="domain"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Domain</FormLabel>
+                <FormControl>
+                  <Input placeholder="deep research" {...field} value={initialDomain} onChange={(e) => {
+                    form.setValue("domain", e.target.value)
+                  }}/>
+                </FormControl>
+                <FormDescription>
+                  What field of study are you researching?
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="expertiseLevel"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Expertise Level</FormLabel>
+                <FormControl>
+                  <Input placeholder="expert" {...field} value={initialExpertiseLevel} onChange={(e) => {
+                    form.setValue("expertiseLevel", e.target.value)
+                  }}/>
+                </FormControl>
+                <FormDescription>
+                  What is your level of expertise in this field?
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
         <FormField
           control={form.control}
           name="userContext"
@@ -243,58 +247,62 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="cognitiveStyle"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Cognitive Style</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={initialCognitiveStyle}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a cognitive style" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="analytical">Analytical</SelectItem>
-                  <SelectItem value="creative">Creative</SelectItem>
-                  <SelectItem value="practical">Practical</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                What is your preferred cognitive style?
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="useCase"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Use Case</FormLabel>
-              <FormControl>
-                <Input placeholder="research" {...field} value={useCase} onChange={(e) => {
-                  setUseCase(e.target.value);
-                  form.setValue("useCase", e.target.value)
-                }}/>
-              </FormControl>
-              <FormDescription>
-                What is the use case for this research?
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         
-        <div className="relative">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="cognitiveStyle"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cognitive Style</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={initialCognitiveStyle}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a cognitive style" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="analytical">Analytical</SelectItem>
+                    <SelectItem value="creative">Creative</SelectItem>
+                    <SelectItem value="practical">Practical</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  What is your preferred cognitive style?
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="useCase"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Use Case</FormLabel>
+                <FormControl>
+                  <Input placeholder="research" {...field} value={useCase} onChange={(e) => {
+                    setUseCase(e.target.value);
+                    form.setValue("useCase", e.target.value)
+                  }}/>
+                </FormControl>
+                <FormDescription>
+                  What is the use case for this research?
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <div className="relative mt-4">
           <Input
             placeholder="How can I help you today?"
             value={query}
             onChange={handleQueryChange}
             disabled={isLoading}
-            className="pr-20"
+            className="pr-20 py-6 text-base"
           />
           <Button 
             type="submit" 
