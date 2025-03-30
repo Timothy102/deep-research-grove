@@ -111,6 +111,7 @@ const ResearchPage = () => {
   const [selectedLLM, setSelectedLLM] = useState("auto");
   const [rawData, setRawData] = useState<Record<string, string>>({});
   const [userModels, setUserModels] = useState<UserModel[]>([]);
+  const [displayName, setDisplayName] = useState<string>("");
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
@@ -133,6 +134,19 @@ const ResearchPage = () => {
     console.log(`[${new Date().toISOString()}] 🔑 Active client ID:`, clientIdRef.current);
     
     currentSessionIdRef.current = sessionId;
+    
+    if (user) {
+      const metadata = user.user_metadata || {};
+      const name = metadata.full_name || metadata.name || null;
+      
+      if (name) {
+        setDisplayName(name);
+      } else {
+        const email = user.email || "";
+        const username = email.split('@')[0];
+        setDisplayName(username);
+      }
+    }
     
     checkOnboardingStatus();
     resetResearchState();
@@ -1075,7 +1089,7 @@ const ResearchPage = () => {
                 <div className="mb-8">
                   <ResearchOutput 
                     output="" 
-                    userName={user?.email?.split('@')[0] || "researcher"}
+                    userName={displayName || user?.email?.split('@')[0] || "researcher"}
                     userModels={userModels}
                     onSelectModel={selectUserModel}
                   />

@@ -1,4 +1,3 @@
-
 import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './components/auth/AuthContext';
@@ -7,7 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster as SonnerToaster } from 'sonner';
 import { Toaster } from '@/components/ui/toaster';
 import { useEffect, useState } from 'react';
-import { PanelLeftOpen, Settings, History } from 'lucide-react';
+import { PanelLeftOpen, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LOCAL_STORAGE_KEYS } from '@/lib/constants';
 import { useNavigate } from 'react-router-dom';
@@ -56,13 +55,9 @@ function SidebarButtons() {
     window.dispatchEvent(new CustomEvent('sidebar-toggle', { detail: { open: newState } }));
   };
 
-  // Hide buttons completely when sidebar is open
-  if (sidebarOpen) {
-    return null;
-  }
-
+  // Always show the buttons regardless of sidebar state
   return (
-    <div className="fixed left-0 top-1/2 -translate-y-1/2 flex flex-col items-center z-50 p-2 space-y-4">
+    <div className="fixed left-0 top-1/4 -translate-y-1/2 flex flex-col items-center z-50 p-2 space-y-4">
       <Button
         variant="ghost"
         size="icon"
@@ -81,16 +76,6 @@ function SidebarButtons() {
         aria-label="Research history"
       >
         <History className="h-5 w-5" />
-      </Button>
-      
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => navigate("/profile")}
-        className="rounded-full bg-background border shadow-sm"
-        aria-label="Profile settings"
-      >
-        <Settings className="h-5 w-5" />
       </Button>
     </div>
   );

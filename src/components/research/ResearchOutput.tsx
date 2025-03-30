@@ -3,8 +3,6 @@ import React from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export interface ResearchOutputProps {
@@ -46,14 +44,6 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
             
             <div className="flex items-center justify-between mb-2 max-w-4xl mx-auto">
               <span className="text-sm text-muted-foreground">Your user models</span>
-              <Button 
-                size="sm" 
-                className="flex items-center gap-1"
-                onClick={() => navigate('/models')}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Create New</span>
-              </Button>
             </div>
             
             {userModels && userModels.length > 0 ? (
