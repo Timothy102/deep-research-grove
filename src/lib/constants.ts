@@ -9,7 +9,10 @@ export const LOCAL_STORAGE_KEYS = {
   REASONING_PATH_CACHE: "deepresearch.reasoning_path_cache",
   ANSWER_CACHE: "deepresearch.answer_cache",
   SESSION_DATA_CACHE: "deepresearch.session_data_cache",
-  SIDEBAR_STATE: "deepresearch.sidebar_state"
+  SIDEBAR_STATE: "deepresearch.sidebar_state",
+  RESEARCH_OBJECTIVE: "deepresearch.research_objective",
+  STEPS_CACHE: "deepresearch.steps_cache",
+  RAW_DATA_CACHE: "deepresearch.raw_data_cache"
 };
 
 // Session-specific keys

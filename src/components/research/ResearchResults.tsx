@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator";
 import { ExternalLink, Copy, CheckCircle2, MessageSquare } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
+import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
 
 export type Finding = {
   content: string;
@@ -125,6 +126,30 @@ const ResearchAnswer = ({ answer }: { answer: string }) => {
 const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const resultRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  
+  // Cache result in localStorage when it changes
+  useEffect(() => {
+    if (result) {
+      try {
+        // Store in both session-specific and general caches
+        localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(result));
+        
+        if (result.session_id) {
+          const sessionCacheKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, result.session_id);
+          localStorage.setItem(sessionCacheKey, JSON.stringify(result));
+          
+          // Also update sources and reasoning path caches for this session
+          const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, result.session_id);
+          localStorage.setItem(sessionSourcesKey, JSON.stringify(result.sources));
+          
+          const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, result.session_id);
+          localStorage.setItem(sessionPathKey, JSON.stringify(result.reasoning_path));
+        }
+      } catch (e) {
+        console.error("Error caching research result:", e);
+      }
+    }
+  }, [result]);
 
   useEffect(() => {
     if (result && resultRef.current) {
