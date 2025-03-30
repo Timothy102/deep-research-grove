@@ -18,7 +18,7 @@ const LandingPage = () => {
               alt="Deep Research" 
               className="h-8 w-auto mr-2" 
             />
-            <span className="text-lg font-medium">DeepResearch</span>
+            <span className="text-lg font-medium">deep research</span>
           </a>
         </div>
         <div className="flex items-center space-x-4">
