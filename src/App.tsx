@@ -28,6 +28,7 @@ const queryClient = new QueryClient();
 function AppRoutes() {
   const [lastPath, setLastPath] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [directNavigationToRoot, setDirectNavigationToRoot] = useState(false);
 
   useEffect(() => {
     // Configure CORS proxy
@@ -39,6 +40,11 @@ function AppRoutes() {
       setLastPath(savedPath);
     }
     setIsLoading(false);
+
+    // Check if user directly navigated to root
+    if (window.location.pathname === '/') {
+      setDirectNavigationToRoot(true);
+    }
 
     // Save current path to localStorage whenever it changes
     const saveCurrentPath = () => {
@@ -57,6 +63,13 @@ function AppRoutes() {
     // Also save when routes change within the app
     const handleRouteChange = () => {
       saveCurrentPath();
+      
+      // Update directNavigationToRoot flag when URL changes
+      if (window.location.pathname === '/') {
+        setDirectNavigationToRoot(true);
+      } else {
+        setDirectNavigationToRoot(false);
+      }
     };
     
     window.addEventListener('popstate', handleRouteChange);
@@ -76,8 +89,9 @@ function AppRoutes() {
     return null;
   }
 
-  // Always redirect from root to lastPath if available
-  if (window.location.pathname === '/' && lastPath && lastPath !== '/') {
+  // Only redirect if we're at root AND it's not a direct navigation to root
+  // AND there's a saved last path
+  if (window.location.pathname === '/' && !directNavigationToRoot && lastPath && lastPath !== '/') {
     console.log(`[${new Date().toISOString()}] 🔄 Redirecting to last path:`, lastPath);
     return <Navigate to={lastPath} replace />;
   }
