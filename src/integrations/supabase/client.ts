@@ -49,7 +49,8 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
   },
   // Add persistent storage options for better session management
   global: {
-    fetch: (...args) => fetch(...args),
+    // Fix: Remove the spread operator and properly define the fetch function
+    fetch: (input, init) => fetch(input, init),
   },
   db: {
     schema: 'public',
