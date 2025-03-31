@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ExternalLink, Copy, CheckCircle2, MessageSquare } from "lucide-react";
@@ -128,52 +128,146 @@ const ResearchAnswer = ({ answer }: { answer: string }) => {
 const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const resultRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const [currentResult, setCurrentResult] = useState<ResearchResult | null>(result);
+  
+  // Handle real-time updates
+  const handleRealtimeUpdate = useCallback((event: CustomEvent) => {
+    if (!currentResult?.session_id) return;
+    
+    const payload = event.detail?.payload;
+    if (!payload || payload.table !== 'research_states') return;
+    
+    if (payload.new && payload.new.session_id === currentResult.session_id) {
+      console.log(`[${new Date().toISOString()}] 🔄 Processing result update for session ${currentResult.session_id}`);
+      
+      // Check if there are meaningful updates to apply
+      let shouldUpdate = false;
+      const updates: Partial<ResearchResult> = {};
+      
+      if (payload.new.answer && payload.new.answer !== currentResult.answer) {
+        updates.answer = payload.new.answer;
+        shouldUpdate = true;
+      }
+      
+      if (payload.new.sources && Array.isArray(payload.new.sources) && 
+          (payload.new.sources.length > (currentResult.sources?.length || 0))) {
+        updates.sources = payload.new.sources;
+        shouldUpdate = true;
+      }
+      
+      if (payload.new.reasoning_path && Array.isArray(payload.new.reasoning_path) && 
+          (payload.new.reasoning_path.length > (currentResult.reasoning_path?.length || 0))) {
+        updates.reasoning_path = payload.new.reasoning_path;
+        shouldUpdate = true;
+      }
+      
+      if (shouldUpdate) {
+        console.log(`[${new Date().toISOString()}] ✏️ Updating result with real-time data:`, updates);
+        
+        // Create a new result with the updates
+        const updatedResult: ResearchResult = {
+          ...currentResult,
+          ...updates,
+        };
+        
+        setCurrentResult(updatedResult);
+        
+        // Store updates in cache
+        try {
+          localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(updatedResult));
+          if (currentResult.session_id) {
+            const sessionCacheKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, currentResult.session_id);
+            localStorage.setItem(sessionCacheKey, JSON.stringify(updatedResult));
+            
+            saveSessionData(currentResult.session_id, {
+              answer: updatedResult,
+              sources: updatedResult.sources,
+              reasoningPath: updatedResult.reasoning_path
+            });
+          }
+        } catch (e) {
+          console.error("Error caching updated research result:", e);
+        }
+        
+        // Show a toast notification for the update
+        if (updates.answer) {
+          toast.info("Research answer has been updated", {
+            className: "realtime-update-toast"
+          });
+        } else if (updates.sources) {
+          toast.info(`${updates.sources.length} sources now available`, {
+            className: "realtime-update-toast"
+          });
+        } else if (updates.reasoning_path) {
+          toast.info(`Research progress: ${updates.reasoning_path.length} steps completed`, {
+            className: "realtime-update-toast"
+          });
+        }
+      }
+    }
+  }, [currentResult]);
+  
+  // Register and unregister the realtime update listener
+  useEffect(() => {
+    window.addEventListener('research_state_update', handleRealtimeUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('research_state_update', handleRealtimeUpdate as EventListener);
+    };
+  }, [handleRealtimeUpdate]);
+  
+  // Initialize with the provided result
+  useEffect(() => {
+    if (result) {
+      setCurrentResult(result);
+    }
+  }, [result]);
   
   // Cache result in localStorage when it changes
   useEffect(() => {
-    if (result) {
+    if (currentResult) {
       try {
         // Store in both session-specific and general caches
-        localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(result));
+        localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(currentResult));
         
-        if (result.session_id) {
+        if (currentResult.session_id) {
           // Use comprehensive session data storage
-          saveSessionData(result.session_id, {
-            answer: result,
-            sources: result.sources,
-            reasoningPath: result.reasoning_path,
-            researchId: result.research_id,
+          saveSessionData(currentResult.session_id, {
+            answer: currentResult,
+            sources: currentResult.sources,
+            reasoningPath: currentResult.reasoning_path,
+            researchId: currentResult.research_id,
             state: {
-              query: result.query,
-              session_id: result.session_id,
-              research_id: result.research_id,
+              query: currentResult.query,
+              session_id: currentResult.session_id,
+              research_id: currentResult.research_id,
               created_at: new Date().toISOString()
             }
           });
           
           // Also save individual cache components for backward compatibility
-          const sessionCacheKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, result.session_id);
-          localStorage.setItem(sessionCacheKey, JSON.stringify(result));
+          const sessionCacheKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, currentResult.session_id);
+          localStorage.setItem(sessionCacheKey, JSON.stringify(currentResult));
           
-          const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, result.session_id);
-          localStorage.setItem(sessionSourcesKey, JSON.stringify(result.sources));
+          const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, currentResult.session_id);
+          localStorage.setItem(sessionSourcesKey, JSON.stringify(currentResult.sources));
           
-          const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, result.session_id);
-          localStorage.setItem(sessionPathKey, JSON.stringify(result.reasoning_path));
+          const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, currentResult.session_id);
+          localStorage.setItem(sessionPathKey, JSON.stringify(currentResult.reasoning_path));
         }
       } catch (e) {
         console.error("Error caching research result:", e);
       }
     }
-  }, [result]);
+  }, [currentResult]);
 
   useEffect(() => {
-    if (result && resultRef.current) {
+    if (currentResult && resultRef.current) {
       resultRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [result]);
+  }, [currentResult]);
 
-  if (!result) {
+  if (!currentResult) {
     return (
       <div className="text-center py-12 text-muted-foreground">
         <p>No research results yet. Start a query to see results here.</p>
@@ -182,20 +276,20 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   }
 
   const handleSessionClick = () => {
-    if (result.session_id) {
+    if (currentResult.session_id) {
       // Save current session ID for proper restoration
-      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, result.session_id);
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, currentResult.session_id);
       
       // Trigger session-selected event for better coordination
       window.dispatchEvent(new CustomEvent('session-selected', { 
         detail: { 
-          sessionId: result.session_id,
-          query: result.query,
+          sessionId: currentResult.session_id,
+          query: currentResult.query,
           isNew: false
         }
       }));
       
-      navigate(`/research/${result.session_id}`);
+      navigate(`/research/${currentResult.session_id}`);
     }
   };
 
@@ -204,7 +298,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold mb-1">Research Results</h2>
-          {result.session_id && (
+          {currentResult.session_id && (
             <Button 
               variant="ghost" 
               size="sm" 
@@ -216,31 +310,31 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
             </Button>
           )}
         </div>
-        <p className="text-sm text-muted-foreground">Query: {result.query}</p>
+        <p className="text-sm text-muted-foreground">Query: {currentResult.query}</p>
       </div>
 
       <Tabs defaultValue="answer">
         <TabsList className="mb-4">
           <TabsTrigger value="answer">Answer</TabsTrigger>
-          <TabsTrigger value="sources">Sources ({result.sources.length})</TabsTrigger>
+          <TabsTrigger value="sources">Sources ({currentResult.sources.length})</TabsTrigger>
           <TabsTrigger value="reasoning">Reasoning Path</TabsTrigger>
         </TabsList>
         
         <TabsContent value="answer">
-          <ResearchAnswer answer={result.answer} />
+          <ResearchAnswer answer={currentResult.answer} />
         </TabsContent>
         
         <TabsContent value="sources">
-          <SourcesList sources={result.sources} />
+          <SourcesList sources={currentResult.sources} />
         </TabsContent>
         
         <TabsContent value="reasoning">
-          <ReasoningPath path={result.reasoning_path} />
+          <ReasoningPath path={currentResult.reasoning_path} />
         </TabsContent>
       </Tabs>
       
       <div className="mt-6 text-sm text-right text-muted-foreground">
-        <span>Confidence score: {(result.confidence * 100).toFixed(1)}%</span>
+        <span>Confidence score: {(currentResult.confidence * 100).toFixed(1)}%</span>
       </div>
     </div>
   );

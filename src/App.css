@@ -64,9 +64,24 @@ textarea:placeholder-shown {
   backdrop-filter: blur(8px);
 }
 
-/* Ensure research steps have proper spacing at the bottom to avoid button overlap */
+/* Ensure research steps have proper spacing and display */
 .reasoning-steps-container {
   margin-bottom: 4rem;
+  padding-bottom: 2rem;
+  position: relative;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+/* Research step animation for new items */
+@keyframes highlight-new {
+  0% { background-color: hsl(var(--primary) / 0.2); }
+  100% { background-color: transparent; }
+}
+
+.reasoning-step-new {
+  animation: highlight-new 2s ease-out;
 }
 
 /* Advanced form layout improvements */
@@ -78,6 +93,12 @@ textarea:placeholder-shown {
 
 .advanced-form-grid .full-width {
   grid-column: 1 / -1;
+}
+
+/* Toast for real-time updates */
+.realtime-update-toast {
+  background-color: hsl(var(--primary) / 0.1);
+  border-left: 3px solid hsl(var(--primary));
 }
 
 /* Mobile-specific adjustments */
@@ -94,5 +115,9 @@ textarea:placeholder-shown {
   
   .advanced-form-grid {
     grid-template-columns: 1fr;
+  }
+  
+  .reasoning-steps-container {
+    margin-bottom: 5rem;
   }
 }

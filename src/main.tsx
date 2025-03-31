@@ -7,16 +7,29 @@ import HumanApprovalDialog from './components/research/HumanApprovalDialog.tsx';
 import { respondToApproval } from './services/humanLayerService.ts';
 import { supabase } from './integrations/supabase/client';
 
-// Enable realtime subscriptions for the research_states table
+// Enable realtime subscriptions with improved logging
 supabase.channel('research_states_changes')
   .on('postgres_changes', 
     { event: '*', schema: 'public', table: 'research_states' }, 
     (payload) => {
-      console.log(`[${new Date().toISOString()}] 📊 Realtime update from research_states:`, payload);
+      console.log(`[${new Date().toISOString()}] 📊 Realtime update received:`, payload);
+      
+      // Dispatch a custom event so components can react to it
+      window.dispatchEvent(new CustomEvent('research_state_update', { 
+        detail: { 
+          payload,
+          timestamp: new Date().toISOString()
+        }
+      }));
     }
   )
   .subscribe((status) => {
-    console.log(`[${new Date().toISOString()}] 🔌 Realtime status:`, status);
+    console.log(`[${new Date().toISOString()}] 🔌 Realtime connection status:`, status);
+    
+    // Notify when connection is established or reconnected
+    if (status === 'SUBSCRIBED') {
+      console.log(`[${new Date().toISOString()}] ✅ Realtime subscription active`);
+    }
   });
 
 // Global event handler for human interaction requests 

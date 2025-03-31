@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import ReasoningStep from "./ReasoningStep";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey, getSessionData, saveSessionData } from "@/lib/constants";
@@ -40,6 +41,76 @@ const ReasoningPath = ({
   const [displayReasoningPath, setDisplayReasoningPath] = useState<string[]>(reasoningPath);
   const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings);
   const [sessionLoaded, setSessionLoaded] = useState(false);
+  
+  // Handler for real-time updates
+  const handleRealtimeUpdate = useCallback((event: CustomEvent) => {
+    if (!sessionId) return;
+    
+    const payload = event.detail?.payload;
+    if (!payload || payload.table !== 'research_states') return;
+    
+    // Only process updates relevant to this session
+    if (payload.new && payload.new.session_id === sessionId) {
+      console.log(`[${new Date().toISOString()}] 🔄 Processing realtime update for session ${sessionId}`, payload);
+      
+      // Update reasoning path if it changed
+      if (payload.new.reasoning_path && Array.isArray(payload.new.reasoning_path)) {
+        const newPath = payload.new.reasoning_path;
+        if (newPath.length > displayReasoningPath.length) {
+          console.log(`[${new Date().toISOString()}] 📝 Updating reasoning path with ${newPath.length} steps`);
+          setDisplayReasoningPath(newPath);
+          
+          // Save to local storage for persistence
+          try {
+            localStorage.setItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, JSON.stringify(newPath));
+            if (sessionId) {
+              const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
+              localStorage.setItem(sessionPathKey, JSON.stringify(newPath));
+              
+              saveSessionData(sessionId, {
+                reasoningPath: newPath
+              });
+            }
+          } catch (e) {
+            console.error("Error saving reasoning path to cache:", e);
+          }
+        }
+      }
+      
+      // Update findings if they changed
+      if (payload.new.findings && Array.isArray(payload.new.findings)) {
+        const newFindings = payload.new.findings;
+        if (newFindings.length > displayFindings.length) {
+          console.log(`[${new Date().toISOString()}] 📊 Updating findings with ${newFindings.length} items`);
+          setDisplayFindings(newFindings);
+          
+          // Save to local storage for persistence
+          try {
+            localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(newFindings));
+            if (sessionId) {
+              const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
+              localStorage.setItem(sessionFindingsKey, JSON.stringify(newFindings));
+              
+              saveSessionData(sessionId, {
+                findings: newFindings
+              });
+            }
+          } catch (e) {
+            console.error("Error saving findings to cache:", e);
+          }
+        }
+      }
+    }
+  }, [sessionId, displayReasoningPath.length, displayFindings.length]);
+  
+  // Register and unregister the realtime update listener
+  useEffect(() => {
+    window.addEventListener('research_state_update', handleRealtimeUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('research_state_update', handleRealtimeUpdate as EventListener);
+    };
+  }, [handleRealtimeUpdate]);
   
   useEffect(() => {
     if (!sessionId) return;
@@ -212,7 +283,7 @@ const ReasoningPath = ({
         </Badge>
       </div>
       
-      <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pb-8 md:pb-20">
+      <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pb-8 md:pb-20 reasoning-steps-container">
         {displayReasoningPath.map((step, index) => {
           const nodeId = step.match(/node(?:_id|[\s_]id)?:?\s*['"]?([a-zA-Z0-9_-]+)['"]?/i)?.[1] || 
                       step.match(/node\s+(\d+)|#(\d+)/i)?.[1] || 
