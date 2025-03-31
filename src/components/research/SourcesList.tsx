@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { ExternalLink, Search, FileText, Lightbulb } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -227,11 +226,9 @@ const SourcesList: React.FC<SourcesListProps> = ({
     <div className={className}>
       <h3 className="font-medium mb-4 flex items-center justify-between">
         <span>Sources ({displaySources.length})</span>
-        {displayFindings.length > 0 && (
           <Badge variant="outline" className="text-xs">
             {displayFindings.length} finding{displayFindings.length !== 1 ? 's' : ''}
           </Badge>
-        )}
       </h3>
       <ScrollArea className="h-[calc(100vh-250px)]">
         <div className="space-y-3">

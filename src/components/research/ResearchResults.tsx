@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -101,7 +100,7 @@ const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Find
                   
                   <div className="flex items-center ml-2 space-x-2">
                     {sourceFindings.length > 0 && (
-                      <Badge variant="outline" size="sm" className="text-xs bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
+                      <Badge variant="outline" className="text-xs bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
                         {sourceFindings.length} 
                       </Badge>
                     )}
@@ -128,7 +127,7 @@ const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Find
                             {finding.finding?.summary || finding.content || "No content available"}
                           </p>
                           {finding.finding?.confidence_score && (
-                            <Badge className="mt-2 text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
+                            <Badge className="mt-2 text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300">
                               Confidence: {Math.round(finding.finding.confidence_score * 100)}%
                             </Badge>
                           )}
