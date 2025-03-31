@@ -291,10 +291,33 @@ const ReasoningPath = ({
     }
   });
   
+  const findingsByDomainKeyword: Record<string, Finding[]> = {};
+  displayFindings.forEach(finding => {
+    try {
+      if (finding.source && finding.source.startsWith('http')) {
+        const url = new URL(finding.source);
+        const domain = url.hostname.replace('www.', '');
+        const domainKey = domain.split('.')[0].toLowerCase();
+        
+        if (!findingsByDomainKeyword[domainKey]) {
+          findingsByDomainKeyword[domainKey] = [];
+        }
+        
+        if (!finding.node_id || !findingsByNodeId[finding.node_id]?.includes(finding)) {
+          findingsByDomainKeyword[domainKey].push(finding);
+        }
+      }
+    } catch {
+    }
+  });
+  
   return (
     <div className="space-y-4 px-2 md:px-4 mx-auto max-w-3xl">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">Research Planning</h3>
+        <h3 className="text-sm font-medium flex items-center gap-2">
+          Research Planning
+          {isLoading && <span className="inline-block h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>}
+        </h3>
         <Badge variant="outline" className="text-xs">
           {displayReasoningPath.length} step{displayReasoningPath.length !== 1 ? 's' : ''}
         </Badge>
@@ -326,18 +349,31 @@ const ReasoningPath = ({
           
           const nodeFindings = findingsByNodeId[nodeId] || [];
           
+          const stepLower = step.toLowerCase();
+          const keywordFindings: Finding[] = [];
+          
+          Object.entries(findingsByDomainKeyword).forEach(([keyword, domainFindings]) => {
+            if (stepLower.includes(keyword)) {
+              domainFindings.forEach(finding => {
+                if (!nodeFindings.includes(finding) && !keywordFindings.includes(finding)) {
+                  keywordFindings.push(finding);
+                }
+              });
+            }
+          });
+          
           const urlFindings = displayFindings.filter(finding => {
-            if (nodeFindings.includes(finding)) return false;
+            if (nodeFindings.includes(finding) || keywordFindings.includes(finding)) return false;
             try {
               const url = new URL(finding.source);
               const domain = url.hostname.replace('www.', '');
-              return step.toLowerCase().includes(domain.split('.')[0]);
+              return stepLower.includes(domain.split('.')[0]);
             } catch {
               return false;
             }
           });
           
-          const relevantFindings = [...nodeFindings, ...urlFindings];
+          const relevantFindings = [...nodeFindings, ...keywordFindings, ...urlFindings];
           
           const isNewStep = index === displayReasoningPath.length - 1 && isLoading;
           
@@ -348,12 +384,15 @@ const ReasoningPath = ({
               index={index}
               sources={sources}
               findings={relevantFindings}
-              defaultExpanded={index === displayReasoningPath.length - 1}
+              defaultExpanded={index === displayReasoningPath.length - 1 || relevantFindings.length > 0}
               isActive={isActive && index === displayReasoningPath.length - 1}
               rawData={stepRawData}
               sessionId={sessionId}
               answer={answerData}
-              className={isNewStep ? "reasoning-step-new" : ""}
+              className={cn(
+                isNewStep && "reasoning-step-new animate-in fade-in slide-in-from-right-5 duration-500",
+                relevantFindings.length > 0 && "ring-1 ring-primary/10"
+              )}
             />
           );
         })}

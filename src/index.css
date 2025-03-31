@@ -1,55 +1,53 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&family=Poppins:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+ 
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 222 47% 11%;
-    
+    --foreground: 222.2 84% 4.9%;
+
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    
+    --card-foreground: 222.2 84% 4.9%;
+ 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    
-    --primary: 222 47% 11%;
+    --popover-foreground: 222.2 84% 4.9%;
+ 
+    --primary: 222.2 47.4% 11.2%;
     --primary-foreground: 210 40% 98%;
-    
+ 
     --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222 47% 11%;
-    
+    --secondary-foreground: 222.2 47.4% 11.2%;
+ 
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    
+ 
     --accent: 210 40% 96.1%;
-    --accent-foreground: 222 47% 11%;
-    
+    --accent-foreground: 222.2 47.4% 11.2%;
+ 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    
+
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 222 47% 11%;
-    
-    --radius: 0.75rem;
+    --ring: 222.2 84% 4.9%;
+ 
+    --radius: 0.5rem;
   }
  
   .dark {
-    --background: 222 47% 4.9%;
+    --background: 222.2 84% 4.9%;
     --foreground: 210 40% 98%;
  
-    --card: 222 47% 4.9%;
+    --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
  
-    --popover: 222 47% 4.9%;
+    --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
  
     --primary: 210 40% 98%;
-    --primary-foreground: 222 47% 11%;
+    --primary-foreground: 222.2 47.4% 11.2%;
  
     --secondary: 217.2 32.6% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -68,176 +66,67 @@
     --ring: 212.7 26.8% 83.9%;
   }
 }
-
+ 
 @layer base {
   * {
     @apply border-border;
   }
-  
   body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .reasoning-step-new {
+    animation: pulse 2s infinite;
   }
   
-  .glass-morphism {
-    @apply backdrop-blur-md bg-opacity-20 bg-white dark:bg-opacity-20 dark:bg-gray-950 border border-opacity-30 border-white dark:border-opacity-10 dark:border-white shadow-lg;
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(var(--primary), 0.4);
+    }
+    70% {
+      box-shadow: 0 0 0 6px rgba(var(--primary), 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(var(--primary), 0);
+    }
   }
-  
-  .neo-morphism {
-    @apply shadow-[0_10px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_5px_15px_rgba(0,0,0,0.2)] border border-gray-200 dark:border-gray-800;
-  }
-  
-  .text-gradient {
-    @apply bg-gradient-to-br from-gray-900 via-gray-800 to-gray-700 dark:from-white dark:via-gray-200 dark:to-gray-300 bg-clip-text text-transparent;
+
+  /* Scrollbar styling */
+  .reasoning-steps-container {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--muted), 0.3) transparent;
   }
 
-  /* Custom animations for elements */
-  .animate-in {
-    @apply animate-fade-in animate-scale-in;
+  .reasoning-steps-container::-webkit-scrollbar {
+    width: 6px;
   }
-  
-  .animate-out {
-    @apply animate-fade-out animate-scale-out;
+
+  .reasoning-steps-container::-webkit-scrollbar-track {
+    background: transparent;
   }
-}
 
-/* Custom styles for the research interface */
-.research-query-container {
-  height: calc(100vh - 10rem);
-}
+  .reasoning-steps-container::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--muted-foreground), 0.3);
+    border-radius: 6px;
+  }
 
-.source-item {
-  @apply transition-all duration-300 hover:translate-y-[-2px];
-}
+  /* Animations for findings */
+  .finding-animation-enter {
+    opacity: 0;
+    transform: translateY(10px);
+  }
 
-/* Progressive loading animation */
-.loading-dot {
-  @apply inline-block h-1.5 w-1.5 rounded-full bg-primary mr-1;
-  animation: wave 1.3s linear infinite;
-}
-
-.loading-dot:nth-child(2) {
-  animation-delay: 0.16s;
-}
-
-.loading-dot:nth-child(3) {
-  animation-delay: 0.32s;
-}
-
-@keyframes wave {
-  0%, 60%, 100% {
+  .finding-animation-enter-active {
+    opacity: 1;
     transform: translateY(0);
+    transition: opacity 300ms, transform 300ms;
   }
-  30% {
-    transform: translateY(-0.25rem);
+
+  /* Toast styling for realtime updates */
+  .realtime-update-toast {
+    background: linear-gradient(to right, rgba(var(--primary), 0.1), rgba(var(--background), 1));
+    border-left: 3px solid rgba(var(--primary), 0.8);
   }
 }
-
-/* Focus styles */
-:focus-visible {
-  @apply outline-none ring-2 ring-offset-2 ring-offset-background ring-primary;
-}
-
-/* Dark mode specific overrides for step cards */
-.dark .source-item {
-  @apply hover:bg-gray-800-40;
-}
-
-.dark .bg-muted\/50 {
-  @apply bg-gray-800-40;
-}
-
-.dark .bg-muted\/30 {
-  @apply bg-gray-800-30;
-}
-
-.dark .bg-blue-50\/30 {
-  @apply bg-blue-950-30;
-}
-
-.dark .bg-blue-50\/80 {
-  @apply bg-blue-950-30;
-}
-
-/* Dark mode fixes for reasoning path */
-.dark .bg-violet-100 {
-  @apply bg-violet-900-30 text-violet-300 border-violet-700;
-}
-
-.dark .bg-amber-100 {
-  @apply bg-amber-900-30 text-amber-300 border-amber-700;
-}
-
-.dark .bg-emerald-100 {
-  @apply bg-emerald-900-30 text-emerald-300 border-emerald-700;
-}
-
-.dark .bg-blue-100 {
-  @apply bg-blue-900-30 text-blue-300 border-blue-700;
-}
-
-.dark .bg-indigo-100 {
-  @apply bg-indigo-900-30 text-indigo-300 border-indigo-700;
-}
-
-.dark .bg-sky-100 {
-  @apply bg-sky-900-30 text-sky-300 border-sky-700;
-}
-
-.dark .bg-gray-100 {
-  @apply bg-gray-800-40 text-gray-300 border-gray-700;
-}
-
-/* Fix for processing badge in dark mode */
-.dark .processing-badge {
-  @apply bg-gray-700 text-gray-200 border-gray-600;
-}
-
-.dark .finding-badge {
-  @apply bg-blue-900/60 text-blue-200 border-blue-700;
-}
-
-.dark .node-id-badge {
-  @apply bg-gray-800/70 text-gray-300 border-gray-700;
-}
-
-/* Fix for step indicators in dark mode */
-.dark .step-indicator {
-  @apply bg-gray-800 text-gray-300 border border-gray-700;
-}
-
-/* Fix for input text color in dark mode */
-.dark input,
-.dark textarea,
-.dark .text-input,
-.dark [type="text"],
-.dark [type="email"],
-.dark [type="url"],
-.dark [type="password"],
-.dark [type="number"],
-.dark [type="search"],
-.dark [type="tel"] {
-  @apply text-gray-100 placeholder:text-gray-500;
-  color-scheme: dark;
-}
-
-/* Fix for processing textboxes in dark mode */
-.dark [class*="processing"],
-.dark .processing,
-.dark div:has(.processing),
-.dark div:has([class*="processing"]) {
-  @apply bg-gray-800/70 text-gray-200 border-gray-700;
-}
-
-.dark .searching-badge,
-.dark [class*="searching"] {
-  @apply bg-gray-800/70 text-gray-200 border-gray-700;
-}
-
-/* Ensure all badges in reasoning steps have proper dark mode styling */
-.dark .badge,
-.dark [class*="badge"],
-.dark div:has(.badge) {
-  @apply bg-gray-800/70 text-gray-200 border-gray-700;
-}
-
