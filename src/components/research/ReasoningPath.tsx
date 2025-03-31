@@ -20,6 +20,16 @@ interface Finding {
   };
 }
 
+interface SynthesisData {
+  node_id: string;
+  query: string;
+  synthesis: string;
+  confidence: number;
+  timestamp?: string;
+  depth?: number;
+  parent_id?: string;
+}
+
 interface ReasoningPathProps {
   reasoningPath: string[];
   sources?: string[];
@@ -28,6 +38,16 @@ interface ReasoningPathProps {
   isLoading?: boolean;
   rawData?: Record<string, string>;
   sessionId?: string;
+}
+
+interface StepData {
+  id: string;
+  step: string;
+  sources: string[];
+  findings: Finding[];
+  synthesis?: any;
+  answer?: any;
+  rawData?: string;
 }
 
 const ReasoningPath = ({ 
@@ -41,9 +61,13 @@ const ReasoningPath = ({
 }: ReasoningPathProps) => {
   const [displayReasoningPath, setDisplayReasoningPath] = useState<string[]>(reasoningPath);
   const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings);
+  const [displaySources, setDisplaySources] = useState<string[]>(sources);
+  const [synthesesData, setSynthesesData] = useState<Record<string, any>>({});
+  const [answersData, setAnswersData] = useState<Record<string, any>>({});
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [forcedUpdate, setForcedUpdate] = useState(0);
   
+  // Load initial data
   useEffect(() => {
     if (reasoningPath.length > 0) {
       setDisplayReasoningPath(reasoningPath);
@@ -52,15 +76,21 @@ const ReasoningPath = ({
     if (findings.length > 0) {
       setDisplayFindings(findings);
     }
-  }, [reasoningPath, findings]);
+    
+    if (sources.length > 0) {
+      setDisplaySources(sources);
+    }
+  }, [reasoningPath, findings, sources]);
   
+  // Realtime updates handler
   const handleRealtimeUpdate = useCallback((event: CustomEvent) => {
     if (!sessionId) return;
     
     const payload = event.detail?.payload;
-    if (!payload || payload.table !== 'research_states') return;
+    if (!payload) return;
     
-    if (payload.new && payload.new.session_id === sessionId) {
+    // Process research state updates
+    if (payload.table === 'research_states' && payload.new && payload.new.session_id === sessionId) {
       console.log(`[${new Date().toISOString()}] 🔄 Processing realtime update for session ${sessionId}`, payload);
       
       if (payload.new.reasoning_path && Array.isArray(payload.new.reasoning_path)) {
@@ -106,8 +136,164 @@ const ReasoningPath = ({
           }
         }
       }
+      
+      if (payload.new.sources && Array.isArray(payload.new.sources)) {
+        const newSources = payload.new.sources;
+        if (newSources.length > displaySources.length) {
+          console.log(`[${new Date().toISOString()}] 🔗 Updating sources with ${newSources.length} items`);
+          setDisplaySources(newSources);
+          
+          try {
+            localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(newSources));
+            if (sessionId) {
+              const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
+              localStorage.setItem(sessionSourcesKey, JSON.stringify(newSources));
+              
+              saveSessionData(sessionId, {
+                sources: newSources
+              });
+            }
+          } catch (e) {
+            console.error("Error saving sources to cache:", e);
+          }
+        }
+      }
     }
-  }, [sessionId, displayReasoningPath.length, displayFindings.length]);
+    
+    // Process specific event types
+    if (payload.event === 'finding' && payload.data) {
+      const findingData = payload.data;
+      if (findingData.node_id && findingData.finding && !displayFindings.some(f => 
+        f.node_id === findingData.node_id && 
+        f.source === findingData.source &&
+        f.finding?.title === findingData.finding.title)) {
+        
+        console.log(`[${new Date().toISOString()}] 🔍 Adding new finding for node ${findingData.node_id}`);
+        
+        const newFindings = [...displayFindings, findingData];
+        setDisplayFindings(newFindings);
+        
+        // Also add to sources if not already there
+        if (findingData.source && !displaySources.includes(findingData.source)) {
+          const newSources = [...displaySources, findingData.source];
+          setDisplaySources(newSources);
+          
+          try {
+            localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(newSources));
+            if (sessionId) {
+              const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
+              localStorage.setItem(sessionSourcesKey, JSON.stringify(newSources));
+              
+              saveSessionData(sessionId, {
+                sources: newSources
+              });
+            }
+          } catch (e) {
+            console.error("Error saving sources to cache:", e);
+          }
+        }
+        
+        try {
+          localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(newFindings));
+          if (sessionId) {
+            const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
+            localStorage.setItem(sessionFindingsKey, JSON.stringify(newFindings));
+            
+            saveSessionData(sessionId, {
+              findings: newFindings
+            });
+          }
+        } catch (e) {
+          console.error("Error saving findings to cache:", e);
+        }
+      }
+    }
+    
+    // Process synthesis events
+    if (payload.event === 'synthesis' || payload.event_type === 'synthesis') {
+      const synthesisData = payload.data as SynthesisData;
+      if (synthesisData && synthesisData.node_id) {
+        console.log(`[${new Date().toISOString()}] 🧠 Adding synthesis for node ${synthesisData.node_id}`);
+        
+        setSynthesesData(prev => ({
+          ...prev,
+          [synthesisData.node_id]: synthesisData
+        }));
+        
+        try {
+          if (sessionId) {
+            const sessionSynthesisKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SYNTHESIS_CACHE, sessionId);
+            const updatedSyntheses = { 
+              ...JSON.parse(localStorage.getItem(sessionSynthesisKey) || '{}'), 
+              [synthesisData.node_id]: synthesisData 
+            };
+            localStorage.setItem(sessionSynthesisKey, JSON.stringify(updatedSyntheses));
+            
+            saveSessionData(sessionId, {
+              syntheses: updatedSyntheses
+            });
+          }
+        } catch (e) {
+          console.error("Error saving synthesis to cache:", e);
+        }
+      }
+    }
+    
+    // Process answer events
+    if (payload.event === 'answer') {
+      const answerData = payload.data;
+      if (answerData && answerData.node_id) {
+        console.log(`[${new Date().toISOString()}] 📝 Adding answer for node ${answerData.node_id}`);
+        
+        setAnswersData(prev => ({
+          ...prev,
+          [answerData.node_id]: answerData.answer
+        }));
+        
+        try {
+          if (sessionId) {
+            const sessionAnswersKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWERS_CACHE, sessionId);
+            const updatedAnswers = { 
+              ...JSON.parse(localStorage.getItem(sessionAnswersKey) || '{}'), 
+              [answerData.node_id]: answerData.answer 
+            };
+            localStorage.setItem(sessionAnswersKey, JSON.stringify(updatedAnswers));
+            
+            saveSessionData(sessionId, {
+              answers: updatedAnswers
+            });
+          }
+        } catch (e) {
+          console.error("Error saving answer to cache:", e);
+        }
+      }
+    }
+    
+    // Process source events 
+    if (payload.event === 'source') {
+      const sourceData = payload.data;
+      if (sourceData && sourceData.source && !displaySources.includes(sourceData.source)) {
+        console.log(`[${new Date().toISOString()}] 🔗 Adding new source: ${sourceData.source}`);
+        
+        const newSources = [...displaySources, sourceData.source];
+        setDisplaySources(newSources);
+        
+        try {
+          localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(newSources));
+          if (sessionId) {
+            const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
+            localStorage.setItem(sessionSourcesKey, JSON.stringify(newSources));
+            
+            saveSessionData(sessionId, {
+              sources: newSources
+            });
+          }
+        } catch (e) {
+          console.error("Error saving sources to cache:", e);
+        }
+      }
+    }
+  }, [sessionId, displayReasoningPath.length, displayFindings.length, displaySources]);
   
   const handleResearchEvents = useCallback(() => {
     setForcedUpdate(prev => prev + 1);
@@ -119,6 +305,7 @@ const ReasoningPath = ({
     }
   }, [isLoading]);
   
+  // Set up event listeners
   useEffect(() => {
     window.addEventListener('research_state_update', handleRealtimeUpdate as EventListener);
     window.addEventListener('research-new-event', handleResearchEvents as EventListener);
@@ -131,6 +318,7 @@ const ReasoningPath = ({
     };
   }, [handleRealtimeUpdate, handleResearchEvents, handleHeartbeat]);
   
+  // Load session data
   useEffect(() => {
     if (!sessionId) return;
     
@@ -140,57 +328,103 @@ const ReasoningPath = ({
       if (sessionData) {
         console.log(`[${new Date().toISOString()}] 📂 Loading session data for ${sessionId}`);
         
-        if (sessionData.reasoningPathKey && Array.isArray(sessionData.reasoningPathKey)) {
-          if (reasoningPath.length === 0 || sessionData.reasoningPathKey.length > reasoningPath.length) {
-            setDisplayReasoningPath(sessionData.reasoningPathKey);
-            console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.reasoningPathKey.length} reasoning steps from session data`);
+        if (sessionData.reasoningPath && Array.isArray(sessionData.reasoningPath)) {
+          if (reasoningPath.length === 0 || sessionData.reasoningPath.length > reasoningPath.length) {
+            setDisplayReasoningPath(sessionData.reasoningPath);
+            console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.reasoningPath.length} reasoning steps from session data`);
           }
         }
         
-        if (sessionData.findingsKey && Array.isArray(sessionData.findingsKey)) {
-          if (findings.length === 0 || sessionData.findingsKey.length > findings.length) {
-            setDisplayFindings(sessionData.findingsKey);
-            console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.findingsKey.length} findings from session data`);
+        if (sessionData.findings && Array.isArray(sessionData.findings)) {
+          if (findings.length === 0 || sessionData.findings.length > findings.length) {
+            setDisplayFindings(sessionData.findings);
+            console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.findings.length} findings from session data`);
           }
+        }
+        
+        if (sessionData.sources && Array.isArray(sessionData.sources)) {
+          if (sources.length === 0 || sessionData.sources.length > sources.length) {
+            setDisplaySources(sessionData.sources);
+            console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.sources.length} sources from session data`);
+          }
+        }
+        
+        if (sessionData.syntheses && typeof sessionData.syntheses === 'object') {
+          setSynthesesData(sessionData.syntheses);
+          console.log(`[${new Date().toISOString()}] 📂 Loaded syntheses data for ${Object.keys(sessionData.syntheses).length} nodes`);
+        }
+        
+        if (sessionData.answers && typeof sessionData.answers === 'object') {
+          setAnswersData(sessionData.answers);
+          console.log(`[${new Date().toISOString()}] 📂 Loaded answers data for ${Object.keys(sessionData.answers).length} nodes`);
         }
         
         setSessionLoaded(true);
         return;
       }
       
+      // Fallback to legacy storage format
       const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
+      const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
+      const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
+      const sessionSynthesisKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SYNTHESIS_CACHE, sessionId);
+      const sessionAnswersKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWERS_CACHE, sessionId);
+      
       const sessionPathCache = localStorage.getItem(sessionPathKey);
+      const sessionFindingsCache = localStorage.getItem(sessionFindingsKey);
+      const sessionSourcesCache = localStorage.getItem(sessionSourcesKey);
+      const sessionSynthesisCache = localStorage.getItem(sessionSynthesisKey);
+      const sessionAnswersCache = localStorage.getItem(sessionAnswersKey);
       
       if (sessionPathCache) {
         const parsedPath = JSON.parse(sessionPathCache);
         if (Array.isArray(parsedPath) && parsedPath.length > 0) {
           if (reasoningPath.length === 0 || parsedPath.length > reasoningPath.length) {
-            console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedPath.length} reasoning steps from session cache`);
             setDisplayReasoningPath(parsedPath);
           }
         }
       }
       
-      const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
-      const sessionFindingsCache = localStorage.getItem(sessionFindingsKey);
-      
       if (sessionFindingsCache) {
         const parsedFindings = JSON.parse(sessionFindingsCache);
         if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
           if (findings.length === 0 || parsedFindings.length > findings.length) {
-            console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedFindings.length} findings from session cache`);
             setDisplayFindings(parsedFindings);
           }
         }
       }
       
+      if (sessionSourcesCache) {
+        const parsedSources = JSON.parse(sessionSourcesCache);
+        if (Array.isArray(parsedSources) && parsedSources.length > 0) {
+          if (sources.length === 0 || parsedSources.length > sources.length) {
+            setDisplaySources(parsedSources);
+          }
+        }
+      }
+      
+      if (sessionSynthesisCache) {
+        const parsedSynthesis = JSON.parse(sessionSynthesisCache);
+        if (typeof parsedSynthesis === 'object') {
+          setSynthesesData(parsedSynthesis);
+        }
+      }
+      
+      if (sessionAnswersCache) {
+        const parsedAnswers = JSON.parse(sessionAnswersCache);
+        if (typeof parsedAnswers === 'object') {
+          setAnswersData(parsedAnswers);
+        }
+      }
+      
       setSessionLoaded(true);
     } catch (e) {
-      console.error(`[${new Date().toISOString()}] Error loading reasoning path or findings from cache:`, e);
+      console.error(`[${new Date().toISOString()}] Error loading data from session cache:`, e);
       toast.error("Failed to load previous session data. Some information may be missing.");
     }
-  }, [sessionId]);
+  }, [sessionId, reasoningPath, findings, sources]);
   
+  // Try loading from global cache if session data isn't available
   useEffect(() => {
     if (sessionLoaded) return;
     
@@ -201,7 +435,6 @@ const ReasoningPath = ({
           const parsedPath = JSON.parse(pathCache);
           if (Array.isArray(parsedPath) && parsedPath.length > 0) {
             setDisplayReasoningPath(parsedPath);
-            console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedPath.length} reasoning steps from global cache`);
           }
         }
       }
@@ -212,15 +445,25 @@ const ReasoningPath = ({
           const parsedFindings = JSON.parse(findingsCache);
           if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
             setDisplayFindings(parsedFindings);
-            console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedFindings.length} findings from global cache`);
+          }
+        }
+      }
+      
+      if (displaySources.length === 0 && sources.length === 0) {
+        const sourcesCache = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
+        if (sourcesCache) {
+          const parsedSources = JSON.parse(sourcesCache);
+          if (Array.isArray(parsedSources) && parsedSources.length > 0) {
+            setDisplaySources(parsedSources);
           }
         }
       }
     } catch (e) {
       console.error("Error loading from global cache:", e);
     }
-  }, [sessionLoaded, displayReasoningPath.length, displayFindings.length, reasoningPath.length, findings.length]);
+  }, [sessionLoaded, displayReasoningPath.length, displayFindings.length, reasoningPath.length, findings.length, sources.length]);
   
+  // Save data to cache whenever it changes
   useEffect(() => {
     if (reasoningPath.length > 0) {
       setDisplayReasoningPath(reasoningPath);
@@ -260,6 +503,25 @@ const ReasoningPath = ({
       }
     }
     
+    if (sources.length > 0) {
+      setDisplaySources(sources);
+      
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(sources));
+        
+        if (sessionId) {
+          const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
+          localStorage.setItem(sessionSourcesKey, JSON.stringify(sources));
+          
+          saveSessionData(sessionId, {
+            sources: sources
+          });
+        }
+      } catch (e) {
+        console.error("Error saving sources to cache:", e);
+      }
+    }
+    
     if (sessionId && Object.keys(rawData).length > 0) {
       try {
         const rawDataKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.RAW_DATA_CACHE, sessionId);
@@ -273,7 +535,33 @@ const ReasoningPath = ({
         console.error("Error saving raw data to cache:", e);
       }
     }
-  }, [reasoningPath, findings, sessionId, rawData]);
+    
+    if (sessionId && Object.keys(synthesesData).length > 0) {
+      try {
+        const synthesesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SYNTHESIS_CACHE, sessionId);
+        localStorage.setItem(synthesesKey, JSON.stringify(synthesesData));
+        
+        saveSessionData(sessionId, {
+          syntheses: synthesesData
+        });
+      } catch (e) {
+        console.error("Error saving syntheses data to cache:", e);
+      }
+    }
+    
+    if (sessionId && Object.keys(answersData).length > 0) {
+      try {
+        const answersKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWERS_CACHE, sessionId);
+        localStorage.setItem(answersKey, JSON.stringify(answersData));
+        
+        saveSessionData(sessionId, {
+          answers: answersData
+        });
+      } catch (e) {
+        console.error("Error saving answers data to cache:", e);
+      }
+    }
+  }, [reasoningPath, findings, sources, sessionId, rawData, synthesesData, answersData]);
 
   if (displayReasoningPath.length === 0 && !isLoading) {
     return (
@@ -339,8 +627,8 @@ const ReasoningPath = ({
           const stepRawData = nodeId ? rawData[nodeId] : undefined;
           
           // Extract answer data if available
-          let answerData = null;
-          if (stepRawData) {
+          let answerData = answersData[nodeId] || null;
+          if (!answerData && stepRawData) {
             try {
               const parsedData = JSON.parse(stepRawData);
               if (parsedData.event === "answer" && parsedData.data && parsedData.data.answer) {
@@ -353,6 +641,9 @@ const ReasoningPath = ({
               }
             }
           }
+          
+          // Get synthesis data for this node
+          const synthesisData = synthesesData[nodeId] || null;
           
           // Get findings directly associated with this node ID
           const nodeFindings = findingsByNodeId[nodeId] || [];
@@ -389,18 +680,22 @@ const ReasoningPath = ({
           // Determine if this is a newly added step
           const isNewStep = index === displayReasoningPath.length - 1 && isLoading;
           
+          // Unique stable key that won't cause re-renders
+          const stableKey = `step-${nodeId}-${index}-${forcedUpdate > 0 ? '1' : '0'}`;
+          
           return (
             <ReasoningStep
-              key={`${nodeId}-${index}`}
+              key={stableKey}
               step={step}
               index={index}
-              sources={sources}
+              sources={displaySources}
               findings={relevantFindings}
               defaultExpanded={index === displayReasoningPath.length - 1 || relevantFindings.length > 0}
               isActive={isActive && index === displayReasoningPath.length - 1}
               rawData={stepRawData}
               sessionId={sessionId}
               answer={answerData}
+              synthesis={synthesisData ? synthesisData.synthesis : null}
               className={cn(
                 relevantFindings.length > 0 && "ring-1 ring-primary/10",
                 isNewStep && "reasoning-step-new"

@@ -1,39 +1,138 @@
 
 import React, { useEffect, useState } from 'react';
-import { ExternalLink, Search } from 'lucide-react';
+import { ExternalLink, Search, FileText, Lightbulb } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { LOCAL_STORAGE_KEYS } from '@/lib/constants';
+import { LOCAL_STORAGE_KEYS, getSessionStorageKey, getSessionData, saveSessionData } from '@/lib/constants';
+import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+
+interface Finding {
+  source: string;
+  content?: string;
+  node_id?: string;
+  query?: string;
+  raw_data?: string;
+  finding?: {
+    title?: string;
+    summary?: string;
+    confidence_score?: number;
+    url?: string;
+  };
+}
 
 interface SourcesListProps {
   sources: string[];
+  findings?: Finding[];
   className?: string;
   sessionId?: string;
 }
 
-const SourcesList: React.FC<SourcesListProps> = ({ sources = [], className, sessionId }) => {
+const SourcesList: React.FC<SourcesListProps> = ({ 
+  sources = [], 
+  findings = [], 
+  className, 
+  sessionId 
+}) => {
   // Use state to handle sources with proper persistence
   const [displaySources, setDisplaySources] = useState<string[]>(sources);
+  const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings);
+  const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
+  
+  // Group findings by source
+  const findingsBySource = displayFindings.reduce((acc: Record<string, Finding[]>, finding) => {
+    if (!finding.source) return acc;
+    
+    if (!acc[finding.source]) {
+      acc[finding.source] = [];
+    }
+    
+    // Only add if not already present
+    if (!acc[finding.source].some(f => 
+      f.finding?.title === finding.finding?.title && 
+      f.finding?.summary === finding.finding?.summary
+    )) {
+      acc[finding.source].push(finding);
+    }
+    
+    return acc;
+  }, {});
+  
+  // When a new source is added, default to expanded state
+  useEffect(() => {
+    const newExpandedState = { ...expandedSources };
+    let hasChanges = false;
+    
+    displaySources.forEach(source => {
+      if (expandedSources[source] === undefined) {
+        newExpandedState[source] = true;
+        hasChanges = true;
+      }
+    });
+    
+    if (hasChanges) {
+      setExpandedSources(newExpandedState);
+    }
+  }, [displaySources, expandedSources]);
   
   // Load sources from localStorage if available to ensure persistence across refreshes
   useEffect(() => {
     try {
-      // First check for session-specific cache if we have a sessionId
+      // First check for session-specific data if we have a sessionId
       if (sessionId) {
-        const sessionCacheKey = `${LOCAL_STORAGE_KEYS.SOURCES_CACHE}.${sessionId}`;
-        const sessionCachedSources = localStorage.getItem(sessionCacheKey);
+        const sessionData = getSessionData(sessionId);
+        
+        if (sessionData) {
+          // Load sources from comprehensive session data
+          if (sessionData.sources && Array.isArray(sessionData.sources) && sessionData.sources.length > 0) {
+            if (sources.length === 0 || sessionData.sources.length > sources.length) {
+              console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.sources.length} sources from session data`);
+              setDisplaySources(sessionData.sources);
+            }
+          }
+          
+          // Load findings from comprehensive session data
+          if (sessionData.findings && Array.isArray(sessionData.findings) && sessionData.findings.length > 0) {
+            if (findings.length === 0 || sessionData.findings.length > findings.length) {
+              console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.findings.length} findings from session data`);
+              setDisplayFindings(sessionData.findings);
+            }
+          }
+          
+          return; // Exit early if we found session data
+        }
+        
+        // Fall back to session-specific cache keys
+        const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
+        const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
+        
+        const sessionCachedSources = localStorage.getItem(sessionSourcesKey);
+        const sessionCachedFindings = localStorage.getItem(sessionFindingsKey);
         
         if (sessionCachedSources) {
           const parsedSources = JSON.parse(sessionCachedSources);
           if (Array.isArray(parsedSources) && parsedSources.length > 0) {
             console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedSources.length} sources from session cache for: ${sessionId}`);
             setDisplaySources(parsedSources);
-            return; // Exit early if we found session-specific sources
           }
         }
+        
+        if (sessionCachedFindings) {
+          const parsedFindings = JSON.parse(sessionCachedFindings);
+          if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
+            console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedFindings.length} findings from session cache for: ${sessionId}`);
+            setDisplayFindings(parsedFindings);
+          }
+        }
+        
+        return; // Exit early if we found session-specific cache
       }
       
       // Fallback to global cache if no session-specific sources found
       const cachedSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
+      const cachedFindings = localStorage.getItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
+      
       if (cachedSources) {
         const parsedSources = JSON.parse(cachedSources);
         if (Array.isArray(parsedSources) && parsedSources.length > 0) {
@@ -46,10 +145,23 @@ const SourcesList: React.FC<SourcesListProps> = ({ sources = [], className, sess
           }
         }
       }
+      
+      if (cachedFindings) {
+        const parsedFindings = JSON.parse(cachedFindings);
+        if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
+          // Only use cached findings if we don't have any already
+          if (findings.length === 0) {
+            setDisplayFindings(parsedFindings);
+          } else if (findings.length !== parsedFindings.length) {
+            // If finding counts don't match, use the larger set
+            setDisplayFindings(findings.length > parsedFindings.length ? findings : parsedFindings);
+          }
+        }
+      }
     } catch (e) {
-      console.error("Error loading sources from cache:", e);
+      console.error("Error loading sources or findings from cache:", e);
     }
-  }, [sources, sessionId]);
+  }, [sources, findings, sessionId]);
 
   // Update display sources whenever props sources change
   useEffect(() => {
@@ -61,7 +173,9 @@ const SourcesList: React.FC<SourcesListProps> = ({ sources = [], className, sess
         localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(sources));
         
         if (sessionId) {
-          const sessionCacheKey = `${LOCAL_STORAGE_KEYS.SOURCES_CACHE}.${sessionId}`;
+          saveSessionData(sessionId, { sources });
+          
+          const sessionCacheKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
           localStorage.setItem(sessionCacheKey, JSON.stringify(sources));
           console.log(`[${new Date().toISOString()}] 💾 Saved ${sources.length} sources to session cache for: ${sessionId}`);
         }
@@ -70,6 +184,35 @@ const SourcesList: React.FC<SourcesListProps> = ({ sources = [], className, sess
       }
     }
   }, [sources, sessionId]);
+  
+  // Update display findings whenever props findings change
+  useEffect(() => {
+    if (findings.length > 0) {
+      setDisplayFindings(findings);
+      
+      // Save to localStorage for persistence
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(findings));
+        
+        if (sessionId) {
+          saveSessionData(sessionId, { findings });
+          
+          const sessionCacheKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
+          localStorage.setItem(sessionCacheKey, JSON.stringify(findings));
+          console.log(`[${new Date().toISOString()}] 💾 Saved ${findings.length} findings to session cache for: ${sessionId}`);
+        }
+      } catch (e) {
+        console.error("Error saving findings to cache:", e);
+      }
+    }
+  }, [findings, sessionId]);
+
+  const toggleSourceExpanded = (source: string) => {
+    setExpandedSources(prev => ({
+      ...prev,
+      [source]: !prev[source]
+    }));
+  };
 
   if (displaySources.length === 0) {
     return (
@@ -82,25 +225,96 @@ const SourcesList: React.FC<SourcesListProps> = ({ sources = [], className, sess
 
   return (
     <div className={className}>
-      <h3 className="font-medium mb-4">Sources ({displaySources.length})</h3>
+      <h3 className="font-medium mb-4 flex items-center justify-between">
+        <span>Sources ({displaySources.length})</span>
+        {displayFindings.length > 0 && (
+          <Badge variant="outline" className="text-xs">
+            {displayFindings.length} finding{displayFindings.length !== 1 ? 's' : ''}
+          </Badge>
+        )}
+      </h3>
       <ScrollArea className="h-[calc(100vh-250px)]">
-        <div className="space-y-2">
-          {displaySources.map((source, index) => (
-            <div 
-              key={`${source}-${index}`} 
-              className="flex items-center justify-between p-3 rounded-md bg-background border border-muted-foreground/10 hover:bg-muted/50 transition-colors"
-            >
-              <span className="text-sm truncate flex-1">{source}</span>
-              <a 
-                href={source} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="ml-2 text-primary hover:text-primary/80 transition-colors"
+        <div className="space-y-3">
+          {displaySources.map((source, index) => {
+            const sourceFindings = findingsBySource[source] || [];
+            const isExpanded = expandedSources[source] !== false; // Default to true
+            
+            return (
+              <Collapsible 
+                key={`${source}-${index}`} 
+                open={isExpanded}
+                onOpenChange={() => toggleSourceExpanded(source)}
+                className="border border-muted-foreground/10 rounded-md overflow-hidden"
               >
-                <ExternalLink size={16} />
-              </a>
-            </div>
-          ))}
+                <div className="flex items-center justify-between p-3 bg-background hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center flex-1 min-w-0">
+                    <CollapsibleTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="p-0 h-5 w-5 mr-2 hover:bg-transparent"
+                      >
+                        {isExpanded ? 
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" /> : 
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        }
+                      </Button>
+                    </CollapsibleTrigger>
+                    <span className="text-sm truncate">{source}</span>
+                  </div>
+                  
+                  <div className="flex items-center ml-2 space-x-2">
+                    {sourceFindings.length > 0 && (
+                      <Badge variant="outline" size="sm" className="text-xs bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
+                        {sourceFindings.length} 
+                      </Badge>
+                    )}
+                    <a 
+                      href={source} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-primary hover:text-primary/80 transition-colors" 
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <ExternalLink size={16} />
+                    </a>
+                  </div>
+                </div>
+                
+                <CollapsibleContent>
+                  {sourceFindings.length > 0 ? (
+                    <div className="p-3 pt-0 space-y-3 bg-slate-50/50 dark:bg-slate-900/50">
+                      {sourceFindings.map((finding, i) => (
+                        <div key={`finding-${i}`} className="mt-3 p-3 rounded-md border border-muted bg-background/90">
+                          {finding.finding?.title && (
+                            <h4 className="text-sm font-medium mb-1">{finding.finding.title}</h4>
+                          )}
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                            {finding.finding?.summary || finding.content || "No content available"}
+                          </p>
+                          {finding.finding?.confidence_score && (
+                            <Badge className="mt-2 text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
+                              Confidence: {Math.round(finding.finding.confidence_score * 100)}%
+                            </Badge>
+                          )}
+                          {finding.node_id && (
+                            <div className="mt-2 flex items-center">
+                              <Lightbulb className="h-3 w-3 text-amber-500 mr-1" />
+                              <span className="text-xs text-muted-foreground">Step {finding.node_id}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-3 pt-0 bg-slate-50/50 dark:bg-slate-900/50">
+                      <p className="text-xs text-muted-foreground italic">No findings yet for this source</p>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
         </div>
       </ScrollArea>
     </div>

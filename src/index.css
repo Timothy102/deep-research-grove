@@ -64,11 +64,17 @@
 @layer components {
   .reasoning-step-new {
     animation: none !important;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform;
+    contain: content;
     transition: all 0.3s ease-out;
   }
   
   .reasoning-steps-container {
     contain: content;
+    will-change: contents;
+    transform: translateZ(0);
   }
   
   /* Improved scrollbars */
@@ -93,5 +99,68 @@
   .step-item-transition {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+  
+  /* Prevent layout shifts during updates */
+  .prevent-layout-shift {
+    contain: layout;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    transform-style: preserve-3d;
+    will-change: transform;
+    isolation: isolate;
+  }
+  
+  /* Collapsible animations */
+  .collapsible-content-enter {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+  }
+  
+  .collapsible-content-enter-active {
+    max-height: 1000px;
+    opacity: 1;
+  }
+  
+  .collapsible-content-exit {
+    max-height: 1000px;
+    opacity: 1;
+    transition: max-height 0.3s ease-in, opacity 0.2s ease-in;
+  }
+  
+  .collapsible-content-exit-active {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+  }
+  
+  /* Neo-morphism style for sources and findings */
+  .neo-morphism {
+    box-shadow: 
+      0 2px 6px rgba(0, 0, 0, 0.05),
+      0 1px 3px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease;
+  }
+  
+  .dark .neo-morphism {
+    box-shadow: 
+      0 2px 6px rgba(0, 0, 0, 0.2),
+      0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .neo-morphism:hover {
+    box-shadow: 
+      0 3px 8px rgba(0, 0, 0, 0.08),
+      0 1px 4px rgba(0, 0, 0, 0.05);
+  }
+  
+  .dark .neo-morphism:hover {
+    box-shadow: 
+      0 3px 8px rgba(0, 0, 0, 0.25),
+      0 1px 4px rgba(0, 0, 0, 0.15);
   }
 }

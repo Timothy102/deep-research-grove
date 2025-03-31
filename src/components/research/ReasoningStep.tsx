@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, ExternalLink, BookOpen, FileText, Search, Li
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export interface ReasoningStepProps {
   step: string;
@@ -22,6 +23,7 @@ export interface ReasoningStepProps {
   rawData?: string;
   sessionId?: string;
   answer?: any;
+  synthesis?: any;
   className?: string;
 }
 
@@ -35,9 +37,11 @@ const ReasoningStep = ({
   rawData,
   sessionId,
   answer,
+  synthesis,
   className
 }: ReasoningStepProps) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [areFindingsExpanded, setAreFindingsExpanded] = useState(true);
   
   // Extract type of step for styling
   const getStepType = () => {
@@ -140,7 +144,7 @@ const ReasoningStep = ({
   return (
     <div 
       className={cn(
-        "rounded-lg border-l-4 shadow-sm transition-all duration-200",
+        "rounded-lg border-l-4 shadow-sm transition-all duration-200 step-item-transition",
         getStepColor(),
         isActive && "ring-2 ring-primary/20 shadow-md",
         isExpanded ? "mb-4" : "mb-2",
@@ -181,70 +185,94 @@ const ReasoningStep = ({
         </div>
       </div>
       
-      {/* Always show findings even when not expanded */}
+      {/* Findings section with collapsible content */}
       {relevantFindings.length > 0 && (
-        <div className={cn(
-          "px-4 pb-4 pl-7 space-y-4 text-sm", 
-          !isExpanded && "border-t border-muted/30 pt-3"
-        )}>
-          <div className="space-y-3">
-            <h4 className="font-medium text-xs uppercase text-muted-foreground mb-1">Findings</h4>
-            <div className="space-y-3">
-              {relevantFindings.map((finding, i) => {
-                const hasDetails = finding.finding?.title || finding.finding?.summary;
-                return (
-                  <div key={i} className="rounded-md overflow-hidden bg-background/80 border border-muted shadow-sm">
-                    {hasDetails && (
-                      <div className="p-3 border-b border-muted/50">
-                        <div className="flex justify-between items-start">
-                          <h5 className="font-medium text-sm truncate flex-1">
-                            {finding.finding?.title || "Finding"}
-                          </h5>
-                          {finding.source && finding.source.startsWith('http') && (
-                            <a 
-                              href={finding.source} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-primary hover:text-primary/80 ml-2"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <ExternalLink size={14} />
-                            </a>
-                          )}
-                        </div>
-                        {finding.finding?.confidence_score && (
-                          <div className="mt-1">
-                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
-                              Confidence: {Math.round(finding.finding.confidence_score * 100)}%
-                            </Badge>
-                          </div>
+        <Collapsible 
+          open={areFindingsExpanded} 
+          onOpenChange={setAreFindingsExpanded}
+          className={cn(
+            "px-4 pb-2 pl-7 space-y-2", 
+            !isExpanded && "border-t border-muted/30 pt-3"
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <h4 className="font-medium text-xs uppercase text-muted-foreground">Findings</h4>
+            <CollapsibleTrigger asChild>
+              <Button variant="ghost" size="sm" className="p-0 h-6 w-6 hover:bg-transparent">
+                {areFindingsExpanded ? 
+                  <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : 
+                  <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                }
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+          <CollapsibleContent className="space-y-3">
+            {relevantFindings.map((finding, i) => {
+              const hasDetails = finding.finding?.title || finding.finding?.summary;
+              return (
+                <div key={`${finding.source}-${i}`} className="rounded-md overflow-hidden bg-background/80 border border-muted shadow-sm">
+                  {hasDetails && (
+                    <div className="p-3 border-b border-muted/50">
+                      <div className="flex justify-between items-start">
+                        <h5 className="font-medium text-sm truncate flex-1">
+                          {finding.finding?.title || "Finding"}
+                        </h5>
+                        {finding.source && finding.source.startsWith('http') && (
+                          <a 
+                            href={finding.source} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:text-primary/80 ml-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ExternalLink size={14} />
+                          </a>
                         )}
                       </div>
-                    )}
-                    <div className="p-3 bg-slate-50/50 dark:bg-slate-900/50">
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                        {finding.finding?.summary || finding.content || "No content available"}
-                      </p>
-                      {finding.source && (
-                        <p className="mt-2 text-xs text-muted-foreground truncate">
-                          Source: {finding.source}
-                        </p>
+                      {finding.finding?.confidence_score && (
+                        <div className="mt-1">
+                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
+                            Confidence: {Math.round(finding.finding.confidence_score * 100)}%
+                          </Badge>
+                        </div>
                       )}
                     </div>
+                  )}
+                  <div className="p-3 bg-slate-50/50 dark:bg-slate-900/50">
+                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                      {finding.finding?.summary || finding.content || "No content available"}
+                    </p>
+                    {finding.source && (
+                      <p className="mt-2 text-xs text-muted-foreground truncate">
+                        Source: {finding.source}
+                      </p>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+                </div>
+              );
+            })}
+          </CollapsibleContent>
+        </Collapsible>
       )}
       
       {isExpanded && (
         <div className="px-4 pb-4 pl-7 space-y-4 text-sm animate-in fade-in duration-100">
+          {synthesis && (
+            <div className="p-3 rounded-md bg-emerald-50/50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 mt-2">
+              <h4 className="font-medium text-xs uppercase text-emerald-800 dark:text-emerald-300 mb-1">Synthesis</h4>
+              <p className="whitespace-pre-wrap text-emerald-900 dark:text-emerald-100">{synthesis}</p>
+              {typeof synthesis === 'object' && synthesis.confidence && (
+                <Badge className="mt-2 bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                  Confidence: {Math.round(synthesis.confidence * 100)}%
+                </Badge>
+              )}
+            </div>
+          )}
+          
           {answer && (
-            <div className="p-3 rounded-md bg-background/80 border border-muted mt-2">
-              <h4 className="font-medium text-xs uppercase text-muted-foreground mb-1">Answer</h4>
-              <p className="whitespace-pre-wrap">{answer}</p>
+            <div className="p-3 rounded-md bg-amber-50/50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 mt-2">
+              <h4 className="font-medium text-xs uppercase text-amber-800 dark:text-amber-300 mb-1">Answer</h4>
+              <p className="whitespace-pre-wrap text-amber-900 dark:text-amber-100">{answer}</p>
             </div>
           )}
           
