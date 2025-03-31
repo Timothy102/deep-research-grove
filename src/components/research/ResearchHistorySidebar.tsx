@@ -8,10 +8,12 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
-import { CalendarDays, Clock, ChevronsLeft } from "lucide-react"
+import { CalendarDays, Clock, ChevronsLeft, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
 import { toast } from "sonner";
+import { supabase, syncSession } from "@/integrations/supabase/client";
+import { getLatestSessionState } from "@/services/researchStateService";
 
 interface ResearchHistorySidebarProps {
   isOpen: boolean;
@@ -28,10 +30,39 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
   onSelectItem,
   onToggle
 }) => {
-  const handleSessionSelect = (item: any) => {
+  // Add a verification of session when sidebar opens
+  useEffect(() => {
+    if (isOpen) {
+      // Ensure session is valid when sidebar opens
+      syncSession().catch(err => {
+        console.error("Error syncing session when opening sidebar:", err);
+      });
+    }
+  }, [isOpen]);
+
+  const handleSessionSelect = async (item: any) => {
     try {
+      // First, ensure session is synced
+      await syncSession();
+      
       // Store current session ID to ensure proper state restoration
       localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, item.session_id);
+      
+      // Get the latest state for this session from Supabase
+      const latestState = await getLatestSessionState(item.session_id);
+      
+      if (latestState) {
+        console.log(`[${new Date().toISOString()}] ✅ Retrieved latest state for session:`, item.session_id);
+        
+        // Store this state in localStorage for better persistence
+        localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, JSON.stringify(latestState));
+        
+        // Also save session-specific state
+        const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, item.session_id);
+        localStorage.setItem(sessionStateKey, JSON.stringify(latestState));
+      } else {
+        console.warn(`[${new Date().toISOString()}] ⚠️ Could not find state for session:`, item.session_id);
+      }
       
       // Dispatch a custom event for session restoration
       window.dispatchEvent(new CustomEvent('session-selected', { 
@@ -39,7 +70,8 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
           sessionId: item.session_id,
           query: item.query,
           isNew: false,
-          historyItem: item
+          historyItem: item,
+          state: latestState
         }
       }));
       
@@ -57,13 +89,27 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
     }
   };
 
+  const handleRefreshHistory = () => {
+    // Dispatch an event to refresh history
+    window.dispatchEvent(new CustomEvent('refresh-history-requested'));
+    toast.success("Refreshing research history...");
+  };
+
   return (
     <Sheet open={isOpen} onOpenChange={onToggle}>
       <SheetContent side="left" className="w-3/4 sm:w-2/3 md:w-1/2 lg:w-2/5 xl:w-1/4 p-0 shadow-xl z-50">
         <SheetHeader className="pl-6 pr-4 pt-6 pb-0">
           <div className="flex items-center justify-between">
             <SheetTitle>Research History</SheetTitle>
-            <SheetDescription>
+            <SheetDescription className="flex items-center space-x-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleRefreshHistory}
+                title="Refresh history"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={onToggle}>
                 <ChevronsLeft className="h-4 w-4" />
               </Button>

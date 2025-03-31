@@ -46,15 +46,24 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
         }
       }
     }
-  }
+  },
+  // Add persistent storage options for better session management
+  global: {
+    fetch: (...args) => fetch(...args),
+  },
+  db: {
+    schema: 'public',
+  },
 });
 
-// Helper function to get session from local storage
+// Helper function to get session from local storage with better error handling
 export const getStoredSession = () => {
   try {
     const sessionStr = localStorage.getItem('supabase.auth.token');
     if (sessionStr) {
-      return JSON.parse(sessionStr);
+      const session = JSON.parse(sessionStr);
+      console.log(`[${new Date().toISOString()}] 📋 Retrieved stored session:`, session?.access_token ? 'Valid token exists' : 'No valid token');
+      return session;
     }
   } catch (e) {
     console.error("Error retrieving session:", e);
@@ -69,6 +78,7 @@ export const syncSession = async () => {
     if (session) {
       // Ensure the session is properly stored
       localStorage.setItem('supabase.auth.token', JSON.stringify(session));
+      console.log(`[${new Date().toISOString()}] 🔄 Synced session to localStorage: ${session.access_token.substring(0, 15)}...`);
       return session;
     }
   } catch (e) {
@@ -116,4 +126,51 @@ export const getClientId = () => {
   }
   
   return clientId;
+};
+
+// Function to verify if the connection to Supabase is working properly
+export const checkSupabaseConnection = async () => {
+  try {
+    // Simple query to test connection
+    const { data, error } = await supabase
+      .from('research_states')
+      .select('id')
+      .limit(1);
+      
+    if (error) {
+      console.error(`[${new Date().toISOString()}] ❌ Supabase connection test failed:`, error);
+      return false;
+    }
+    
+    console.log(`[${new Date().toISOString()}] ✅ Supabase connection test successful`);
+    return true;
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] 🔥 Critical error testing Supabase connection:`, error);
+    return false;
+  }
+};
+
+// Exponential backoff reconnection to Supabase
+export const reconnectToSupabase = async (maxRetries = 5, initialDelay = 1000) => {
+  let retries = 0;
+  let delay = initialDelay;
+  
+  while (retries < maxRetries) {
+    console.log(`[${new Date().toISOString()}] 🔄 Attempting to reconnect to Supabase (attempt ${retries + 1}/${maxRetries})...`);
+    
+    if (await checkSupabaseConnection()) {
+      console.log(`[${new Date().toISOString()}] ✅ Successfully reconnected to Supabase`);
+      return true;
+    }
+    
+    retries++;
+    if (retries >= maxRetries) break;
+    
+    // Exponential backoff
+    await new Promise(resolve => setTimeout(resolve, delay));
+    delay *= 2;
+  }
+  
+  console.error(`[${new Date().toISOString()}] ❌ Failed to reconnect to Supabase after ${maxRetries} attempts`);
+  return false;
 };
