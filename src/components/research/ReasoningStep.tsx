@@ -132,8 +132,8 @@ const ReasoningStep = ({
     }
   };
   
+  // Display all findings immediately with the step
   const relevantFindings = findings.filter(finding => {
-    // Basic relevance check
     return sources.includes(finding.source) || finding.node_id;
   });
   
@@ -181,63 +181,68 @@ const ReasoningStep = ({
         </div>
       </div>
       
-      {isExpanded && (
-        <div className="px-4 pb-4 pl-7 space-y-4 text-sm animate-in fade-in duration-200">
-          {/* Always show findings at the top when expanded */}
-          {relevantFindings.length > 0 && (
+      {/* Always show findings even when not expanded */}
+      {relevantFindings.length > 0 && (
+        <div className={cn(
+          "px-4 pb-4 pl-7 space-y-4 text-sm", 
+          !isExpanded && "border-t border-muted/30 pt-3"
+        )}>
+          <div className="space-y-3">
+            <h4 className="font-medium text-xs uppercase text-muted-foreground mb-1">Findings</h4>
             <div className="space-y-3">
-              <h4 className="font-medium text-xs uppercase text-muted-foreground mb-1">Findings</h4>
-              <div className="space-y-3">
-                {relevantFindings.map((finding, i) => {
-                  const hasDetails = finding.finding?.title || finding.finding?.summary;
-                  return (
-                    <div key={i} className="rounded-md overflow-hidden bg-background/80 border border-muted shadow-sm">
-                      {hasDetails && (
-                        <div className="p-3 border-b border-muted/50">
-                          <div className="flex justify-between items-start">
-                            <h5 className="font-medium text-sm truncate flex-1">
-                              {finding.finding?.title || "Finding"}
-                            </h5>
-                            {finding.source && finding.source.startsWith('http') && (
-                              <a 
-                                href={finding.source} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-primary hover:text-primary/80 ml-2"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <ExternalLink size={14} />
-                              </a>
-                            )}
-                          </div>
-                          {finding.finding?.confidence_score && (
-                            <div className="mt-1">
-                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
-                                Confidence: {Math.round(finding.finding.confidence_score * 100)}%
-                              </Badge>
-                            </div>
+              {relevantFindings.map((finding, i) => {
+                const hasDetails = finding.finding?.title || finding.finding?.summary;
+                return (
+                  <div key={i} className="rounded-md overflow-hidden bg-background/80 border border-muted shadow-sm">
+                    {hasDetails && (
+                      <div className="p-3 border-b border-muted/50">
+                        <div className="flex justify-between items-start">
+                          <h5 className="font-medium text-sm truncate flex-1">
+                            {finding.finding?.title || "Finding"}
+                          </h5>
+                          {finding.source && finding.source.startsWith('http') && (
+                            <a 
+                              href={finding.source} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:text-primary/80 ml-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ExternalLink size={14} />
+                            </a>
                           )}
                         </div>
-                      )}
-                      <div className="p-3 bg-slate-50/50 dark:bg-slate-900/50">
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                          {finding.finding?.summary || finding.content || "No content available"}
-                        </p>
-                        {finding.source && (
-                          <p className="mt-2 text-xs text-muted-foreground truncate">
-                            Source: {finding.source}
-                          </p>
+                        {finding.finding?.confidence_score && (
+                          <div className="mt-1">
+                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
+                              Confidence: {Math.round(finding.finding.confidence_score * 100)}%
+                            </Badge>
+                          </div>
                         )}
                       </div>
+                    )}
+                    <div className="p-3 bg-slate-50/50 dark:bg-slate-900/50">
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                        {finding.finding?.summary || finding.content || "No content available"}
+                      </p>
+                      {finding.source && (
+                        <p className="mt-2 text-xs text-muted-foreground truncate">
+                          Source: {finding.source}
+                        </p>
+                      )}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
-          
+          </div>
+        </div>
+      )}
+      
+      {isExpanded && (
+        <div className="px-4 pb-4 pl-7 space-y-4 text-sm animate-in fade-in duration-100">
           {answer && (
-            <div className="p-3 rounded-md bg-background/80 border border-muted">
+            <div className="p-3 rounded-md bg-background/80 border border-muted mt-2">
               <h4 className="font-medium text-xs uppercase text-muted-foreground mb-1">Answer</h4>
               <p className="whitespace-pre-wrap">{answer}</p>
             </div>

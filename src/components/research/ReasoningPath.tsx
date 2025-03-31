@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import ReasoningStep from "./ReasoningStep";
@@ -282,6 +283,7 @@ const ReasoningPath = ({
     );
   }
   
+  // Process findings to associate them with proper reasoning steps
   const findingsByNodeId: Record<string, Finding[]> = {};
   displayFindings.forEach(finding => {
     if (finding.node_id) {
@@ -292,6 +294,7 @@ const ReasoningPath = ({
     }
   });
   
+  // Create domain keywords mapping for findings without node_id
   const findingsByDomainKeyword: Record<string, Finding[]> = {};
   displayFindings.forEach(finding => {
     try {
@@ -309,6 +312,7 @@ const ReasoningPath = ({
         }
       }
     } catch {
+      // Ignore invalid URLs
     }
   });
   
@@ -326,13 +330,15 @@ const ReasoningPath = ({
       
       <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pb-8 md:pb-20 reasoning-steps-container">
         {displayReasoningPath.map((step, index) => {
+          // Extract node ID using various patterns
           const nodeId = step.match(/node(?:_id|[\s_]id)?:?\s*['"]?([a-zA-Z0-9_-]+)['"]?/i)?.[1] || 
                       step.match(/node\s+(\d+)|#(\d+)/i)?.[1] || 
                       step.match(/step-(\d+)/i)?.[1] ||
-                      `step-${index}`;
+                      `${index + 1}`;
                       
           const stepRawData = nodeId ? rawData[nodeId] : undefined;
           
+          // Extract answer data if available
           let answerData = null;
           if (stepRawData) {
             try {
@@ -348,8 +354,10 @@ const ReasoningPath = ({
             }
           }
           
+          // Get findings directly associated with this node ID
           const nodeFindings = findingsByNodeId[nodeId] || [];
           
+          // Attempt to match findings by keywords in the step
           const stepLower = step.toLowerCase();
           const keywordFindings: Finding[] = [];
           
@@ -363,6 +371,7 @@ const ReasoningPath = ({
             }
           });
           
+          // Find URL-based findings
           const urlFindings = displayFindings.filter(finding => {
             if (nodeFindings.includes(finding) || keywordFindings.includes(finding)) return false;
             try {
@@ -374,13 +383,15 @@ const ReasoningPath = ({
             }
           });
           
+          // Combine all relevant findings
           const relevantFindings = [...nodeFindings, ...keywordFindings, ...urlFindings];
           
+          // Determine if this is a newly added step
           const isNewStep = index === displayReasoningPath.length - 1 && isLoading;
           
           return (
             <ReasoningStep
-              key={`${index}-${forcedUpdate}`}
+              key={`${nodeId}-${index}`}
               step={step}
               index={index}
               sources={sources}
@@ -391,8 +402,8 @@ const ReasoningPath = ({
               sessionId={sessionId}
               answer={answerData}
               className={cn(
-                isNewStep && "reasoning-step-new animate-in fade-in slide-in-from-right-5 duration-500",
-                relevantFindings.length > 0 && "ring-1 ring-primary/10"
+                relevantFindings.length > 0 && "ring-1 ring-primary/10",
+                isNewStep && "reasoning-step-new"
               )}
             />
           );
