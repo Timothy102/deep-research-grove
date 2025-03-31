@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import ReasoningStep from "./ReasoningStep";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey, getSessionData, saveSessionData } from "@/lib/constants";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface Finding {
   source: string;
