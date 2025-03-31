@@ -34,12 +34,10 @@ const SourcesList: React.FC<SourcesListProps> = ({
   className, 
   sessionId 
 }) => {
-  // Use state to handle sources with proper persistence
   const [displaySources, setDisplaySources] = useState<string[]>(sources);
   const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings);
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
-  
-  // Group findings by source
+
   const findingsBySource = displayFindings.reduce((acc: Record<string, Finding[]>, finding) => {
     if (!finding.source) return acc;
     
@@ -47,7 +45,6 @@ const SourcesList: React.FC<SourcesListProps> = ({
       acc[finding.source] = [];
     }
     
-    // Only add if not already present
     if (!acc[finding.source].some(f => 
       f.finding?.title === finding.finding?.title && 
       f.finding?.summary === finding.finding?.summary
@@ -57,8 +54,7 @@ const SourcesList: React.FC<SourcesListProps> = ({
     
     return acc;
   }, {});
-  
-  // When a new source is added, default to expanded state
+
   useEffect(() => {
     const newExpandedState = { ...expandedSources };
     let hasChanges = false;
@@ -74,16 +70,13 @@ const SourcesList: React.FC<SourcesListProps> = ({
       setExpandedSources(newExpandedState);
     }
   }, [displaySources, expandedSources]);
-  
-  // Load sources from localStorage if available to ensure persistence across refreshes
+
   useEffect(() => {
     try {
-      // First check for session-specific data if we have a sessionId
       if (sessionId) {
         const sessionData = getSessionData(sessionId);
         
         if (sessionData) {
-          // Load sources from comprehensive session data
           if (sessionData.sources && Array.isArray(sessionData.sources) && sessionData.sources.length > 0) {
             if (sources.length === 0 || sessionData.sources.length > sources.length) {
               console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.sources.length} sources from session data`);
@@ -91,7 +84,6 @@ const SourcesList: React.FC<SourcesListProps> = ({
             }
           }
           
-          // Load findings from comprehensive session data
           if (sessionData.findings && Array.isArray(sessionData.findings) && sessionData.findings.length > 0) {
             if (findings.length === 0 || sessionData.findings.length > findings.length) {
               console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.findings.length} findings from session data`);
@@ -99,10 +91,9 @@ const SourcesList: React.FC<SourcesListProps> = ({
             }
           }
           
-          return; // Exit early if we found session data
+          return;
         }
         
-        // Fall back to session-specific cache keys
         const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
         const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
         
@@ -125,21 +116,18 @@ const SourcesList: React.FC<SourcesListProps> = ({
           }
         }
         
-        return; // Exit early if we found session-specific cache
+        return;
       }
       
-      // Fallback to global cache if no session-specific sources found
       const cachedSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
       const cachedFindings = localStorage.getItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
       
       if (cachedSources) {
         const parsedSources = JSON.parse(cachedSources);
         if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-          // Only use cached sources if we don't have any already
           if (sources.length === 0) {
             setDisplaySources(parsedSources);
           } else if (sources.length !== parsedSources.length) {
-            // If source counts don't match, use the larger set
             setDisplaySources(sources.length > parsedSources.length ? sources : parsedSources);
           }
         }
@@ -148,11 +136,9 @@ const SourcesList: React.FC<SourcesListProps> = ({
       if (cachedFindings) {
         const parsedFindings = JSON.parse(cachedFindings);
         if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
-          // Only use cached findings if we don't have any already
           if (findings.length === 0) {
             setDisplayFindings(parsedFindings);
           } else if (findings.length !== parsedFindings.length) {
-            // If finding counts don't match, use the larger set
             setDisplayFindings(findings.length > parsedFindings.length ? findings : parsedFindings);
           }
         }
@@ -162,12 +148,10 @@ const SourcesList: React.FC<SourcesListProps> = ({
     }
   }, [sources, findings, sessionId]);
 
-  // Update display sources whenever props sources change
   useEffect(() => {
     if (sources.length > 0) {
       setDisplaySources(sources);
       
-      // Save to localStorage for persistence - both global and session-specific if available
       try {
         localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(sources));
         
@@ -183,13 +167,11 @@ const SourcesList: React.FC<SourcesListProps> = ({
       }
     }
   }, [sources, sessionId]);
-  
-  // Update display findings whenever props findings change
+
   useEffect(() => {
     if (findings.length > 0) {
       setDisplayFindings(findings);
       
-      // Save to localStorage for persistence
       try {
         localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(findings));
         
@@ -234,7 +216,7 @@ const SourcesList: React.FC<SourcesListProps> = ({
         <div className="space-y-3">
           {displaySources.map((source, index) => {
             const sourceFindings = findingsBySource[source] || [];
-            const isExpanded = expandedSources[source] !== false; // Default to true
+            const isExpanded = expandedSources[source] !== false;
             
             return (
               <Collapsible 
@@ -262,7 +244,7 @@ const SourcesList: React.FC<SourcesListProps> = ({
                   
                   <div className="flex items-center ml-2 space-x-2">
                     {sourceFindings.length > 0 && (
-                      <Badge variant="outline" size="sm" className="text-xs bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
+                      <Badge variant="outline" className="text-xs bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
                         {sourceFindings.length} 
                       </Badge>
                     )}
