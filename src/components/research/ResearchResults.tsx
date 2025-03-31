@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -18,6 +19,7 @@ export type Finding = {
     summary?: string;
     confidence_score?: number;
   };
+  node_id?: string;
 };
 
 export type ResearchResult = {
@@ -127,9 +129,15 @@ const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Find
                             {finding.finding?.summary || finding.content || "No content available"}
                           </p>
                           {finding.finding?.confidence_score && (
-                            <Badge className="mt-2 text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300">
+                            <Badge variant="outline" className="mt-2 text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300">
                               Confidence: {Math.round(finding.finding.confidence_score * 100)}%
                             </Badge>
+                          )}
+                          {finding.node_id && (
+                            <div className="mt-2 flex items-center">
+                              <Lightbulb className="h-3 w-3 text-amber-500 mr-1" />
+                              <span className="text-xs text-muted-foreground">Step {finding.node_id}</span>
+                            </div>
                           )}
                         </div>
                       ))}

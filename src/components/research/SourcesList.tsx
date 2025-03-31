@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { ExternalLink, Search, FileText, Lightbulb } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -272,7 +273,7 @@ const SourcesList: React.FC<SourcesListProps> = ({
                             {finding.finding?.summary || finding.content || "No content available"}
                           </p>
                           {finding.finding?.confidence_score && (
-                            <Badge className="mt-2 text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
+                            <Badge variant="outline" className="mt-2 text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
                               Confidence: {Math.round(finding.finding.confidence_score * 100)}%
                             </Badge>
                           )}
