@@ -29,7 +29,7 @@ supabase.channel('research_states_changes')
         detail: { 
           type: 'realtime',
           timestamp: new Date().toISOString(),
-          sessionId: payload.new?.session_id
+          sessionId: payload.new && 'session_id' in payload.new ? payload.new.session_id : undefined
         }
       }));
     }
