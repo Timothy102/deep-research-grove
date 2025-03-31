@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -34,6 +33,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { getClientId } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
+import { ProgressIndicator } from "@/components/research/ProgressIndicator";
 
 interface ResearchHistory {
   id: string;
@@ -113,10 +113,13 @@ const ResearchPage = () => {
   const [rawData, setRawData] = useState<Record<string, string>>({});
   const [userModels, setUserModels] = useState<UserModel[]>([]);
   const [displayName, setDisplayName] = useState<string>("");
+  const [progressEvents, setProgressEvents] = useState<string[]>([]);
+  const [currentStage, setCurrentStage] = useState("Initializing research");
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
   const clientIdRef = useRef<string>(getClientId());
+  const initialEventReceivedRef = useRef<boolean>(false);
   const { toast: uiToast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
 
@@ -152,15 +155,11 @@ const ResearchPage = () => {
     checkOnboardingStatus();
     loadUserModels();
     
-    // Check if this is a new chat request 
     const isNewChat = localStorage.getItem('newChatRequested') === 'true';
     if (isNewChat) {
-      // Clear the flag
       localStorage.removeItem('newChatRequested');
-      // Reset the state completely
       resetResearchState();
     } else {
-      // Try to load existing session data
       loadSessionData(sessionId);
     }
     
@@ -171,12 +170,10 @@ const ResearchPage = () => {
     const handleNewChatRequest = (event: CustomEvent) => {
       console.log(`[${new Date().toISOString()}] 🔄 New chat requested for session:`, event.detail.sessionId);
       
-      // If we're already on this page with this sessionId, we need to force a reset
       if (event.detail.sessionId === sessionId) {
         resetResearchState();
         setResearchObjective("");
       } else {
-        // Set a flag that will be checked on the next load
         localStorage.setItem('newChatRequested', 'true');
       }
     };
@@ -184,7 +181,6 @@ const ResearchPage = () => {
     window.addEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
     window.addEventListener('new-chat-requested', handleNewChatRequest as EventListener);
     
-    // Load history after initial setup
     loadHistory();
     
     return () => {
@@ -252,8 +248,10 @@ const ResearchPage = () => {
     setUserContext("");
     setSelectedCognitiveStyle("");
     researchIdRef.current = null;
+    initialEventReceivedRef.current = false;
+    setProgressEvents([]);
+    setCurrentStage("Initializing research");
     
-    // Clear any research state from local storage
     localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID);
     
@@ -587,6 +585,11 @@ const ResearchPage = () => {
   };
 
   const processEventData = (data: any, userModelData: any, researchId: string) => {
+    if (!initialEventReceivedRef.current) {
+      initialEventReceivedRef.current = true;
+      console.log(`[${new Date().toISOString()}] 🎬 First event received, research is active`);
+    }
+    
     const eventClientId = data.client_id || userModelData.client_id;
     const eventSessionId = data.session_id || currentSessionIdRef.current;
     const eventResearchId = data.research_id || researchId;
@@ -618,6 +621,12 @@ const ResearchPage = () => {
       clientId: clientIdRef.current.substring(0, 15)
     });
     
+    const timestamp = new Date().toLocaleTimeString();
+    if (data.data && data.data.message) {
+      const progressEvent = `${timestamp}: ${data.data.message}`;
+      setProgressEvents(prev => [...prev.slice(-4), progressEvent]);
+    }
+    
     if (data.data && data.data.node_id) {
       const nodeId = data.data.node_id;
       const rawEventData = JSON.stringify(data, null, 2);
@@ -636,10 +645,25 @@ const ResearchPage = () => {
       case "start":
         console.log("Research started");
         setActiveTab("reasoning");
+        setCurrentStage("Starting research");
+        
+        window.dispatchEvent(new CustomEvent('research_state_update', { 
+          detail: { 
+            payload: {
+              new: {
+                session_id: currentSessionIdRef.current,
+                reasoning_path: reasoningPath,
+                status: 'in_progress'
+              }
+            },
+            timestamp: new Date().toISOString()
+          }
+        }));
         break;
       case "update":
         const message = data.data.message || "";
         setResearchOutput(prev => prev + message + "\n");
+        setCurrentStage("Generating answer");
         
         if (currentSessionIdRef.current) {
           updateResearchState(researchId, currentSessionIdRef.current, {
@@ -650,6 +674,7 @@ const ResearchPage = () => {
       case "source":
         const source = data.data.source || "";
         setSources(prev => [...prev, source]);
+        setCurrentStage("Finding sources");
         
         if (currentSessionIdRef.current) {
           updateResearchState(researchId, currentSessionIdRef.current, {
@@ -679,6 +704,17 @@ const ResearchPage = () => {
         break;
       case "reasoning":
         const step = data.data.step || "";
+        setCurrentStage("Analyzing information");
+        
+        if (step.toLowerCase().includes("planning")) {
+          setCurrentStage("Planning research approach");
+        } else if (step.toLowerCase().includes("search")) {
+          setCurrentStage("Searching for information");
+        } else if (step.toLowerCase().includes("read")) {
+          setCurrentStage("Reading sources");
+        } else if (step.toLowerCase().includes("synthe")) {
+          setCurrentStage("Synthesizing information");
+        }
         
         const nodeIdMatch = step.match(/Node ID:?\s*([a-zA-Z0-9_-]+)/i) || 
                           step.match(/node\s+(\d+)|#(\d+)/i);
@@ -953,7 +989,6 @@ const ResearchPage = () => {
   const handleNewChat = () => {
     const newSessionId = uuidv4();
     
-    // Set a flag to indicate this is a new chat
     localStorage.setItem('newChatRequested', 'true');
     
     navigate(`/research/${newSessionId}`);
@@ -1070,9 +1105,12 @@ const ResearchPage = () => {
           sidebarOpen && "lg:ml-72",
           !sidebarOpen && "ml-0"
         )}>
-          {researchObjective ? (
+          {initialEventReceivedRef.current || researchObjective ? (
             <>
-              <div className="p-4 border-b">
+              <div className={cn(
+                "p-4 border-b transition-opacity duration-300",
+                isLoading && initialEventReceivedRef.current ? "opacity-50" : "opacity-100"
+              )}>
                 <ResearchForm 
                   isLoading={isLoading}
                   initialValue={researchObjective}
@@ -1088,6 +1126,16 @@ const ResearchPage = () => {
               </div>
               
               <div className="flex-1 overflow-auto p-4">
+                {isLoading && (
+                  <div className="mb-4">
+                    <ProgressIndicator 
+                      isLoading={isLoading} 
+                      currentStage={currentStage}
+                      events={progressEvents}
+                    />
+                  </div>
+                )}
+                
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="mb-4">
                     <TabsTrigger value="reasoning" className="flex items-center space-x-1">

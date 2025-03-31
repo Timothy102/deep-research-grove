@@ -32,9 +32,9 @@ export const ProgressIndicator = ({
     <div className="p-4 rounded-md bg-primary/5 border border-primary/10 animate-pulse">
       <div className="flex items-center">
         <div className="flex space-x-1 mr-2">
-          <span className="loading-dot"></span>
-          <span className="loading-dot"></span>
-          <span className="loading-dot"></span>
+          <span className="loading-dot w-2 h-2 bg-primary/60 rounded-full animate-pulse"></span>
+          <span className="loading-dot w-2 h-2 bg-primary/60 rounded-full animate-pulse delay-75"></span>
+          <span className="loading-dot w-2 h-2 bg-primary/60 rounded-full animate-pulse delay-150"></span>
         </div>
         <p className="text-sm font-medium">{loadingText}</p>
       </div>

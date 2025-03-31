@@ -14,11 +14,22 @@ supabase.channel('research_states_changes')
     (payload) => {
       console.log(`[${new Date().toISOString()}] 📊 Realtime update received:`, payload);
       
-      // Dispatch a custom event so components can react to it
-      window.dispatchEvent(new CustomEvent('research_state_update', { 
+      // Dispatch a custom event so components can react to it immediately
+      const eventDetail = { 
+        payload,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Dispatch the event
+      window.dispatchEvent(new CustomEvent('research_state_update', { detail: eventDetail }));
+      
+      // Also dispatch a more urgent "new-event" notification that can be used 
+      // to trigger immediate UI updates regardless of the payload content
+      window.dispatchEvent(new CustomEvent('research-new-event', { 
         detail: { 
-          payload,
-          timestamp: new Date().toISOString()
+          type: 'realtime',
+          timestamp: new Date().toISOString(),
+          sessionId: payload.new?.session_id
         }
       }));
     }
@@ -85,5 +96,12 @@ window.addEventListener('message', (event) => {
     );
   }
 });
+
+// Add a heartbeat to ensure components are updating regularly
+setInterval(() => {
+  window.dispatchEvent(new CustomEvent('research-heartbeat', { 
+    detail: { timestamp: new Date().toISOString() }
+  }));
+}, 5000);
 
 createRoot(document.getElementById("root")!).render(<App />);

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import ReasoningStep from "./ReasoningStep";
@@ -41,26 +40,33 @@ const ReasoningPath = ({
   const [displayReasoningPath, setDisplayReasoningPath] = useState<string[]>(reasoningPath);
   const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings);
   const [sessionLoaded, setSessionLoaded] = useState(false);
+  const [forcedUpdate, setForcedUpdate] = useState(0);
   
-  // Handler for real-time updates
+  useEffect(() => {
+    if (reasoningPath.length > 0) {
+      setDisplayReasoningPath(reasoningPath);
+    }
+    
+    if (findings.length > 0) {
+      setDisplayFindings(findings);
+    }
+  }, [reasoningPath, findings]);
+  
   const handleRealtimeUpdate = useCallback((event: CustomEvent) => {
     if (!sessionId) return;
     
     const payload = event.detail?.payload;
     if (!payload || payload.table !== 'research_states') return;
     
-    // Only process updates relevant to this session
     if (payload.new && payload.new.session_id === sessionId) {
       console.log(`[${new Date().toISOString()}] 🔄 Processing realtime update for session ${sessionId}`, payload);
       
-      // Update reasoning path if it changed
       if (payload.new.reasoning_path && Array.isArray(payload.new.reasoning_path)) {
         const newPath = payload.new.reasoning_path;
         if (newPath.length > displayReasoningPath.length) {
           console.log(`[${new Date().toISOString()}] 📝 Updating reasoning path with ${newPath.length} steps`);
           setDisplayReasoningPath(newPath);
           
-          // Save to local storage for persistence
           try {
             localStorage.setItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, JSON.stringify(newPath));
             if (sessionId) {
@@ -77,14 +83,12 @@ const ReasoningPath = ({
         }
       }
       
-      // Update findings if they changed
       if (payload.new.findings && Array.isArray(payload.new.findings)) {
         const newFindings = payload.new.findings;
         if (newFindings.length > displayFindings.length) {
           console.log(`[${new Date().toISOString()}] 📊 Updating findings with ${newFindings.length} items`);
           setDisplayFindings(newFindings);
           
-          // Save to local storage for persistence
           try {
             localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(newFindings));
             if (sessionId) {
@@ -103,14 +107,27 @@ const ReasoningPath = ({
     }
   }, [sessionId, displayReasoningPath.length, displayFindings.length]);
   
-  // Register and unregister the realtime update listener
+  const handleResearchEvents = useCallback(() => {
+    setForcedUpdate(prev => prev + 1);
+  }, []);
+  
+  const handleHeartbeat = useCallback(() => {
+    if (isLoading) {
+      setForcedUpdate(prev => prev + 1);
+    }
+  }, [isLoading]);
+  
   useEffect(() => {
     window.addEventListener('research_state_update', handleRealtimeUpdate as EventListener);
+    window.addEventListener('research-new-event', handleResearchEvents as EventListener);
+    window.addEventListener('research-heartbeat', handleHeartbeat as EventListener);
     
     return () => {
       window.removeEventListener('research_state_update', handleRealtimeUpdate as EventListener);
+      window.removeEventListener('research-new-event', handleResearchEvents as EventListener);
+      window.removeEventListener('research-heartbeat', handleHeartbeat as EventListener);
     };
-  }, [handleRealtimeUpdate]);
+  }, [handleRealtimeUpdate, handleResearchEvents, handleHeartbeat]);
   
   useEffect(() => {
     if (!sessionId) return;
@@ -322,9 +339,11 @@ const ReasoningPath = ({
           
           const relevantFindings = [...nodeFindings, ...urlFindings];
           
+          const isNewStep = index === displayReasoningPath.length - 1 && isLoading;
+          
           return (
             <ReasoningStep
-              key={index}
+              key={`${index}-${forcedUpdate}`}
               step={step}
               index={index}
               sources={sources}
@@ -334,6 +353,7 @@ const ReasoningPath = ({
               rawData={stepRawData}
               sessionId={sessionId}
               answer={answerData}
+              className={isNewStep ? "reasoning-step-new" : ""}
             />
           );
         })}
