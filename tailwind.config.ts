@@ -19,8 +19,8 @@ export default {
 		},
 		extend: {
 			fontFamily: {
-				sans: ['Rubik', 'system-ui', 'sans-serif'],
-				display: ['Rubik', 'system-ui', 'sans-serif'],
+				sans: ['Nunito', 'system-ui', 'sans-serif'],
+				display: ['Nunito', 'system-ui', 'sans-serif'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',
