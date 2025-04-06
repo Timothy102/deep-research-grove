@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
 import { toast } from "sonner";
 import { supabase, syncSession } from "@/integrations/supabase/client";
-import { getLatestSessionState } from "@/services/researchStateService";
+import { getLatestSessionState, getResearchState } from "@/services/researchStateService";
 
 interface ResearchHistorySidebarProps {
   isOpen: boolean;
@@ -48,11 +48,13 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
       // Store current session ID to ensure proper state restoration
       localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, item.session_id);
       
-      // Get the latest state for this session from Supabase
-      const latestState = await getLatestSessionState(item.session_id);
+      console.log(`[${new Date().toISOString()}] 🔄 Loading complete research state for session:`, item.session_id);
+      
+      // Get the FULL latest state for this session from Supabase with ALL data
+      const latestState = await getResearchState("", item.session_id);
       
       if (latestState) {
-        console.log(`[${new Date().toISOString()}] ✅ Retrieved latest state for session:`, item.session_id);
+        console.log(`[${new Date().toISOString()}] ✅ Retrieved complete state for session:`, item.session_id, latestState);
         
         // Store this state in localStorage for better persistence
         localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, JSON.stringify(latestState));
@@ -60,17 +62,37 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         // Also save session-specific state
         const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, item.session_id);
         localStorage.setItem(sessionStateKey, JSON.stringify(latestState));
+        
+        // Build a comprehensive answer object with all state data
+        const completeAnswer = {
+          query: latestState.query,
+          answer: latestState.answer || "",
+          sources: latestState.sources || [],
+          reasoning_path: latestState.reasoning_path || [],
+          findings: latestState.findings || [],
+          syntheses: latestState.user_model || {},
+          confidence: latestState.completed_nodes ? (latestState.completed_nodes / 10) : 0.8,
+          session_id: item.session_id,
+          research_id: latestState.research_id
+        };
+        
+        // Store the complete answer in cache
+        localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(completeAnswer));
+        const sessionAnswerKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, item.session_id);
+        localStorage.setItem(sessionAnswerKey, JSON.stringify(completeAnswer));
       } else {
         console.warn(`[${new Date().toISOString()}] ⚠️ Could not find state for session:`, item.session_id);
+        toast.error("Could not load complete session data");
       }
       
-      // Dispatch a custom event for session restoration
+      // Dispatch a custom event for session restoration with full data
       window.dispatchEvent(new CustomEvent('session-selected', { 
         detail: { 
           sessionId: item.session_id,
           query: item.query,
           isNew: false,
           historyItem: item,
+          fullState: true,
           state: latestState
         }
       }));

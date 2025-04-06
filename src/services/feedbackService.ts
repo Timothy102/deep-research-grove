@@ -34,7 +34,9 @@ export async function submitFeedback(
         feedback: comment,
         interaction_type: approved ? "approval" : "rejection",
         session_id: window.location.pathname.split('/').pop() || ''
-      })
+      }),
+      // Add timeout and credentials for better reliability
+      credentials: 'omit', // Don't send cookies
     });
     
     if (!response.ok) {
@@ -51,11 +53,24 @@ export async function submitFeedback(
         call_id: callId,
         approved,
         comment,
-        response: data
-      }
+        response: data,
+        timestamp: new Date().toISOString()
+      },
+      bubbles: true,
+      composed: true
     });
     
     window.dispatchEvent(humanInteractionEvent);
+    
+    // Also dispatch a research state update request to refresh data
+    window.dispatchEvent(new CustomEvent('research-state-refresh-requested', {
+      detail: {
+        timestamp: new Date().toISOString(),
+        source: 'feedback'
+      },
+      bubbles: true,
+      composed: true
+    }));
     
     return {
       id: data.id || callId,

@@ -7,7 +7,7 @@ import HumanApprovalDialog from './components/research/HumanApprovalDialog.tsx';
 import { submitFeedback } from './services/feedbackService.ts';
 import { supabase } from './integrations/supabase/client';
 
-// Enable realtime subscriptions with improved logging
+// Enable realtime subscriptions with improved logging and recovery
 supabase.channel('research_states_changes')
   .on('postgres_changes', 
     { event: '*', schema: 'public', table: 'research_states' }, 
@@ -20,8 +20,12 @@ supabase.channel('research_states_changes')
         timestamp: new Date().toISOString()
       };
       
-      // Dispatch the event
-      window.dispatchEvent(new CustomEvent('research_state_update', { detail: eventDetail }));
+      // Dispatch the event with full payload data
+      window.dispatchEvent(new CustomEvent('research_state_update', { 
+        detail: eventDetail,
+        bubbles: true, // Ensure event bubbles up through the DOM
+        composed: true  // Allow event to pass through shadow DOM boundaries
+      }));
       
       // Also dispatch a more urgent "new-event" notification that can be used 
       // to trigger immediate UI updates regardless of the payload content
@@ -31,8 +35,11 @@ supabase.channel('research_states_changes')
           timestamp: new Date().toISOString(),
           sessionId: payload.new && typeof payload.new === 'object' && 'session_id' in payload.new 
             ? payload.new.session_id 
-            : undefined
-        }
+            : undefined,
+          fullPayload: payload // Include the full payload for components to use
+        },
+        bubbles: true,
+        composed: true
       }));
     }
   )
@@ -42,6 +49,12 @@ supabase.channel('research_states_changes')
     // Notify when connection is established or reconnected
     if (status === 'SUBSCRIBED') {
       console.log(`[${new Date().toISOString()}] ✅ Realtime subscription active`);
+      
+      // Attempt to reconnect if connection drops
+      window.addEventListener('online', () => {
+        console.log(`[${new Date().toISOString()}] 🔄 Network back online, reestablishing connections`);
+        supabase.channel('research_states_changes').subscribe();
+      });
     }
   });
 
@@ -100,6 +113,7 @@ window.addEventListener('message', (event) => {
 });
 
 // Add a heartbeat to ensure components are updating regularly
+// and check for stale data that needs refreshing
 setInterval(() => {
   window.dispatchEvent(new CustomEvent('research-heartbeat', { 
     detail: { timestamp: new Date().toISOString() }
