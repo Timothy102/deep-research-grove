@@ -204,42 +204,6 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, [user]);
 
-  // Load from local storage
-  const loadUserModelFromLocalStorage = useCallback(() => {
-    const storedUserModel = localStorage.getItem('deepresearch.user_model');
-    if (storedUserModel) {
-      setUserModel(JSON.parse(storedUserModel));
-    }
-  }, []);
-
-  // Load from session storage
-  const loadUserModelFromSessionStorage = useCallback(() => {
-    const storedUserModel = sessionStorage.getItem('deepresearch.user_model');
-    if (storedUserModel) {
-      setUserModel(JSON.parse(storedUserModel));
-    }
-  }, []);
-
-  // Load from cache
-  const loadUserModelFromCache = useCallback(() => {
-    const storedUserModel = localStorage.getItem('deepresearch.user_model_cache');
-    if (storedUserModel) {
-      setUserModel(JSON.parse(storedUserModel));
-    }
-  }, []);
-
-  // API fetch for user model
-  const loadUserModelFromAPI = useCallback(async () => {
-    if (user) {
-      try {
-        const userModelData = await getUserModelById(user.id);
-        setUserModel(userModelData);
-      } catch (error) {
-        console.error("Error fetching user model:", error);
-      }
-    }
-  }, [user]);
-
   // Handle history item click
   const handleHistoryItemClick = (item: any) => {
     console.log("History item clicked:", item);
@@ -292,7 +256,17 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
       {/* Main content */}
       <div className="flex-1 p-4">
         <h1 className="text-2xl font-bold mb-4">Research Page</h1>
-        {/* Add the rest of your UI components here */}
+        {/* Configuration options should be added to your research form component */}
+        <div className="mb-4">
+          <ResearchForm 
+            onSubmit={(query) => {
+              console.log("Research submitted:", query);
+              // Handle research submission
+            }}
+            maxIterations={250}
+            maxDepth={25}
+          />
+        </div>
       </div>
     </div>
   );
