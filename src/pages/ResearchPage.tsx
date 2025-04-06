@@ -57,9 +57,10 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
   } | null>(null);
   const [onboardingStatus, setOnboardingStatus] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("research");
-  const [showSidebar, setShowSidebar] = useState(() => {
+  // Fixed: Using proper boolean state storage
+  const [showSidebar, setShowSidebar] = useState<boolean>(() => {
     const savedState = localStorage.getItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE);
-    return savedState !== null ? savedState === 'true' : false;
+    return savedState ? savedState === 'true' : false;
   });
   const [progress, setProgress] = useState(0);
   const [isNewSession, setIsNewSession] = useState(true);
@@ -70,7 +71,8 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
   const [lastHeartbeat, setLastHeartbeat] = useState(new Date());
   const [history, setHistory] = useState<any[]>([]);
 
-  const { toast: toastNotification } = useToast(); // FIX: Remove incorrectly passed argument
+  // Fixed: Removed incorrect argument from useToast()
+  const { toast: toastNotification } = useToast();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { sessionId: routeSessionId } = useParams<{ sessionId: string }>();
@@ -94,7 +96,9 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
 
   const loadSidebarState = useCallback(() => {
     const savedState = localStorage.getItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE);
-    setShowSidebar(savedState !== null ? savedState === 'true' : false);
+    if (savedState !== null) {
+      setShowSidebar(savedState === 'true');
+    }
   }, []);
 
   const loadCurrentQuery = useCallback(() => {
@@ -203,7 +207,8 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
   const toggleSidebar = () => {
     const newState = !showSidebar;
     setShowSidebar(newState);
-    localStorage.setItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE, String(newState)); // FIX: Convert boolean to string
+    // Fixed: Set the string representation of boolean in localStorage
+    localStorage.setItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE, newState ? 'true' : 'false');
   };
 
   const fetchResearchHistory = useCallback(async () => {
@@ -220,8 +225,12 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
 
   const handleResearchSubmit = (query: string) => {
     console.log("Research submitted:", query);
+    setQuery(query);
+    // Save to localStorage
+    localStorage.setItem(LOCAL_STORAGE_KEYS.RESEARCH_OBJECTIVE, query);
+    // You could add more logic here like starting research, updating state, etc.
   };
-
+  
   useEffect(() => {
     fetchResearchHistory();
   }, [fetchResearchHistory]);
