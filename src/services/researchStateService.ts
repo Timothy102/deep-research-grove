@@ -435,7 +435,7 @@ function saveStateToLocalStorage(state: ResearchState) {
     
     // Also save session-specific state
     const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, state.session_id);
-    localStorage.setItem(sessionStateKey, localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_STATE)!);
+    localStorage.setItem(sessionStateKey, localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_STATE)!);\
     
     // Ensure all components are cached separately for resilience
     if (state.sources) {
@@ -846,4 +846,4 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
         findings: Array.isArray(rawData.findings) 
           ? rawData.findings 
           : (typeof rawData.findings === 'string' 
-              ? JSON.parse(rawData.findings)
+              ? JSON.parse(rawData.findings
