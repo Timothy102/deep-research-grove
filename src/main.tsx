@@ -71,6 +71,9 @@ window.addEventListener('message', (event) => {
           onClose={() => toast.dismiss(t)}
           onApprove={async (callId, nodeId) => {
             try {
+              // Submit feedback through our internal service
+              await submitHumanFeedback(nodeId, "Approved", "approve", callId);
+              
               // Store interaction directly in research_states
               if (session_id && research_id) {
                 await updateResearchState(research_id, session_id, {
@@ -108,6 +111,9 @@ window.addEventListener('message', (event) => {
           }}
           onReject={async (callId, nodeId, reason) => {
             try {
+              // Submit feedback through our internal service
+              await submitHumanFeedback(nodeId, reason, "reject", callId);
+              
               // Store interaction directly in research_states
               if (session_id && research_id) {
                 await updateResearchState(research_id, session_id, {

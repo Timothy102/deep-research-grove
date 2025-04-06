@@ -1020,7 +1020,7 @@ const ResearchPage = () => {
     try {
       console.log(`[${new Date().toISOString()}] 👍 Sending approval for call ID:`, callId, "node ID:", nodeId);
       
-      await respondToApproval(callId, true, '');
+      await submitHumanFeedback(nodeId, "Approved", "approve", callId);
       
       toast.success("Feedback submitted successfully");
       setShowApprovalDialog(false);
@@ -1038,7 +1038,7 @@ const ResearchPage = () => {
     try {
       console.log(`[${new Date().toISOString()}] 👎 Sending rejection for call ID:`, callId, "node ID:", nodeId, "reason:", reason);
       
-      await respondToApproval(callId, false, reason);
+      await submitHumanFeedback(nodeId, reason, "reject", callId);
       
       toast.success("Feedback submitted successfully");
       setShowApprovalDialog(false);
