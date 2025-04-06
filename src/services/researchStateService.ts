@@ -135,7 +135,9 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
         ...rawResult,
         findings: Array.isArray(rawResult.findings) 
           ? rawResult.findings 
-          : (typeof rawResult.findings === 'object' ? [] : [])
+          : (typeof rawResult.findings === 'string' 
+              ? JSON.parse(rawResult.findings)
+              : [])
       };
       
       saveStateToLocalStorage(result);
@@ -361,7 +363,9 @@ export async function updateResearchState(
       ...rawResult,
       findings: Array.isArray(rawResult.findings) 
         ? rawResult.findings 
-        : (typeof rawResult.findings === 'object' ? [] : [])
+        : (typeof rawResult.findings === 'string' 
+            ? JSON.parse(rawResult.findings)
+            : [])
     };
     
     saveStateToLocalStorage(result);
@@ -475,7 +479,7 @@ export async function getResearchState(researchId: string, sessionId: string): P
         findings: Array.isArray(rawData.findings) 
           ? rawData.findings 
           : (typeof rawData.findings === 'string' 
-              ? JSON.parse(rawData.findings) 
+              ? JSON.parse(rawData.findings)
               : [])
       };
       
@@ -680,7 +684,7 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
       findings: Array.isArray(rawData.findings) 
         ? rawData.findings 
         : (typeof rawData.findings === 'string' 
-            ? JSON.parse(rawData.findings) 
+            ? JSON.parse(rawData.findings)
             : [])
     };
     
@@ -769,7 +773,7 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
       findings: Array.isArray(rawData.findings) 
         ? rawData.findings 
         : (typeof rawData.findings === 'string' 
-            ? JSON.parse(rawData.findings) 
+            ? JSON.parse(rawData.findings)
             : [])
     };
     

@@ -232,6 +232,16 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, [user]);
 
+  // Handle research submit
+  const handleResearchSubmit = (query: string) => {
+    console.log("Research submitted:", query);
+    // Handle research submission logic here
+    // This would typically include:
+    // 1. Saving the research state
+    // 2. Starting the research process
+    // 3. Updating UI accordingly
+  };
+
   // Effect to fetch history data when component mounts
   useEffect(() => {
     fetchResearchHistory();
@@ -256,15 +266,13 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
       {/* Main content */}
       <div className="flex-1 p-4">
         <h1 className="text-2xl font-bold mb-4">Research Page</h1>
-        {/* Configuration options should be added to your research form component */}
+        {/* Research form with the specified max iterations and depth */}
         <div className="mb-4">
           <ResearchForm 
-            onSubmit={(query) => {
-              console.log("Research submitted:", query);
-              // Handle research submission
-            }}
+            onSubmit={handleResearchSubmit}
             maxIterations={250}
             maxDepth={25}
+            initialQuery={query}
           />
         </div>
       </div>
