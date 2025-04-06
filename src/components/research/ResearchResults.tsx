@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -35,7 +36,8 @@ export type ResearchResult = {
   syntheses?: Record<string, any>;
 };
 
-const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Finding[] }) => {
+// Renamed to SourcesListLocal to avoid conflict with imported component
+const SourcesListLocal = ({ sources, findings }: { sources: string[]; findings?: Finding[] }) => {
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
   
   const findingsBySource = (findings || []).reduce((acc: Record<string, Finding[]>, finding) => {
@@ -649,10 +651,10 @@ ${currentResult.reasoning_path.map((step, index) => `${index + 1}. ${step}`).joi
         </TabsContent>
         
         <TabsContent value="sources">
+          {/* Use the imported SourcesList component and pass only the props it expects */}
           <SourcesList 
             sources={currentResult.sources} 
             findings={currentResult.findings}
-            sessionId={currentResult.session_id}
           />
         </TabsContent>
         
