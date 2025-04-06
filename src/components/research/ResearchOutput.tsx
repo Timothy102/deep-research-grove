@@ -138,36 +138,32 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
 
   const exportToDocx = async () => {
     try {
-      // Dynamically import the docx library
-      const docx = await import('docx');
+      // Use a simpler approach for DOCX creation that's browser compatible
+      // Create a simple HTML structure
+      const htmlContent = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" 
+              xmlns:w="urn:schemas-microsoft-com:office:word" 
+              xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="utf-8">
+          <title>Research Results</title>
+        </head>
+        <body>
+          <h1>Research Results</h1>
+          <p>${output.replace(/\n/g, '<br>')}</p>
+        </body>
+        </html>
+      `;
       
-      // Create document
-      const doc = new docx.Document({
-        sections: [{
-          properties: {},
-          children: [
-            new docx.Paragraph({
-              children: [
-                new docx.TextRun({ text: "Research Results", bold: true, size: 28 }),
-              ],
-            }),
-            new docx.Paragraph({
-              children: [
-                new docx.TextRun({ text: output, size: 24 }),
-              ],
-            }),
-          ],
-        }],
-      });
+      // Convert to Blob
+      const blob = new Blob([htmlContent], { type: 'application/msword' });
       
-      // Generate and save document
-      const buffer = await docx.Packer.toBuffer(doc);
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-      saveAs(blob, "research-output.docx");
-      toast.success("DOCX downloaded successfully");
+      // Use saveAs to download the file
+      saveAs(blob, "research-output.doc");
+      toast.success("Document downloaded successfully");
     } catch (err) {
-      console.error("Failed to export as DOCX:", err);
-      toast.error("Failed to export as DOCX");
+      console.error("Failed to export as document:", err);
+      toast.error("Failed to export as document");
     }
   };
 
@@ -200,7 +196,7 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
           onClick={exportToDocx}
         >
           <Download size={16} />
-          <span>DOCX</span>
+          <span>DOC</span>
         </Button>
       </div>
       
