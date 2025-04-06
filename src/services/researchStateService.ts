@@ -776,13 +776,35 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
     console.log(`[${new Date().toISOString()}] 🔍 Fetching latest session state for session:`, sessionId, 
       "user:", user.user.id.substring(0, 8), "client:", clientId.substring(0, 15));
     
-    const { data, error } = await supabase
+    // First query: try with the current client ID
+    const { data: clientData, error: clientError } = await supabase
       .from('research_states')
       .select('*')
       .match({ 
         session_id: sessionId, 
         user_id: user.user.id,
         client_id: clientId
+      })
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+      
+    if (clientData) {
+      console.log(`[${new Date().toISOString()}] ✅ Found session state with current client:`, clientData.id);
+      return convertToResearchState(clientData as RawResearchStateData);
+    }
+    
+    if (clientError) {
+      console.warn(`[${new Date().toISOString()}] ⚠️ Error fetching with client ID, trying without:`, clientError.message);
+    }
+    
+    // Second query: try without client ID restriction
+    const { data, error } = await supabase
+      .from('research_states')
+      .select('*')
+      .match({ 
+        session_id: sessionId, 
+        user_id: user.user.id
       })
       .order('created_at', { ascending: false })
       .limit(1)

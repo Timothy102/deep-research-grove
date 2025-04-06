@@ -1,1235 +1,701 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { useAuth } from "@/components/auth/AuthContext";
-import { Button } from "@/components/ui/button";
-import { Loader2, Search, User, LogOut, MessageSquarePlus } from "lucide-react";
-import { 
-  saveResearchHistory, 
-  getResearchHistory, 
-  groupResearchHistoryByDate,
-  ResearchHistoryEntry 
-} from "@/services/researchService";
-import { 
-  saveResearchState, 
-  updateResearchState, 
-  getResearchState, 
-  getLatestSessionState 
-} from "@/services/researchStateService";
-import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted, getUserModels } from "@/services/userModelService";
-import { submitHumanFeedback } from "@/services/humanInteractionService";
-import { respondToApproval } from "@/services/humanLayerService";
-import { useToast } from "@/hooks/use-toast";
-import { ResearchForm } from "@/components/research/ResearchForm";
-import ReasoningPath from "@/components/research/ReasoningPath";
-import SourcesList from "@/components/research/SourcesList";
-import ResearchOutput from "@/components/research/ResearchOutput";
-import ResearchHistorySidebar from "@/components/research/ResearchHistorySidebar";
-import HumanApprovalDialog from "@/components/research/HumanApprovalDialog";
-import UserModelOnboarding from "@/components/onboarding/UserModelOnboarding";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { v4 as uuidv4 } from 'uuid';
-import { toast } from "sonner";
-import { useMediaQuery } from "@/hooks/use-media-query";
-import { getClientId } from "@/integrations/supabase/client";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useUser } from '@/components/auth/AuthContext';
+import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData, getSessionData } from '@/lib/constants';
 import { cn } from "@/lib/utils";
-import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
-import { ProgressIndicator } from "@/components/research/ProgressIndicator";
+import {
+  saveResearchState,
+  updateResearchState,
+  getResearchState,
+  Finding
+} from "@/services/researchStateService";
+import { supabase, getClientId } from "@/integrations/supabase/client";
 
-interface ResearchHistory {
-  id: string;
-  query: string;
-  user_model: string;
-  use_case: string;
-  created_at: string;
-}
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch"
+import { Slider } from "@/components/ui/slider"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { useToast } from "@/components/ui/use-toast"
 
-interface HumanApprovalRequest {
-  call_id: string;
-  node_id: string;
-  query: string;
-  content: string;
-  approval_type: string;
-  interaction_type?: "planning" | "searching" | "synthesizing";
-}
+import { Sparkles, Lightbulb, Search, BookOpenCheck, BrainCircuit, MessageCircleQuestion, User2, Loader2, AlertTriangle, CheckCircle2, BookText, FileSearch2, HelpCircle, LucideIcon } from "lucide-react";
 
-interface Finding {
-  source: string;
-  content?: string;
-  node_id?: string;
-  query?: string;
-  finding?: any;
-}
-
-interface HumanInteraction {
-  call_id: string;
-  node_id: string;
-  query: string;
-  content: string;
-  interaction_type: string;
-  status: "completed" | "pending";
-  response?: {
-    approved: boolean;
-    comment?: string;
-    timestamp: string;
-  };
-  type?: string;
-  timestamp?: string;
-}
-
-interface HumanInteractionRequest {
-  call_id: string;
-  node_id: string;
-  query: string;
-  content: string;
-  interaction_type: "planning" | "searching" | "synthesizing";
-  approval_type?: string;
-}
+import ResearchHistorySidebar from '@/components/research/ResearchHistorySidebar';
+import ReasoningPath from '@/components/research/ReasoningPath';
+import SourceList from '@/components/research/SourceList';
+import HumanInputRequest from '@/components/research/HumanInputRequest';
+import HumanFeedbackForm from '@/components/research/HumanFeedbackForm';
+import { ResearchTabs, ResearchTab } from '@/components/research/ResearchTabs';
+import { ResearchObjective } from '@/components/research/ResearchObjective';
+import { ResearchAnswer } from '@/components/research/ResearchAnswer';
 
 const ResearchPage = () => {
-  const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { sessionId } = useParams<{ sessionId: string }>();
-  const [isLoading, setIsLoading] = useState(false);
-  const [researchOutput, setResearchOutput] = useState("");
+  const { sessionId: sessionIdFromParams } = useParams<{ sessionId?: string }>();
+  const [sessionId, setSessionId] = useState<string | null>(sessionIdFromParams || null);
+  const [currentQuery, setCurrentQuery] = useState<string>('');
+  const [result, setResult] = useState<string | null>(null);
   const [sources, setSources] = useState<string[]>([]);
-  const [findings, setFindings] = useState<Finding[]>([]);
   const [reasoningPath, setReasoningPath] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("reasoning");
-  const [history, setHistory] = useState<ResearchHistoryEntry[]>([]);
-  const [groupedHistory, setGroupedHistory] = useState<any[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    const savedState = localStorage.getItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE);
-    return savedState !== null ? savedState === 'true' : false;
-  });
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
-  const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
-  const [researchObjective, setResearchObjective] = useState("");
-  const [domain, setDomain] = useState("");
-  const [expertiseLevel, setExpertiseLevel] = useState("");
-  const [userContext, setUserContext] = useState("");
-  const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("");
-  const [selectedLLM, setSelectedLLM] = useState("auto");
-  const [rawData, setRawData] = useState<Record<string, string>>({});
-  const [userModels, setUserModels] = useState<UserModel[]>([]);
-  const [displayName, setDisplayName] = useState<string>("");
-  const [progressEvents, setProgressEvents] = useState<string[]>([]);
-  const [currentStage, setCurrentStage] = useState("Initializing research");
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const researchIdRef = useRef<string | null>(null);
-  const currentSessionIdRef = useRef<string | null>(sessionId || null);
-  const clientIdRef = useRef<string>(getClientId());
-  const initialEventReceivedRef = useRef<boolean>(false);
-  const { toast: uiToast } = useToast();
-  const isMobile = useMediaQuery("(max-width: 768px)");
-
-  useEffect(() => {
-    if (!user) {
-      navigate("/");
-      return;
-    }
-    
-    if (!sessionId) {
-      const newSessionId = uuidv4();
-      navigate(`/research/${newSessionId}`, { replace: true });
-      return;
-    }
-    
-    console.log(`[${new Date().toISOString()}] 🔑 Active client ID:`, clientIdRef.current);
-    
-    currentSessionIdRef.current = sessionId;
-    
-    if (user) {
-      const metadata = user.user_metadata || {};
-      const name = metadata.full_name || metadata.name || null;
-      
-      if (name) {
-        setDisplayName(name);
-      } else {
-        const email = user.email || "";
-        const username = email.split('@')[0];
-        setDisplayName(username);
-      }
-    }
-    
-    checkOnboardingStatus();
-    loadUserModels();
-    
-    const isNewChat = localStorage.getItem('newChatRequested') === 'true';
-    if (isNewChat) {
-      localStorage.removeItem('newChatRequested');
-      resetResearchState();
-    } else {
-      loadSessionData(sessionId);
-    }
-    
-    const handleSidebarToggle = (event: CustomEvent) => {
-      setSidebarOpen(event.detail.open);
-    };
-    
-    const handleNewChatRequest = (event: CustomEvent) => {
-      console.log(`[${new Date().toISOString()}] 🔄 New chat requested for session:`, event.detail.sessionId);
-      
-      if (event.detail.sessionId === sessionId) {
-        resetResearchState();
-        setResearchObjective("");
-      } else {
-        localStorage.setItem('newChatRequested', 'true');
-      }
-    };
-    
-    window.addEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
-    window.addEventListener('new-chat-requested', handleNewChatRequest as EventListener);
-    
-    loadHistory();
-    
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-      window.removeEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
-      window.removeEventListener('new-chat-requested', handleNewChatRequest as EventListener);
-    };
-  }, [user, navigate, sessionId]);
-
-  const loadUserModels = async () => {
-    try {
-      const models = await getUserModels();
-      setUserModels(models);
-    } catch (error) {
-      console.error("Error loading user models:", error);
-    }
-  };
+  const [findings, setFindings] = useState<Finding[]>([]);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isActive, setIsActive] = useState<boolean>(false);
+  const [isWaitingForUserInput, setIsWaitingForUserInput] = useState<boolean>(false);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [currentSessionStatus, setCurrentSessionStatus] = useState<string>('in_progress');
+  const [rawEventData, setRawEventData] = useState<Record<string, string>>({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<string>('research');
+  const [isObjectiveValid, setIsObjectiveValid] = useState<boolean>(false);
+  const [objective, setObjective] = useState<string>('');
+  const [userModel, setUserModel] = useState<any>(null);
+  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState<boolean>(false);
+  const [isFeedbackFormOpen, setIsFeedbackFormOpen] = useState<boolean>(false);
+  const [humanInteractionRequest, setHumanInteractionRequest] = useState<string | null>(null);
+  const [humanInteractionResult, setHumanInteractionResult] = useState<string | null>(null);
+  const [isHumanFeedbackRequired, setIsHumanFeedbackRequired] = useState<boolean>(false);
+  const [isHumanFeedbackApproved, setIsHumanFeedbackApproved] = useState<boolean>(false);
+  const [humanFeedbackComment, setHumanFeedbackComment] = useState<string>('');
+  const [isInitialLoad, setIsInitialLoad] = useState<boolean>(true);
+  const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(true);
+  const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
+  const [forcedUpdate, setForcedUpdate] = useState(0);
+  const { toast } = useToast();
+  const { user } = useUser();
+  const researchObjectiveRef = useRef<HTMLTextAreaElement>(null);
 
   const toggleSidebar = () => {
-    const newState = !sidebarOpen;
-    setSidebarOpen(newState);
-    localStorage.setItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE, String(newState));
+    setSidebarOpen(!sidebarOpen);
   };
 
-  const selectUserModel = async (modelId: string) => {
-    try {
-      const model = await getUserModelById(modelId);
-      if (model) {
-        setDomain(model.domain);
-        setExpertiseLevel(model.expertise_level);
-        setSelectedCognitiveStyle(model.cognitive_style);
-        
-        toast.success(`Selected user model: ${model.name}`);
-      }
-    } catch (error) {
-      console.error("Error selecting user model:", error);
-      toast.error("Failed to select user model");
-    }
+  const handleHistoryItemClick = (item: any) => {
+    setSelectedHistoryItem(item);
   };
 
-  const checkOnboardingStatus = async () => {
-    try {
-      const completed = await getUserOnboardingStatus();
-      if (!completed) {
-        setShowOnboarding(true);
-      }
-    } catch (error) {
-      console.error("Error checking onboarding status:", error);
-    }
+  const handleObjectiveChange = (newObjective: string) => {
+    setObjective(newObjective);
   };
 
-  const resetResearchState = () => {
-    console.log(`[${new Date().toISOString()}] 🔄 Resetting research state completely`);
+  const handleObjectiveValidityChange = (isValid: boolean) => {
+    setIsObjectiveValid(isValid);
+  };
+
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
     
-    setResearchOutput("");
-    setSources([]);
-    setFindings([]);
-    setReasoningPath([]);
-    setActiveTab("reasoning");
-    setResearchObjective("");  // Clear the research objective
-    setDomain("");
-    setExpertiseLevel("");
-    setUserContext("");
-    setSelectedCognitiveStyle("");
-    researchIdRef.current = null;
-    initialEventReceivedRef.current = false;
-    setProgressEvents([]);
-    setCurrentStage("Initializing research");
-    
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID);
-    
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
-    }
-  };
-
-  const loadHistory = async () => {
-    try {
-      const historyData = await getResearchHistory(20);
-      setHistory(historyData as ResearchHistoryEntry[]);
-      const grouped = groupResearchHistoryByDate(historyData);
-      setGroupedHistory(grouped);
-    } catch (error) {
-      console.error("Error loading history:", error);
-    }
-  };
-
-  const loadSessionData = async (sessionId: string) => {
-    try {
-      console.log(`[${new Date().toISOString()}] 🔄 Loading session data:`, { 
-        sessionId, 
-        clientId: clientIdRef.current.substring(0, 15)  
-      });
-      
-      const sessionState = await getLatestSessionState(sessionId);
-      
-      if (!sessionState) {
-        console.log(`[${new Date().toISOString()}] ℹ️ No existing session data found`);
-        return;
-      }
-      
-      console.log(`[${new Date().toISOString()}] ✅ Retrieved session data:`, { 
-        id: sessionState.id,
-        research_id: sessionState.research_id,
-        status: sessionState.status,
-        clientId: sessionState.client_id
-      });
-      
-      if (sessionState.client_id && sessionState.client_id !== clientIdRef.current) {
-        console.warn(`[${new Date().toISOString()}] ⚠️ Session belongs to a different client, resetting state`, {
-          sessionClientId: sessionState.client_id.substring(0, 15),
-          currentClientId: clientIdRef.current.substring(0, 15)
+    if (activeSessionId) {
+      updateResearchState(activeSessionId, activeSessionId, { active_tab: tab })
+        .then(() => {
+          console.log(`[${new Date().toISOString()}] ✅ Updated active tab to ${tab}`);
+        })
+        .catch(error => {
+          console.error(`[${new Date().toISOString()}] ❌ Error updating active tab:`, error);
         });
-        return;
-      }
-      
-      if (sessionState.research_id) {
-        researchIdRef.current = sessionState.research_id;
-        
-        if (sessionState.query) {
-          setResearchObjective(sessionState.query);
-        }
-        
-        if (sessionState.answer) {
-          setResearchOutput(sessionState.answer);
-        }
-        
-        if (sessionState.sources) {
-          setSources(sessionState.sources);
-        }
-        
-        if (sessionState.findings) {
-          setFindings(Array.isArray(sessionState.findings) ? sessionState.findings : []);
-        }
-        
-        if (sessionState.reasoning_path) {
-          setReasoningPath(sessionState.reasoning_path);
-        }
-        
-        if (sessionState.status === 'awaiting_human_input' && sessionState.human_interactions) {
-          let interactions: HumanInteraction[] = [];
-          
-          if (typeof sessionState.human_interactions === 'string') {
-            try {
-              interactions = JSON.parse(sessionState.human_interactions);
-            } catch (e) {
-              console.error("Error parsing human interactions:", e);
-              interactions = [];
-            }
-          } else if (Array.isArray(sessionState.human_interactions)) {
-            interactions = sessionState.human_interactions as HumanInteraction[];
-          }
-                
-          const lastInteraction = interactions
-            .filter(interaction => interaction.type === 'interaction_request')
-            .pop();
-            
-          if (lastInteraction) {
-            const approvalRequest: HumanApprovalRequest = {
-              call_id: lastInteraction.call_id,
-              node_id: lastInteraction.node_id,
-              query: lastInteraction.query || sessionState.query,
-              content: lastInteraction.content,
-              approval_type: lastInteraction.interaction_type
-            };
-            
-            setHumanApprovalRequest(approvalRequest);
-            setShowApprovalDialog(true);
-            
-            console.log(`[${new Date().toISOString()}] 🔄 Restored pending human interaction:`, approvalRequest);
-          }
-        }
-        
-        if (sessionState.active_tab) {
-          setActiveTab(sessionState.active_tab);
-        } else {
-          if (sessionState.status === 'awaiting_human_input') {
-            setActiveTab('reasoning');
-          } else if (sessionState.status === 'in_progress') {
-            setActiveTab('reasoning');
-          } else {
-            setActiveTab('output');
-          }
-        }
-        
-        if (sessionState.status === 'in_progress' || sessionState.status === 'awaiting_human_input') {
-          setIsLoading(true);
-          pollResearchState(sessionState.research_id);
-        }
-      }
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error loading session data:`, error);
     }
   };
 
-  const handleResearch = async (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => {
-    if (!query.trim()) {
-      uiToast({
-        title: "objective required",
-        description: "please enter a research objective",
-        variant: "destructive",
-      });
+  const handleModelSelect = (model: any) => {
+    setUserModel(model);
+    setIsModelSelectorOpen(false);
+  };
+
+  const handleFeedbackFormToggle = () => {
+    setIsFeedbackFormOpen(!isFeedbackFormOpen);
+  };
+
+  const handleHumanFeedbackChange = (approved: boolean, comment: string) => {
+    setIsHumanFeedbackApproved(approved);
+    setHumanFeedbackComment(comment);
+  };
+
+  const handleHumanFeedbackSubmit = async () => {
+    if (!activeSessionId) {
+      console.error("No active session to submit feedback for.");
       return;
     }
-  
-    resetResearchState();
-    setIsLoading(true);
     
-    const initialReasoningPath = ["Analyzing research objective..."];
-    setReasoningPath(initialReasoningPath);
-    setActiveTab("reasoning");
-    
-    try {
-      let userModelPayload: any = {};
-      
-      if (selectedModelId) {
-        try {
-          const model = await getUserModelById(selectedModelId);
-          if (model) {
-            userModelPayload = {
-              user_id: user?.id || "anonymous",
-              name: user?.email || "anonymous",
-              domain: model.domain,
-              expertise_level: model.expertise_level,
-              cognitiveStyle: model.cognitive_style,
-              included_sources: model.included_sources || [],
-              source_priorities: model.source_priorities || [],
-              session_id: currentSessionIdRef.current,
-              model_id: selectedModelId,
-              currentUnderstanding: currentUnderstanding,
-              client_id: clientIdRef.current
-            };
-          }
-        } catch (err) {
-          console.error(`[${new Date().toISOString()}] ❌ Error fetching user model:`, err);
-          userModelPayload = {
-            user_id: user?.id || "anonymous",
-            name: user?.email || "anonymous",
-            userModel: userModelText,
-            useCase: useCase,
-            domain: domain,
-            expertise_level: expertiseLevel,
-            cognitiveStyle: selectedCognitiveStyle,
-            session_id: currentSessionIdRef.current,
-            model_id: "claude-3.5-sonnet",
-            currentUnderstanding: currentUnderstanding,
-            client_id: clientIdRef.current
-          };
-        }
-      } else {
-        userModelPayload = {
-          user_id: user?.id || "anonymous",
-          name: user?.email || "anonymous",
-          userModel: userModelText,
-          useCase: useCase,
-          domain: domain,
-          expertise_level: expertiseLevel,
-          cognitiveStyle: selectedCognitiveStyle,
-          session_id: currentSessionIdRef.current,
-          model_id: "claude-3.5-sonnet",
-          currentUnderstanding: currentUnderstanding,
-          client_id: clientIdRef.current
-        };
-      }
-      
-      const newResearchId = uuidv4();
-      researchIdRef.current = newResearchId;
-      
-      await saveResearchHistory({
-        query: query,
-        user_model: JSON.stringify(userModelPayload),
-        use_case: useCase,
-        user_model_id: selectedModelId
-      });
-      
-      if (currentSessionIdRef.current) {
-        saveResearchState({
-          research_id: newResearchId,
-          session_id: currentSessionIdRef.current,
-          status: 'in_progress',
-          query: query,
-          user_model: JSON.stringify(userModelPayload),
-          active_tab: "reasoning",
-          reasoning_path: initialReasoningPath
-        }).catch(err => console.error("Error saving initial research state:", err));
-      }
-      
-      const modelToUse = selectedLLM === 'auto' ? 'claude-3.5-sonnet' : selectedLLM;
-      startResearchStream(userModelPayload, newResearchId, query, modelToUse);
-      
-      loadHistory().catch(err => console.error("Error loading history after research start:", err));
-      
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Research error:`, error);
-      uiToast({
-        title: "research failed",
-        description: "there was an error processing your request",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-    }
-  };
-
-  const startResearchStream = (userModelData: any, researchId: string, query: string, modelToUse: string = 'claude-3.5-sonnet') => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
-    
-    const streamUrl = `https://timothy102--vertical-deep-research-stream-research.modal.run`;
-    
-    console.log(`[${new Date().toISOString()}] 🔄 Setting up POST connection to research stream`);
-    
-    const requestBody = {
-      research_objective: query,
-      user_model: userModelData,
-      model: modelToUse,
-      session_id: currentSessionIdRef.current,
-      research_id: researchId,
-      user_id: user?.id || 'anonymous',
-      client_id: clientIdRef.current
+    const feedbackData = {
+      approved: isHumanFeedbackApproved,
+      comment: humanFeedbackComment,
+      timestamp: new Date().toISOString()
     };
     
-    fetch(streamUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody)
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
+    try {
+      await updateResearchState(activeSessionId, activeSessionId, {
+        human_interaction_result: JSON.stringify(feedbackData)
+      });
       
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('Response body reader could not be created');
-      }
+      toast({
+        title: "Feedback Submitted",
+        description: "Thank you for your feedback!",
+        duration: 3000
+      });
       
-      console.log(`[${new Date().toISOString()}] 🔄 Connection established to research stream (POST)`);
+      setIsHumanFeedbackRequired(false);
+      setIsFeedbackFormOpen(false);
+    } catch (error) {
+      console.error("Error submitting human feedback:", error);
+      toast({
+        title: "Error Submitting Feedback",
+        description: "Failed to submit feedback. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleNewResearch = async () => {
+    if (!objective || objective.length === 0) {
+      toast({
+        title: "Research Objective Required",
+        description: "Please enter a research objective before starting a new search.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!isObjectiveValid) {
+      toast({
+        title: "Invalid Research Objective",
+        description: "Please enter a valid research objective before starting a new search.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      setIsActive(true);
+      setResult(null);
+      setSources([]);
+      setReasoningPath([]);
+      setFindings([]);
+      setErrorMessage('');
       
-      const processStreamChunks = async () => {
-        let partialData = '';
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          
-          if (done) {
-            console.log(`[${new Date().toISOString()}] 🔄 Stream completed`);
-            setIsLoading(false);
-            break;
-          }
-          
-          const chunk = new TextDecoder().decode(value);
-          const lines = (partialData + chunk).split('\n');
-          partialData = lines.pop() || '';
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.substring(6));
-                processEventData(data, userModelData, researchId);
-              } catch (e) {
-                console.error(`[${new Date().toISOString()}] ❌ Error parsing event data:`, e);
-              }
-            }
-          }
-        }
+      const researchId = crypto.randomUUID();
+      const newSessionId = crypto.randomUUID();
+      
+      setSessionId(newSessionId);
+      setActiveSessionId(newSessionId);
+      setCurrentSessionStatus('in_progress');
+      
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, newSessionId);
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID, researchId);
+      localStorage.setItem(LOCAL_STORAGE_KEYS.RESEARCH_OBJECTIVE, objective);
+      
+      const initialState = {
+        research_id: researchId,
+        session_id: newSessionId,
+        status: 'in_progress',
+        query: objective,
+        created_at: new Date().toISOString()
       };
       
-      processStreamChunks().catch(error => {
-        console.error(`[${new Date().toISOString()}] ❌ Error processing stream:`, error);
-        uiToast({
-          title: "connection error",
-          description: "lost connection to research service",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        
-        if (researchId && currentSessionIdRef.current) {
-          pollResearchState(researchId);
-        }
+      saveSessionData(newSessionId, {
+        state: initialState,
+        objective: objective,
+        researchId: researchId
       });
-    })
-    .catch(error => {
-      console.error(`[${new Date().toISOString()}] ❌ Fetch error:`, error);
-      uiToast({
-        title: "connection error",
-        description: "failed to connect to research service. Please try again later.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
       
-      if (researchId && currentSessionIdRef.current) {
-        pollResearchState(researchId);
-      }
-    });
-  };
-
-  const processEventData = (data: any, userModelData: any, researchId: string) => {
-    if (!initialEventReceivedRef.current) {
-      initialEventReceivedRef.current = true;
-      console.log(`[${new Date().toISOString()}] 🎬 First event received, research is active`);
-    }
-    
-    const eventClientId = data.client_id || userModelData.client_id;
-    const eventSessionId = data.session_id || currentSessionIdRef.current;
-    const eventResearchId = data.research_id || researchId;
-    
-    if (eventClientId !== clientIdRef.current) {
-      console.warn(`[${new Date().toISOString()}] 🚫 Rejected event for different client:`, { 
-        eventClientId: eventClientId?.substring(0, 15), 
-        currentClientId: clientIdRef.current.substring(0, 15),
-        eventType: data.event || data.type
+      const savedState = await saveResearchState({
+        research_id: researchId,
+        session_id: newSessionId,
+        status: 'in_progress',
+        query: objective,
+        reasoning_path: ["Analyzing research objective..."],
+        user_model: userModel
       });
-      return;
-    }
-    
-    if (eventSessionId !== currentSessionIdRef.current || 
-        eventResearchId !== researchId) {
-      console.warn(`[${new Date().toISOString()}] 🚫 Rejected event for different session/research:`, { 
-        eventSessionId,
-        currentSessionId: currentSessionIdRef.current,
-        eventResearchId,
-        currentResearchId: researchId,
-        eventType: data.event || data.type
-      });
-      return;
-    }
-    
-    const eventType = data.event || data.type;
-    console.log(`[${new Date().toISOString()}] 📊 Processing event:`, { 
-      type: eventType, 
-      clientId: clientIdRef.current.substring(0, 15)
-    });
-    
-    const timestamp = new Date().toLocaleTimeString();
-    if (data.data && data.data.message) {
-      const progressEvent = `${timestamp}: ${data.data.message}`;
-      setProgressEvents(prev => [...prev.slice(-4), progressEvent]);
-    }
-    
-    if (data.data && data.data.node_id) {
-      const nodeId = data.data.node_id;
-      const rawEventData = JSON.stringify(data, null, 2);
       
-      setRawData(prev => {
-        const existingData = prev[nodeId] || '';
-        const updatedData = existingData 
-          ? `${existingData}\n${rawEventData}`
-          : rawEventData;
+      if (savedState) {
+        console.log(`[${new Date().toISOString()}] ✅ Created new research session:`, savedState.session_id);
         
-        return { ...prev, [nodeId]: updatedData };
-      });
-    }
-    
-    switch (eventType) {
-      case "start":
-        console.log("Research started");
-        setActiveTab("reasoning");
-        setCurrentStage("Starting research");
-        
-        window.dispatchEvent(new CustomEvent('research_state_update', { 
+        window.dispatchEvent(new CustomEvent('new-research-started', { 
           detail: { 
-            payload: {
-              new: {
-                session_id: currentSessionIdRef.current,
-                reasoning_path: reasoningPath,
-                status: 'in_progress'
-              }
-            },
-            timestamp: new Date().toISOString()
+            researchId: savedState.research_id,
+            sessionId: savedState.session_id,
+            query: savedState.query,
+            isNew: true
           }
         }));
-        break;
-      case "update":
-        const message = data.data.message || "";
-        setResearchOutput(prev => prev + message + "\n");
-        setCurrentStage("Generating answer");
         
-        if (currentSessionIdRef.current) {
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            answer: data.data.answer || ""
-          }).catch(err => console.error("Error updating research state:", err));
-        }
-        break;
-      case "source":
-        const source = data.data.source || "";
-        setSources(prev => [...prev, source]);
-        setCurrentStage("Finding sources");
+        navigate(`/research/${newSessionId}`);
+      } else {
+        console.error(`[${new Date().toISOString()}] ❌ Failed to create new research session`);
         
-        if (currentSessionIdRef.current) {
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            sources: [...sources, source]
-          }).catch(err => console.error("Error updating sources:", err));
-        }
-        break;
-      case "finding":
-        const finding: Finding = { 
-          source: data.data.source || "",
-          content: data.data.content || undefined,
-          node_id: data.data.node_id || undefined,
-          query: data.data.query || undefined,
-          finding: data.data.finding || undefined
-        };
-        
-        console.log(`[${new Date().toISOString()}] 📑 Received finding:`, finding);
-        
-        setFindings(prev => [...prev, finding]);
-        
-        if (currentSessionIdRef.current) {
-          const updatedFindings = [...findings, finding];
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            findings: updatedFindings
-          }).catch(err => console.error("Error updating findings:", err));
-        }
-        break;
-      case "reasoning":
-        const step = data.data.step || "";
-        setCurrentStage("Analyzing information");
-        
-        if (step.toLowerCase().includes("planning")) {
-          setCurrentStage("Planning research approach");
-        } else if (step.toLowerCase().includes("search")) {
-          setCurrentStage("Searching for information");
-        } else if (step.toLowerCase().includes("read")) {
-          setCurrentStage("Reading sources");
-        } else if (step.toLowerCase().includes("synthe")) {
-          setCurrentStage("Synthesizing information");
-        }
-        
-        const nodeIdMatch = step.match(/Node ID:?\s*([a-zA-Z0-9_-]+)/i) || 
-                          step.match(/node\s+(\d+)|#(\d+)/i);
-        if (nodeIdMatch) {
-          const nodeId = nodeIdMatch[1] || nodeIdMatch[2];
-          const rawDataString = JSON.stringify(data, null, 2);
-          
-          setRawData(prev => {
-            const existing = prev[nodeId] || '';
-            return {
-              ...prev,
-              [nodeId]: existing ? `${existing}\n${rawDataString}` : rawDataString
-            };
-          });
-        }
-        
-        if (step.toLowerCase().includes("synthesizing") && reasoningPath.length > 0 && reasoningPath.length % 5 === 0) {
-          const syntheticRequest = {
-            call_id: `synthetic-${researchId}-${reasoningPath.length}`,
-            node_id: `${reasoningPath.length}`,
-            query: researchObjective,
-            content: `This is a synthetic approval request at step ${reasoningPath.length}. This would normally contain synthesized content based on the research so far.`,
-            approval_type: "synthesis"
-          };
-          setHumanApprovalRequest(syntheticRequest);
-        }
-        
-        setReasoningPath(prev => [...prev, step]);
-        
-        if (isLoading) {
-          setActiveTab("reasoning");
-        }
-        
-        if (currentSessionIdRef.current) {
-          const updatedPath = [...reasoningPath, step];
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            reasoning_path: updatedPath
-          }).catch(err => console.error("Error updating reasoning path:", err));
-        }
-        break;
-      case "complete":
-        const finalAnswer = data.data.answer || "";
-        const finalSources = data.data.sources || [];
-        const finalFindings = data.data.findings || [];
-        const finalReasoningPath = data.data.reasoning_path || [];
-        
-        setResearchOutput(finalAnswer);
-        setSources(finalSources);
-        setFindings(finalFindings);
-        setReasoningPath(finalReasoningPath);
-        setIsLoading(false);
-        
-        if (currentSessionIdRef.current) {
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            status: 'completed',
-            answer: finalAnswer,
-            sources: finalSources,
-            findings: finalFindings,
-            reasoning_path: finalReasoningPath
-          }).catch(err => console.error("Error updating final state:", err));
-        }
-        
-        setActiveTab("output");
-        break;
-      case "error":
-        uiToast({
-          title: "research error",
-          description: data.data.error || "Unknown error",
-          variant: "destructive",
+        toast({
+          title: "Error Starting Research",
+          description: "Failed to start new research. Please try again.",
+          variant: "destructive"
         });
-        setIsLoading(false);
-        
-        if (currentSessionIdRef.current) {
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            status: 'error',
-          }).catch(err => console.error("Error updating error state:", err));
-        }
-        break;
-      case "human_interaction_request":
-        console.log(`[${new Date().toISOString()}] 🧠 Human interaction requested:`, data.data);
-        
-        const interactionRequest: HumanInteractionRequest = {
-          call_id: data.data.call_id,
-          node_id: data.data.node_id,
-          query: data.data.query || researchObjective,
-          content: data.data.content,
-          interaction_type: data.data.interaction_type
-        };
-        
-        const approvalRequest: HumanApprovalRequest = {
-          ...interactionRequest,
-          approval_type: interactionRequest.interaction_type
-        };
-        
-        setHumanApprovalRequest(approvalRequest);
-        setShowApprovalDialog(true);
-        
-        window.postMessage(
-          { 
-            type: "human_interaction_request", 
-            data: interactionRequest
-          }, 
-          window.location.origin
-        );
-        
-        if (currentSessionIdRef.current) {
-          const humanInteractions: HumanInteraction[] = [
-            ...findings.map(f => ({ 
-              type: 'finding', 
-              call_id: f.node_id || '', 
-              node_id: f.node_id || '',
-              content: f.content || '',
-              query: f.query || '',
-              interaction_type: 'finding',
-              status: 'completed' as const
-            })),
-            { 
-              type: 'interaction_request', 
-              call_id: interactionRequest.call_id,
-              node_id: interactionRequest.node_id,
-              query: interactionRequest.query,
-              content: interactionRequest.content,
-              interaction_type: interactionRequest.interaction_type,
-              status: 'pending' as const,
-              timestamp: new Date().toISOString()
-            }
-          ];
-          
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            status: 'awaiting_human_input',
-            human_interactions: humanInteractions
-          }).catch(err => console.error("Error updating human interaction state:", err));
-        }
-        break;
-      case "human_interaction_result":
-        console.log(`[${new Date().toISOString()}] 🧠 Human interaction result received:`, data.data);
-        
-        if (humanApprovalRequest?.call_id === data.data.call_id) {
-          setHumanApprovalRequest(null);
-          setShowApprovalDialog(false);
-        }
-        
-        toast.dismiss(`interaction-${data.data.call_id}`);
-        
-        if (currentSessionIdRef.current) {
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            status: 'in_progress',
-            custom_data: JSON.stringify({
-              ...data.data,
-              timestamp: new Date().toISOString(),
-              type: 'interaction_result'
-            })
-          }).catch(err => console.error("Error updating human interaction result:", err));
-        }
-        
-        const humanFeedbackStep = `Human feedback received for ${data.data.interaction_type}: ${data.data.approved ? 'Approved' : 'Rejected'}${data.data.comment ? ` - Comment: ${data.data.comment}` : ''}`;
-        setReasoningPath(prev => [...prev, humanFeedbackStep]);
-        break;
-    }
-  };
-
-  const pollResearchState = async (researchId: string) => {
-    try {
-      if (!currentSessionIdRef.current) {
-        console.error(`[${new Date().toISOString()}] ❌ No session ID available for polling`);
-        return;
       }
+    } catch (error: any) {
+      console.error(`[${new Date().toISOString()}] 🔥 Error starting new research:`, error);
+      setErrorMessage(error.message || 'Failed to start new research.');
       
-      console.log(`[${new Date().toISOString()}] 🔄 Polling research state:`, { 
-        researchId,
-        sessionId: currentSessionIdRef.current,
-        clientId: clientIdRef.current.substring(0, 15)
+      toast({
+        title: "Error Starting Research",
+        description: error.message || "Failed to start new research.",
+        variant: "destructive"
       });
-      
-      const data = await getResearchState(researchId, currentSessionIdRef.current);
-      
-      if (!data) {
-        console.log(`[${new Date().toISOString()}] ℹ️ No research state found, will retry...`);
-        setTimeout(() => pollResearchState(researchId), 3000);
-        return;
-      }
-      
-      console.log(`[${new Date().toISOString()}] ✅ Polled research state:`, { 
-        id: data.id,
-        status: data.status,
-        clientId: data.client_id?.substring(0, 15) || 'none'
-      });
-      
-      if (data.client_id && data.client_id !== clientIdRef.current) {
-        console.warn(`[${new Date().toISOString()}] 🚫 Rejected polling response for different client:`, {
-          stateClientId: data.client_id.substring(0, 15), 
-          currentClientId: clientIdRef.current.substring(0, 15)
-        });
-        return;
-      }
-      
-      if ((data?.session_id && data.session_id !== currentSessionIdRef.current) ||
-          (data?.research_id && data.research_id !== researchId)) {
-        console.warn(`[${new Date().toISOString()}] 🚫 Rejected polling response for different session/research`, {
-          stateSessionId: data.session_id,
-          currentSessionId: currentSessionIdRef.current,
-          stateResearchId: data.research_id,
-          currentResearchId: researchId
-        });
-        return;
-      }
-      
-      if (data.status === "completed") {
-        setResearchOutput(data.answer || "");
-        setSources(data.sources || []);
-        
-        if (data.findings) {
-          const parsedFindings = Array.isArray(data.findings) 
-            ? data.findings 
-            : (typeof data.findings === 'string' ? JSON.parse(data.findings) : []);
-          setFindings(parsedFindings);
-        }
-        
-        setReasoningPath(data.reasoning_path || []);
-        setIsLoading(false);
-        
-        if (data.active_tab) {
-          setActiveTab(data.active_tab);
-        } else if (activeTab === "reasoning") {
-          setActiveTab("output");
-        }
-      } else if (data.status === "in_progress") {
-        if (data.answer) setResearchOutput(data.answer);
-        if (data.sources) setSources(data.sources);
-        
-        if (data.findings) {
-          const parsedFindings = Array.isArray(data.findings) 
-            ? data.findings 
-            : (typeof data.findings === 'string' ? JSON.parse(data.findings) : []);
-          setFindings(parsedFindings);
-        }
-        
-        if (data.reasoning_path) setReasoningPath(data.reasoning_path);
-        
-        setTimeout(() => pollResearchState(researchId), 3000);
-      } else if (data.status === "error") {
-        uiToast({
-          title: "research error",
-          description: data.error || "An error occurred during research",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-      } else if (data.status === 'awaiting_human_input') {
-        console.log(`[${new Date().toISOString()}] ⏳ Awaiting human input, will retry...`);
-        setTimeout(() => pollResearchState(researchId), 3000);
-      }
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Polling error:`, error);
-      uiToast({
-        title: "Error",
-        description: "Failed to retrieve research results",
-        variant: "destructive",
-      });
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate("/");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
+  const handleResearchUpdate = useCallback((
+    newResult: string | null,
+    newSources: string[],
+    newReasoningPath: string[],
+    newFindings: Finding[],
+    newRawEventData: Record<string, string>
+  ) => {
+    setResult(newResult);
+    setSources(newSources);
+    setReasoningPath(newReasoningPath);
+    setFindings(newFindings);
+    setRawEventData(newRawEventData);
+  }, []);
 
-  const handleNewChat = () => {
-    const newSessionId = uuidv4();
+  const handleSessionSelect = useCallback((event: CustomEvent) => {
+    const { sessionId, query, state, isNew, forceRestore, fullReset } = event.detail;
     
-    localStorage.setItem('newChatRequested', 'true');
-    
-    navigate(`/research/${newSessionId}`);
-  };
-
-  const loadHistoryItem = (item: ResearchHistoryEntry) => {
-    setResearchObjective(item.query);
-    
-    try {
-      const userModelData = JSON.parse(item.user_model || "{}");
-      if (userModelData.domain) setDomain(userModelData.domain);
-      if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
-      if (userModelData.userContext) setUserContext(userModelData.userContext);
+    // If fullReset is true, we need to completely refresh the page state
+    if (fullReset) {
+      console.log(`[${new Date().toISOString()}] 🔄 Full reset requested for session ${sessionId}`);
       
-      if (userModelData.cognitiveStyle) {
-        setSelectedCognitiveStyle(userModelData.cognitiveStyle);
+      // Clear any existing state that might be conflicting
+      setResult(null);
+      setErrorMessage('');
+      setSources([]);
+      setReasoningPath([]);
+      setFindings([]);
+      setRawEventData({});
+      
+      // Small delay to ensure the state is fully reset before restoring
+      setTimeout(() => {
+        if (state) {
+          if (state.query) setCurrentQuery(state.query);
+          if (state.sources) setSources(state.sources);
+          if (state.reasoning_path) setReasoningPath(state.reasoning_path);
+          if (state.findings) setFindings(state.findings);
+          if (state.answer) setResult(state.answer);
+          
+          setActiveSessionId(sessionId);
+          setCurrentSessionStatus(state.status || 'completed');
+        }
+      }, 50);
+    } else {
+      // Original restore logic
+      if (sessionId) {
+        setActiveSessionId(sessionId);
+        if (query) setCurrentQuery(query);
       }
       
-      if (userModelData.session_id && userModelData.session_id !== currentSessionIdRef.current) {
-        navigate(`/research/${userModelData.session_id}`);
-        return;
+      if (state) {
+        if (state.query && !query) setCurrentQuery(state.query);
+        if (state.sources) setSources(state.sources);
+        if (state.reasoning_path) setReasoningPath(state.reasoning_path);
+        if (state.findings) setFindings(state.findings);
+        if (state.answer) setResult(state.answer);
+        if (state.status) setCurrentSessionStatus(state.status);
       }
-    } catch (e) {
-      console.error("Error parsing user model from history:", e);
     }
-  };
+    
+    // Set isActive to false since we're just viewing a past session
+    setIsActive(false);
+    setIsWaitingForUserInput(false);
+    
+    if (forceRestore) {
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, sessionId);
+      console.log(`[${new Date().toISOString()}] 🔄 Force restoring session ${sessionId}`);
+    }
+  }, []);
 
-  const handleApproveRequest = async (callId: string, nodeId: string) => {
-    try {
-      console.log(`[${new Date().toISOString()}] 👍 Sending approval for call ID:`, callId, "node ID:", nodeId);
-      
-      await respondToApproval(callId, true, '');
-      
-      toast.success("Feedback submitted successfully");
-      setShowApprovalDialog(false);
-      setHumanApprovalRequest(null);
-      
-      return Promise.resolve();
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error submitting approval:`, error);
-      toast.error("Failed to submit feedback");
-      throw error;
-    }
-  };
+  const handleUserInputRequest = useCallback((event: CustomEvent) => {
+    const { interactionType, content, callId, nodeId } = event.detail;
+    
+    console.log(`[${new Date().toISOString()}] 🙋‍♀️ Received human input request:`, { interactionType, content, callId, nodeId });
+    
+    setIsWaitingForUserInput(true);
+    setIsActive(false);
+    setHumanInteractionRequest(JSON.stringify({
+      interaction_type: interactionType,
+      content: content,
+      call_id: callId,
+      node_id: nodeId
+    }));
+  }, []);
 
-  const handleRejectRequest = async (callId: string, nodeId: string, reason: string) => {
-    try {
-      console.log(`[${new Date().toISOString()}] 👎 Sending rejection for call ID:`, callId, "node ID:", nodeId, "reason:", reason);
-      
-      await respondToApproval(callId, false, reason);
-      
-      toast.success("Feedback submitted successfully");
-      setShowApprovalDialog(false);
-      setHumanApprovalRequest(null);
-      
-      return Promise.resolve();
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error submitting rejection:`, error);
-      toast.error("Failed to submit feedback");
-      throw error;
+  const handleHistoryRefresh = useCallback(async () => {
+    await fetchHistory();
+  }, []);
+
+  const handleNewChatRequested = useCallback((event: CustomEvent) => {
+    const { sessionId, isNew, reset } = event.detail;
+    
+    console.log(`[${new Date().toISOString()}] 💬 New chat requested:`, { sessionId, isNew, reset });
+    
+    if (reset) {
+      setResult(null);
+      setSources([]);
+      setReasoningPath([]);
+      setFindings([]);
+      setErrorMessage('');
+      setRawEventData({});
     }
-  };
+    
+    setActiveSessionId(sessionId);
+    setSessionId(sessionId);
+    
+    if (isNew) {
+      setIsActive(true);
+      setIsLoading(false);
+      setIsWaitingForUserInput(false);
+    }
+  }, []);
+
+  const handleResearchEvents = useCallback(() => {
+    setForcedUpdate(prev => prev + 1);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('research-update', (event: any) => {
+      const { result, sources, reasoningPath, findings, rawEventData } = event.detail;
+      handleResearchUpdate(result, sources, reasoningPath, findings, rawEventData);
+    });
+    
+    window.addEventListener('session-selected', handleSessionSelect as EventListener);
+    window.addEventListener('human-input-required', handleUserInputRequest as EventListener);
+    window.addEventListener('refresh-history-requested', handleHistoryRefresh as EventListener);
+    window.addEventListener('new-chat-requested', handleNewChatRequested as EventListener);
+    window.addEventListener('research-new-event', handleResearchEvents as EventListener);
+    
+    return () => {
+      window.removeEventListener('research-update', (event: any) => {
+        const { result, sources, reasoningPath, rawEventData } = event.detail;
+        handleResearchUpdate(result, sources, reasoningPath, result, rawEventData);
+      });
+      
+      window.removeEventListener('session-selected', handleSessionSelect as EventListener);
+      window.removeEventListener('human-input-required', handleUserInputRequest as EventListener);
+      window.removeEventListener('refresh-history-requested', handleHistoryRefresh as EventListener);
+      window.removeEventListener('new-chat-requested', handleNewChatRequested as EventListener);
+      window.removeEventListener('research-new-event', handleResearchEvents as EventListener);
+    };
+  }, [handleResearchUpdate, handleSessionSelect, handleUserInputRequest, handleHistoryRefresh, handleNewChatRequested, handleResearchEvents]);
+
+  const fetchHistory = useCallback(async () => {
+    try {
+      const historyData = localStorage.getItem(LOCAL_STORAGE_KEYS.SESSION_HISTORY);
+      
+      if (historyData) {
+        const parsedHistory = JSON.parse(historyData);
+        
+        // Group items by date
+        const groupedHistory = parsedHistory.reduce((acc: any, item: any) => {
+          const date = new Date(item.created_at).toLocaleDateString();
+          if (!acc[date]) {
+            acc[date] = [];
+          }
+          acc[date].push(item);
+          return acc;
+        }, {});
+        
+        // Convert grouped object to array of groups
+        const historyGroups = Object.entries(groupedHistory).map(([date, items]: [string, any]) => ({
+          date: date === new Date().toLocaleDateString() ? 'Today' : date,
+          items: items.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+        }));
+        
+        // Sort groups by date
+        historyGroups.sort((a: any, b: any) => {
+          const dateA = a.date === 'Today' ? new Date() : new Date(a.date);
+          const dateB = b.date === 'Today' ? new Date() : new Date(b.date);
+          return dateB.getTime() - dateA.getTime();
+        });
+        
+        setHistory(historyGroups);
+      }
+    } catch (error) {
+      console.error("Error fetching research history:", error);
+    }
+  }, []);
+
+  const restoreSession = useCallback(async (sessionIdToRestore: string) => {
+    if (!sessionIdToRestore) {
+      console.warn(`[${new Date().toISOString()}] ⚠️ No session ID provided, skipping session restore`);
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      
+      const storedObjective = localStorage.getItem(LOCAL_STORAGE_KEYS.RESEARCH_OBJECTIVE);
+      if (storedObjective) {
+        setObjective(storedObjective);
+      }
+      
+      const restoredState = await getResearchState(sessionIdToRestore, sessionIdToRestore);
+      
+      if (restoredState) {
+        console.log(`[${new Date().toISOString()}] 🔄 Restoring session:`, restoredState.session_id);
+        
+        setActiveSessionId(restoredState.session_id);
+        setCurrentSessionStatus(restoredState.status);
+        setCurrentQuery(restoredState.query);
+        setResult(restoredState.answer || null);
+        setSources(restoredState.sources || []);
+        setReasoningPath(restoredState.reasoning_path || []);
+        setFindings(restoredState.findings || []);
+        setActiveTab(restoredState.active_tab || 'research');
+        
+        if (restoredState.human_interaction_request) {
+          setHumanInteractionRequest(restoredState.human_interaction_request);
+          setIsWaitingForUserInput(true);
+          setIsActive(false);
+        } else {
+          setIsWaitingForUserInput(false);
+          setIsActive(true);
+        }
+        
+        if (restoredState.status === 'awaiting_human_input') {
+          setIsHumanFeedbackRequired(true);
+        } else {
+          setIsHumanFeedbackRequired(false);
+        }
+        
+        if (restoredState.error) {
+          setErrorMessage(restoredState.error);
+        }
+        
+        if (restoredState.client_id !== getClientId()) {
+          console.warn(`[${new Date().toISOString()}] ⚠️ Session was created by a different client`);
+        }
+        
+        saveSessionData(sessionIdToRestore, {
+          state: restoredState,
+          objective: storedObjective,
+          researchId: restoredState.research_id
+        });
+      } else {
+        console.warn(`[${new Date().toISOString()}] ⚠️ No state found in localStorage for session:`, sessionIdToRestore);
+        
+        toast({
+          title: "Session Not Found",
+          description: "No saved state found for this session. Starting a new session.",
+          variant: "warning"
+        });
+        
+        setIsActive(true);
+        setIsLoading(false);
+        setIsWaitingForUserInput(false);
+      }
+    } catch (error: any) {
+      console.error(`[${new Date().toISOString()}] 🔥 Error restoring session:`, error);
+      setErrorMessage(error.message || 'Failed to restore session.');
+      
+      toast({
+        title: "Error Restoring Session",
+        description: error.message || "Failed to restore session.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+      setIsInitialLoad(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    const checkSupabase = async () => {
+      const isConnected = await supabase.connection.open;
+      setIsSupabaseConnected(isConnected);
+      setIsOfflineMode(!isConnected);
+    };
+    
+    checkSupabase();
+  }, []);
+
+  useEffect(() => {
+    if (sessionIdFromParams) {
+      setSessionId(sessionIdFromParams);
+      setActiveSessionId(sessionIdFromParams);
+      restoreSession(sessionIdFromParams);
+    } else {
+      const storedSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID);
+      if (storedSessionId) {
+        setSessionId(storedSessionId);
+        setActiveSessionId(storedSessionId);
+        restoreSession(storedSessionId);
+      } else {
+        setIsActive(true);
+        setIsLoading(false);
+        setIsWaitingForUserInput(false);
+        setIsInitialLoad(false);
+      }
+    }
+    
+    fetchHistory();
+  }, [sessionIdFromParams, restoreSession, fetchHistory]);
+
+  useEffect(() => {
+    if (activeSessionId) {
+      updateResearchState(activeSessionId, activeSessionId, { active_tab: activeTab })
+        .then(() => {
+          console.log(`[${new Date().toISOString()}] ✅ Updated active tab to ${activeTab}`);
+        })
+        .catch(error => {
+          console.error(`[${new Date().toISOString()}] ❌ Error updating active tab:`, error);
+        });
+    }
+  }, [activeTab, activeSessionId]);
+
+  if (isInitialLoad) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading session...
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col min-h-screen max-h-screen">
-      <header className="border-b">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center space-x-2">
-            <img src="/arcadia.png" alt="Nexus Logo" className="h-6 w-6" />
-            <h1 className="text-lg font-semibold">nexus</h1>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => navigate("/models")}
-              className="flex items-center gap-1"
-            >
-              <User className="h-4 w-4" />
-              <span>user models</span>
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={handleNewChat}
-            >
-              <MessageSquarePlus className="h-4 w-4" />
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex flex-1 overflow-hidden relative">
-        <ResearchHistorySidebar 
-          isOpen={sidebarOpen}
-          history={groupedHistory}
-          onHistoryItemClick={(item) => loadHistoryItem(item)}
-          onSelectItem={(item) => loadHistoryItem(item)}
-          onToggle={toggleSidebar}
-        />
-
-        <main className={cn(
-          "flex-1 flex flex-col overflow-hidden transition-all duration-200 ease-in-out",
-          sidebarOpen && "lg:ml-72",
-          !sidebarOpen && "ml-0"
-        )}>
-          {initialEventReceivedRef.current || researchObjective ? (
-            <>
-              <div className={cn(
-                "p-4 border-b transition-opacity duration-300",
-                isLoading && initialEventReceivedRef.current ? "opacity-50" : "opacity-100"
-              )}>
-                <ResearchForm 
-                  isLoading={isLoading}
-                  initialValue={researchObjective}
-                  initialDomain={domain}
-                  initialExpertiseLevel={expertiseLevel}
-                  initialUserContext={userContext}
-                  initialCognitiveStyle={selectedCognitiveStyle}
-                  initialLLM={selectedLLM}
-                  onLLMChange={setSelectedLLM}
-                  onSubmit={handleResearch}
-                  setResearchObjective={setResearchObjective}
-                />
-              </div>
-              
-              <div className="flex-1 overflow-auto p-4">
-                {isLoading && (
-                  <div className="mb-4">
-                    <ProgressIndicator 
-                      isLoading={isLoading} 
-                      currentStage={currentStage}
-                      events={progressEvents}
-                    />
-                  </div>
+    <div className="flex h-screen antialiased text-foreground bg-background">
+      <ResearchHistorySidebar
+        isOpen={sidebarOpen}
+        history={history}
+        onHistoryItemClick={handleHistoryItemClick}
+        onSelectItem={(item: any) => {
+          setSessionId(item.session_id);
+          setActiveSessionId(item.session_id);
+          navigate(`/research/${item.session_id}`);
+        }}
+        onToggle={toggleSidebar}
+      />
+      
+      <div className="flex flex-col flex-grow">
+        <header className="px-6 py-4 border-b">
+          <div className="container mx-auto">
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-semibold">Deep Research</h1>
+              <div className="flex items-center space-x-4">
+                {isOfflineMode && (
+                  <Badge variant="destructive">
+                    <AlertTriangle className="mr-2 h-4 w-4" />
+                    Offline Mode
+                  </Badge>
                 )}
-                
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="mb-4">
-                    <TabsTrigger value="reasoning" className="flex items-center space-x-1">
-                      <span>process ({reasoningPath.length})</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="output" className="flex items-center space-x-1">
-                      <span>output</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="sources" className="flex items-center space-x-1">
-                      <Search className="h-4 w-4" />
-                      <span>sources ({sources.length})</span>
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="reasoning" className="mt-0">
-                    <ReasoningPath 
-                      reasoningPath={reasoningPath} 
-                      sources={sources}
-                      findings={findings}
-                      isActive={activeTab === "reasoning"}
-                      isLoading={isLoading}
-                      rawData={rawData}
-                      sessionId={currentSessionIdRef.current || ""}
-                    />
-                  </TabsContent>
-                  
-                  <TabsContent value="output" className="mt-0">
-                    <ResearchOutput output={researchOutput} isLoading={isLoading} />
-                  </TabsContent>
-                  
-                  <TabsContent value="sources" className="mt-0">
-                    <SourcesList sources={sources} />
-                  </TabsContent>
-                </Tabs>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center p-4">
-              <div className="max-w-4xl w-full">
-                <div className="mb-8">
-                  <ResearchOutput 
-                    output="" 
-                    userName={displayName || user?.email?.split('@')[0] || "researcher"}
-                    userModels={userModels}
-                    onSelectModel={selectUserModel}
-                  />
-                </div>
-                
-                <ResearchForm 
-                  isLoading={isLoading}
-                  initialValue={researchObjective}
-                  initialDomain={domain}
-                  initialExpertiseLevel={expertiseLevel}
-                  initialUserContext={userContext}
-                  initialCognitiveStyle={selectedCognitiveStyle}
-                  initialLLM={selectedLLM}
-                  onLLMChange={setSelectedLLM}
-                  onSubmit={handleResearch}
-                  setResearchObjective={setResearchObjective}
-                />
+                <Button variant="outline" onClick={toggleSidebar}>
+                  Research History
+                </Button>
               </div>
             </div>
-          )}
+          </div>
+        </header>
+        
+        <main className="flex-grow overflow-auto">
+          <div className="container mx-auto h-full flex flex-col">
+            {isWaitingForUserInput && humanInteractionRequest ? (
+              <HumanInputRequest
+                humanInteractionRequest={humanInteractionRequest}
+                onClose={() => {
+                  setIsWaitingForUserInput(false);
+                  setHumanInteractionRequest(null);
+                }}
+                onSubmit={async (result: string) => {
+                  setHumanInteractionResult(result);
+                  setIsWaitingForUserInput(false);
+                  setIsHumanFeedbackRequired(true);
+                  
+                  try {
+                    await updateResearchState(activeSessionId!, activeSessionId!, {
+                      human_interaction_result: result,
+                      status: 'awaiting_human_input'
+                    });
+                    
+                    toast({
+                      title: "Human Input Received",
+                      description: "Your input has been saved. Please provide feedback.",
+                      duration: 3000
+                    });
+                  } catch (error) {
+                    console.error("Error saving human input:", error);
+                    toast({
+                      title: "Error Saving Input",
+                      description: "Failed to save input. Please try again.",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+              />
+            ) : (
+              <>
+                {isHumanFeedbackRequired && (
+                  <HumanFeedbackForm
+                    isOpen={isFeedbackFormOpen}
+                    onOpenChange={setIsFeedbackFormOpen}
+                    onSubmit={handleHumanFeedbackSubmit}
+                    onFeedbackChange={handleHumanFeedbackChange}
+                  />
+                )}
+                
+                <ResearchObjective
+                  objective={objective}
+                  onObjectiveChange={handleObjectiveChange}
+                  onValidityChange={handleObjectiveValidityChange}
+                  onSubmit={handleNewResearch}
+                  isLoading={isLoading}
+                  isActive={isActive}
+                  isObjectiveValid={isObjectiveValid}
+                  researchObjectiveRef={researchObjectiveRef}
+                />
+                
+                <ResearchTabs activeTab={activeTab} onTabChange={handleTabChange}>
+                  <ResearchTab label="Research" value="research" icon={FileSearch2}>
+                    <ResearchAnswer
+                      result={result}
+                      isLoading={isLoading}
+                      errorMessage={errorMessage}
+                      sources={sources}
+                      activeSessionId={activeSessionId}
+                      currentSessionStatus={currentSessionStatus}
+                      isHumanFeedbackRequired={isHumanFeedbackRequired}
+                      onFeedbackFormToggle={handleFeedbackFormToggle}
+                    />
+                  </ResearchTab>
+                  
+                  <ResearchTab label="Reasoning" value="reasoning" icon={BrainCircuit}>
+                    <ReasoningPath
+                      reasoningPath={reasoningPath}
+                      sources={sources}
+                      findings={findings}
+                      isActive={isActive}
+                      isLoading={isLoading}
+                      rawData={rawEventData}
+                      sessionId={activeSessionId}
+                    />
+                  </ResearchTab>
+                  
+                  <ResearchTab label="Sources" value="sources" icon={BookText}>
+                    <SourceList sources={sources} findings={findings} />
+                  </ResearchTab>
+                </ResearchTabs>
+              </>
+            )}
+          </div>
         </main>
       </div>
-      
-      {showApprovalDialog && humanApprovalRequest && (
-        <HumanApprovalDialog
-          isOpen={showApprovalDialog}
-          callId={humanApprovalRequest.call_id}
-          nodeId={humanApprovalRequest.node_id}
-          query={humanApprovalRequest.query}
-          content={humanApprovalRequest.content}
-          approvalType={humanApprovalRequest.approval_type}
-          onApprove={(callId, nodeId) => handleApproveRequest(callId, nodeId)}
-          onReject={(callId, nodeId, reason) => handleRejectRequest(callId, nodeId, reason)}
-          onClose={() => setShowApprovalDialog(false)}
-        />
-      )}
-      
-      {showOnboarding && (
-        <UserModelOnboarding
-          isOpen={true}
-          onClose={() => setShowOnboarding(false)}
-          onCompleted={(model: any) => {
-            setShowOnboarding(false);
-            markOnboardingCompleted();
-            setDomain(model.domain);
-            setExpertiseLevel(model.expertise_level);
-            setSelectedCognitiveStyle(model.cognitive_style);
-            loadUserModels();
-          }}
-        />
-      )}
     </div>
   );
 };

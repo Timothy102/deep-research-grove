@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Sheet,
   SheetContent,
@@ -30,6 +30,8 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
   onSelectItem,
   onToggle
 }) => {
+  const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
+
   // Add a verification of session when sidebar opens
   useEffect(() => {
     if (isOpen) {
@@ -40,13 +42,46 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
     }
   }, [isOpen]);
 
+  const fetchSessionData = async (sessionId: string) => {
+    try {
+      // Directly query the database for this specific session
+      const { data, error } = await supabase
+        .from('research_states')
+        .select('*')
+        .eq('session_id', sessionId)
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      if (error) {
+        console.error(`[${new Date().toISOString()}] Error fetching session ${sessionId}:`, error);
+        return null;
+      }
+      
+      if (data && data.length > 0) {
+        console.log(`[${new Date().toISOString()}] ✅ Retrieved session data for ${sessionId} directly from DB`);
+        return data[0];
+      }
+      
+      console.log(`[${new Date().toISOString()}] ⚠️ No data found for session ${sessionId} in database`);
+      return null;
+    } catch (err) {
+      console.error(`[${new Date().toISOString()}] Failed to fetch session ${sessionId}:`, err);
+      return null;
+    }
+  };
+
   const handleSessionSelect = async (item: any) => {
     try {
+      setIsLoading(prev => ({ ...prev, [item.session_id]: true }));
+      
       // First, ensure session is synced
       await syncSession();
       
       // Store current session ID to ensure proper state restoration
       localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, item.session_id);
+      
+      // Fetch fresh data directly from database
+      const remoteData = await fetchSessionData(item.session_id);
       
       // Get the latest state for this session from Supabase
       const latestState = await getLatestSessionState(item.session_id);
@@ -57,20 +92,39 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
       let mergedState = latestState;
       
       // If we have both remote and local data, merge them to get the most complete state
-      if (latestState && cachedSessionData) {
+      if (remoteData || (latestState && cachedSessionData)) {
         console.log(`[${new Date().toISOString()}] 🔄 Merging remote and local session data for ${item.session_id}`);
         
-        // Merge the data, prioritizing items with more entries
+        // Start with the most recent state from either remote data or latest state
+        const baseState = remoteData || latestState;
+        
+        // Parse arrays from JSON if needed
+        const remoteSources = remoteData?.sources || [];
+        const remoteReasoningPath = remoteData?.reasoning_path || [];
+        const remoteFindings = remoteData?.findings || [];
+        
+        // Merge the data, prioritizing remote data but ensuring arrays are properly merged
         mergedState = {
-          ...latestState,
+          ...baseState,
           // For arrays, take the one with more items
-          sources: (cachedSessionData.sourcesKey?.length > (latestState.sources?.length || 0)) 
-            ? cachedSessionData.sourcesKey : latestState.sources,
-          reasoning_path: (cachedSessionData.reasoningPathKey?.length > (latestState.reasoning_path?.length || 0)) 
-            ? cachedSessionData.reasoningPathKey : latestState.reasoning_path,
-          findings: (cachedSessionData.findingsKey?.length > (latestState.findings?.length || 0)) 
-            ? cachedSessionData.findingsKey : latestState.findings
+          sources: Array.isArray(remoteSources) && remoteSources.length > 0 
+            ? remoteSources 
+            : (cachedSessionData?.sourcesKey || latestState?.sources || []),
+            
+          reasoning_path: Array.isArray(remoteReasoningPath) && remoteReasoningPath.length > 0 
+            ? remoteReasoningPath 
+            : (cachedSessionData?.reasoningPathKey || latestState?.reasoning_path || []),
+            
+          findings: Array.isArray(remoteFindings) && remoteFindings.length > 0
+            ? remoteFindings
+            : (cachedSessionData?.findingsKey || latestState?.findings || [])
         };
+        
+        console.log(`[${new Date().toISOString()}] 📊 Merged state has:`, {
+          sources: mergedState.sources?.length || 0,
+          reasoning_path: mergedState.reasoning_path?.length || 0,
+          findings: mergedState.findings?.length || 0
+        });
       }
       
       if (mergedState) {
@@ -91,6 +145,19 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         if (mergedState.findings) {
           localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(mergedState.findings));
         }
+        
+        // Clear any other session data to prevent mixing
+        Object.keys(localStorage).forEach(key => {
+          if (key.includes(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE) && 
+              !key.includes(item.session_id)) {
+            localStorage.removeItem(key);
+          }
+        });
+        
+        // Force a complete reset of all other caches
+        localStorage.removeItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
+        localStorage.removeItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
+        localStorage.removeItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE);
         
         // Save complete session data to ensure persistence
         saveSessionData(item.session_id, {
@@ -129,8 +196,9 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
           query: item.query,
           isNew: false,
           historyItem: item,
-          state: mergedState || cachedSessionData,
-          forceRestore: true // Add this flag to force a complete restoration
+          state: mergedState || cachedSessionData?.stateKey,
+          forceRestore: true, // Add this flag to force a complete restoration
+          fullReset: true     // Add this flag to signal a full reset of the UI
         }
       }));
       
@@ -145,6 +213,8 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
     } catch (error) {
       console.error("Error selecting history session:", error);
       toast.error("Failed to load session. Please try again.");
+    } finally {
+      setIsLoading(prev => ({ ...prev, [item.session_id]: false }));
     }
   };
 
@@ -189,7 +259,9 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                   {group.items.map((item: any) => (
                     <li 
                       key={item.id} 
-                      className="px-6 py-3 hover:bg-secondary cursor-pointer transition-colors duration-200 history-item"
+                      className={`px-6 py-3 hover:bg-secondary cursor-pointer transition-colors duration-200 history-item ${
+                        isLoading[item.session_id] ? 'opacity-50 pointer-events-none' : ''
+                      }`}
                       onClick={() => handleSessionSelect(item)}
                     >
                       <div className="flex items-center space-x-2">
@@ -200,6 +272,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                         <Clock className="h-3 w-3 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground">
                           {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {isLoading[item.session_id] && ' (Loading...)'}
                         </span>
                       </div>
                     </li>
