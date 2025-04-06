@@ -1,3 +1,4 @@
+
 // Local storage keys for better state persistence
 export const LOCAL_STORAGE_KEYS = {
   CURRENT_RESEARCH_ID: "deepresearch.current_research_id",
