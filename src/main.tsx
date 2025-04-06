@@ -4,7 +4,7 @@ import App from './App.tsx';
 import './index.css';
 import { toast } from "sonner";
 import HumanApprovalDialog from './components/research/HumanApprovalDialog.tsx';
-import { respondToApproval } from './services/humanLayerService.ts';
+import { submitFeedback } from './services/feedbackService.ts';
 import { supabase } from './integrations/supabase/client';
 
 // Enable realtime subscriptions with improved logging
@@ -68,7 +68,7 @@ window.addEventListener('message', (event) => {
           onClose={() => toast.dismiss(t)}
           onApprove={async (callId, nodeId) => {
             try {
-              await respondToApproval(callId, true);
+              await submitFeedback(callId, true);
               toast.success("Feedback submitted successfully");
               toast.dismiss(t);
               return Promise.resolve();
@@ -79,7 +79,7 @@ window.addEventListener('message', (event) => {
           }}
           onReject={async (callId, nodeId, reason) => {
             try {
-              await respondToApproval(callId, false, reason);
+              await submitFeedback(callId, false, reason);
               toast.success("Feedback submitted successfully");
               toast.dismiss(t);
               return Promise.resolve();

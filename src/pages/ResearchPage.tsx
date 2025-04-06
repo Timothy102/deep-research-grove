@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -17,7 +18,7 @@ import {
 } from "@/services/researchStateService";
 import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted, getUserModels } from "@/services/userModelService";
 import { submitHumanFeedback } from "@/services/humanInteractionService";
-import { respondToApproval } from "@/services/humanLayerService";
+import { submitFeedback } from '@/services/feedbackService';
 import { useToast } from "@/hooks/use-toast";
 import { ResearchForm } from "@/components/research/ResearchForm";
 import ReasoningPath from "@/components/research/ReasoningPath";
@@ -1020,7 +1021,7 @@ const ResearchPage = () => {
     try {
       console.log(`[${new Date().toISOString()}] 👍 Sending approval for call ID:`, callId, "node ID:", nodeId);
       
-      await respondToApproval(callId, true, '');
+      await submitFeedback(callId, true, '');
       
       toast.success("Feedback submitted successfully");
       setShowApprovalDialog(false);
@@ -1038,7 +1039,7 @@ const ResearchPage = () => {
     try {
       console.log(`[${new Date().toISOString()}] 👎 Sending rejection for call ID:`, callId, "node ID:", nodeId, "reason:", reason);
       
-      await respondToApproval(callId, false, reason);
+      await submitFeedback(callId, false, reason);
       
       toast.success("Feedback submitted successfully");
       setShowApprovalDialog(false);
