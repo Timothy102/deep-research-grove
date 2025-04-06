@@ -2,6 +2,7 @@
 import React, { ReactNode } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LucideIcon } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 
 interface ResearchTabsProps {
   children: ReactNode;
@@ -28,22 +29,24 @@ export const ResearchTabs: React.FC<ResearchTabsProps> = ({
   onTabChange
 }) => {
   return (
-    <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-      <TabsList className="grid grid-cols-3 mb-4">
-        {React.Children.map(children, (child) => {
-          if (React.isValidElement(child)) {
-            const { label, value, icon: Icon } = child.props;
-            return (
-              <TabsTrigger value={value} className="flex items-center gap-2">
-                {Icon && <Icon className="h-4 w-4" />}
-                {label}
-              </TabsTrigger>
-            );
-          }
-          return null;
-        })}
-      </TabsList>
-      {children}
-    </Tabs>
+    <Card>
+      <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
+        <TabsList className="grid grid-cols-3 mb-4">
+          {React.Children.map(children, (child) => {
+            if (React.isValidElement(child)) {
+              const { label, value, icon: Icon } = child.props;
+              return (
+                <TabsTrigger value={value} className="flex items-center gap-2">
+                  {Icon && <Icon className="h-4 w-4" />}
+                  {label}
+                </TabsTrigger>
+              );
+            }
+            return null;
+          })}
+        </TabsList>
+        {children}
+      </Tabs>
+    </Card>
   );
 };

@@ -551,46 +551,58 @@ const ResearchPage = () => {
         </header>
         
         <main className="flex-grow overflow-auto">
-          <div className="container mx-auto py-6">
-            <ResearchObjective
-              objective={objective}
-              onObjectiveChange={handleObjectiveChange}
-              onValidityChange={handleObjectiveValidityChange}
-              onSubmit={handleNewResearch}
-              isLoading={isLoading}
-              isActive={isActive}
-              isObjectiveValid={isObjectiveValid}
-              researchObjectiveRef={researchObjectiveRef}
-            />
-            
-            <div className="mt-6">
-              <div className="flex flex-col space-y-2">
-                <div className="font-medium">Research:</div>
-                <ResearchAnswer
-                  result={result}
+          <div className="container mx-auto py-6 px-4">
+            <Card className="mb-6">
+              <CardHeader className="pb-3">
+                <CardTitle>Research Objective</CardTitle>
+                <CardDescription>Enter your research question or topic</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResearchObjective
+                  objective={objective}
+                  onObjectiveChange={handleObjectiveChange}
+                  onValidityChange={handleObjectiveValidityChange}
+                  onSubmit={handleNewResearch}
                   isLoading={isLoading}
-                  errorMessage={errorMessage}
-                  sources={sources}
-                  activeSessionId={activeSessionId}
-                  currentSessionStatus={currentSessionStatus}
-                />
-              </div>
-              
-              <div className="mt-6">
-                <div className="font-medium">Reasoning:</div>
-                <ReasoningPath
-                  reasoningPath={reasoningPath}
-                  sources={sources}
-                  findings={findings}
                   isActive={isActive}
-                  isLoading={isLoading}
-                  rawData={rawEventData}
-                  sessionId={activeSessionId}
+                  isObjectiveValid={isObjectiveValid}
+                  researchObjectiveRef={researchObjectiveRef}
                 />
+              </CardContent>
+            </Card>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-2">
+                <div className="space-y-6">
+                  <ResearchAnswer
+                    result={result}
+                    isLoading={isLoading}
+                    errorMessage={errorMessage}
+                    sources={sources}
+                    activeSessionId={activeSessionId}
+                    currentSessionStatus={currentSessionStatus}
+                  />
+                  
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle>Reasoning Process</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ReasoningPath
+                        reasoningPath={reasoningPath}
+                        sources={sources}
+                        findings={findings}
+                        isActive={isActive}
+                        isLoading={isLoading}
+                        rawData={rawEventData}
+                        sessionId={activeSessionId}
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
               </div>
               
-              <div className="mt-6">
-                <div className="font-medium">Sources:</div>
+              <div className="md:col-span-1">
                 <SourcesList 
                   sources={sources} 
                   findings={findings} 

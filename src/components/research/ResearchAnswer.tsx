@@ -74,5 +74,9 @@ export const ResearchAnswer: React.FC<ResearchAnswerProps> = ({
     );
   };
   
-  return <div className="overflow-auto">{renderContent()}</div>;
+  return <Card className="overflow-auto">
+    <CardContent className="p-6">
+      {renderContent()}
+    </CardContent>
+  </Card>;
 };
