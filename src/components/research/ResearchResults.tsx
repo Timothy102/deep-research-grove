@@ -281,19 +281,25 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const resultRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [currentResult, setCurrentResult] = useState<ResearchResult | null>(result);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   
   useEffect(() => {
-    if (result && 
-        (!currentResult || 
-         result.session_id !== currentResult.session_id || 
-         result.query !== currentResult.query)) {
-      console.log(`[${new Date().toISOString()}] 🔄 Result props changed:`, {
-        newQuery: result.query,
-        newSessionId: result.session_id,
-        oldQuery: currentResult?.query,
-        oldSessionId: currentResult?.session_id
-      });
-      setCurrentResult(result);
+    if (result) {
+      if (!currentResult || 
+          result.session_id !== currentResult.session_id || 
+          result.query !== currentResult.query) {
+        console.log(`[${new Date().toISOString()}] 🔄 Result props changed:`, {
+          newQuery: result.query,
+          newSessionId: result.session_id,
+          oldQuery: currentResult?.query,
+          oldSessionId: currentResult?.session_id
+        });
+        
+        setCurrentResult(result);
+        if (result.session_id) {
+          setCurrentSessionId(result.session_id);
+        }
+      }
     }
   }, [result, currentResult]);
   
@@ -302,6 +308,13 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       if (event.detail && event.detail.sessionId) {
         const { sessionId, query } = event.detail;
         console.log(`[${new Date().toISOString()}] 📢 Session selected:`, { sessionId, query });
+        
+        if (currentSessionId === sessionId) {
+          console.log(`[${new Date().toISOString()}] ⚠️ Session ${sessionId} already selected, ignoring`);
+          return;
+        }
+        
+        setCurrentSessionId(sessionId);
         
         try {
           const sessionAnswerKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, sessionId);
@@ -344,7 +357,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
     return () => {
       window.removeEventListener('session-selected', handleSessionSelected as EventListener);
     };
-  }, []);
+  }, [currentSessionId]);
   
   const handleRealtimeUpdate = useCallback((event: CustomEvent) => {
     if (!currentResult?.session_id) return;

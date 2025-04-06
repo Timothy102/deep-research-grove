@@ -45,17 +45,17 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
       // First, ensure session is synced
       await syncSession();
       
-      // Store current session ID to ensure proper state restoration
-      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, item.session_id);
+      console.log(`[${new Date().toISOString()}] 🔍 Selecting history session:`, item.session_id, "with query:", item.query);
       
-      console.log(`[${new Date().toISOString()}] 🔍 Loading complete research state for session:`, item.session_id, "with query:", item.query);
-      
-      // Clear any old cached state first
+      // Clear any old cached state first to prevent mixing data from different sessions
       localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
       localStorage.removeItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE);
       localStorage.removeItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
       localStorage.removeItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE);
       localStorage.removeItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
+      
+      // Store current session ID to ensure proper state restoration
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, item.session_id);
       
       // Get the FULL latest state for this session from Supabase
       const latestState = await getLatestSessionState(item.session_id);
@@ -134,7 +134,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         toast.error("Could not load complete session data. Trying with partial data.");
       }
       
-      // Dispatch a custom event for session restoration
+      // Dispatch a custom event for session restoration with correct session info
       window.dispatchEvent(new CustomEvent('session-selected', { 
         detail: { 
           sessionId: item.session_id,
@@ -202,6 +202,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                       key={item.id} 
                       className="px-6 py-3 hover:bg-secondary cursor-pointer transition-colors duration-200 history-item"
                       onClick={() => handleSessionSelect(item)}
+                      data-session-id={item.session_id}
                     >
                       <div className="flex items-center space-x-2">
                         <CalendarDays className="h-4 w-4 text-muted-foreground" />
