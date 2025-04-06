@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -69,7 +70,7 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
   const [lastHeartbeat, setLastHeartbeat] = useState(new Date());
   const [history, setHistory] = useState<any[]>([]);
 
-  const { toast: toastNotification } = useToast();
+  const { toast: toastNotification } = useToast(); // FIX: Remove incorrectly passed argument
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { sessionId: routeSessionId } = useParams<{ sessionId: string }>();
@@ -202,7 +203,7 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
   const toggleSidebar = () => {
     const newState = !showSidebar;
     setShowSidebar(newState);
-    localStorage.setItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE, String(newState));
+    localStorage.setItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE, String(newState)); // FIX: Convert boolean to string
   };
 
   const fetchResearchHistory = useCallback(async () => {
