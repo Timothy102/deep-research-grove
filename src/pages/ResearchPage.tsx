@@ -95,7 +95,7 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
   // Load sidebar state from local storage
   const loadSidebarState = useCallback(() => {
     const savedState = localStorage.getItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE);
-    setShowSidebar(savedState !== null ? savedState === 'true' : false);
+    setShowSidebar(savedState !== null ? savedState === 'true' : false;
   }, []);
 
   // Load the current query from local storage
@@ -839,126 +839,6 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
   }, [user]);
 
   // Load the current user model from local storage
-  const loadUserModelFromSettingsPageLayoutWrapper = useCallback(async () => {
-    if (user) {
-      try {
-        const userModelData = await getUserModelById(user.id);
-        setUserModel(userModelData);
-      } catch (error) {
-        console.error("Error fetching user model:", error);
-      }
-    }
-  }, [user]);
-
-  // Load the current user model from local storage
-  const loadUserModelFromProfilePageLayoutWrapper = useCallback(async () => {
-    if (user) {
-      try {
-        const userModelData = await getUserModelById(user.id);
-        setUserModel(userModelData);
-      } catch (error) {
-        console.error("Error fetching user model:", error);
-      }
-    }
-  }, [user]);
-
-  // Load the current user model from local storage
-  const loadUserModelFromPreferencesPageLayoutWrapper = useCallback(async () => {
-    if (user) {
-      try {
-        const userModelData = await getUserModelById(user.id);
-        setUserModel(userModelData);
-      } catch (error) {
-        console.error("Error fetching user model:", error);
-      }
-    }
-  }, [user]);
-
-  // Load the current user model from local storage
-  const loadUserModelFromDashboardPageLayoutWrapper = useCallback(async () => {
-    if (user) {
-      try {
-        const userModelData = await getUserModelById(user.id);
-        setUserModel(userModelData);
-      } catch (error) {
-        console.error("Error fetching user model:", error);
-      }
-    }
-  }, [user]);
-
-  // Load the current user model from local storage
-  const loadUserModelFromAccountPageLayoutWrapper = useCallback(async () => {
-    if (user) {
-      try {
-        const userModelData = await getUserModelById(user.id);
-        setUserModel(userModelData);
-      } catch (error) {
-        console.error("Error fetching user model:", error);
-      }
-    }
-  }, [user]);
-
-  // Load the current user model from local storage
-  const loadUserModelFromSettingsPageLayoutContainer = useCallback(async () => {
-    if (user) {
-      try {
-        const userModelData = await getUserModelById(user.id);
-        setUserModel(userModelData);
-      } catch (error) {
-        console.error("Error fetching user model:", error);
-      }
-    }
-  }, [user]);
-
-  // Load the current user model from local storage
-  const loadUserModelFromProfilePageLayoutContainer = useCallback(async () => {
-    if (user) {
-      try {
-        const userModelData = await getUserModelById(user.id);
-        setUserModel(userModelData);
-      } catch (error) {
-        console.error("Error fetching user model:", error);
-      }
-    }
-  }, [user]);
-
-  // Load the current user model from local storage
-  const loadUserModelFromPreferencesPageLayoutContainer = useCallback(async () => {
-    if (user) {
-      try {
-        const userModelData = await getUserModelById(user.id);
-        setUserModel(userModelData);
-      } catch (error) {
-        console.error("Error fetching user model:", error);
-      }
-    }
-  }, [user]);
-
-  // Load the current user model from local storage
-  const loadUserModelFromDashboardPageLayoutContainer = useCallback(async () => {
-    if (user) {
-      try {
-        const userModelData = await getUserModelById(user.id);
-        setUserModel(userModelData);
-      } catch (error) {
-        console.error("Error fetching user model:", error);
-      }
-    }
-  }, [user]);
-
-  // Load the current user model from local storage
-  const loadUserModelFromAccountPageLayoutContainer = useCallback(async () => {
-    if (user) {
-      try {
-        const userModelData = await getUserModelById(user.id);
-        setUserModel(userModelData);
-      } catch (error) {
-        console.error("Error fetching user model:", error);
-      }
-    }
-  }, [user]);
-
-  // Load the current user model from local storage
   const loadUserModelFromSettingsPageLayoutWrapperContainer = useCallback(async () => {
     if (user) {
       try {
@@ -973,3 +853,39 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
   // Load the current user model from local storage
   const loadUserModelFromProfilePageLayoutWrapperContainer = useCallback(async () => {
     if (user) {
+      try {
+        const userModelData = await getUserModelById(user.id);
+        setUserModel(userModelData);
+      } catch (error) {
+        console.error("Error fetching user model:", error);
+      }
+    }
+  }, [user]);
+
+  // Add component rendering code here...
+  return (
+    <div className="flex min-h-screen bg-background">
+      {/* Sidebar */}
+      <div className={cn(
+        "fixed left-0 top-0 z-20 h-full w-64 transform border-r bg-background transition-transform duration-200 ease-in-out md:relative md:translate-x-0",
+        showSidebar ? "translate-x-0" : "-translate-x-full"
+      )}>
+        <ResearchHistorySidebar
+          sessionId={sessionId || ""}
+          onSelectResearch={(id) => {
+            // Handle research selection
+            console.log("Selected research:", id);
+          }}
+        />
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 p-4">
+        <h1 className="text-2xl font-bold mb-4">Research Page</h1>
+        {/* Add the rest of your UI components here */}
+      </div>
+    </div>
+  );
+};
+
+export default ResearchPage;

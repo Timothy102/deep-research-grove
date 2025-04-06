@@ -846,4 +846,4 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
         findings: Array.isArray(rawData.findings) 
           ? rawData.findings 
           : (typeof rawData.findings === 'string' 
-              ? JSON.parse(rawData.findings
+              ? JSON.parse(rawData.findings)
