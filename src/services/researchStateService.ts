@@ -1,4 +1,3 @@
-
 import { supabase, getClientId, subscribeToResearchState } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
@@ -72,9 +71,7 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     state.human_interactions = [];
   }
   
-  // Ensure findings is a valid JSONB array
   if (state.findings) {
-    // Make sure each finding has at least source property
     state.findings = state.findings.map(finding => {
       if (!finding.source) {
         finding.source = "Unknown source";
@@ -210,9 +207,7 @@ export async function updateResearchState(
     delete (updates as any).human_interaction_result;
   }
   
-  // Properly handle findings updates
   if (updates.findings) {
-    // Ensure each finding has the required properties
     updates.findings = updates.findings.map(finding => {
       if (!finding.source) {
         finding.source = "Unknown source";
@@ -222,7 +217,6 @@ export async function updateResearchState(
     
     updates.findings_count = updates.findings.length;
     
-    // Cache findings immediately
     try {
       const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
       localStorage.setItem(sessionFindingsKey, JSON.stringify(updates.findings));
@@ -405,7 +399,6 @@ function saveStateToLocalStorage(state: ResearchState) {
     localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID, state.research_id);
     localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, state.session_id);
     
-    // Extract findings if they're in weird format
     let processedFindings = state.findings || [];
     if (typeof processedFindings === 'string') {
       try {
@@ -450,7 +443,6 @@ function saveStateToLocalStorage(state: ResearchState) {
     }
     
     if (state.findings) {
-      // Make sure findings is an array of objects with at least a source property
       const validFindings = Array.isArray(state.findings) 
         ? state.findings.map(f => ({
             source: f.source || "Unknown source",
@@ -524,9 +516,7 @@ export async function getResearchState(researchId: string, sessionId: string): P
     if (data) {
       const result = data as ResearchState;
       
-      // Process findings data from database
       try {
-        // If findings is a JSON string, parse it
         if (typeof result.findings === 'string') {
           try {
             result.findings = JSON.parse(result.findings);
@@ -536,18 +526,15 @@ export async function getResearchState(researchId: string, sessionId: string): P
           }
         }
         
-        // Ensure findings is an array
         if (!Array.isArray(result.findings)) {
           console.warn("Findings is not an array, converting:", result.findings);
           if (result.findings && typeof result.findings === 'object') {
-            // If it's an object but not an array, try to convert it
             result.findings = Object.values(result.findings);
           } else {
             result.findings = [];
           }
         }
         
-        // Ensure each finding has the required properties
         result.findings = result.findings.map(finding => {
           if (!finding) return { source: "Unknown source" };
           
@@ -816,7 +803,6 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
     console.log(`[${new Date().toISOString()}] 🔍 Fetching latest session state for session:`, sessionId, 
       "user:", user.user.id.substring(0, 8));
     
-    // Let's try a simpler approach first - get the latest state regardless of client_id
     const { data: sessionData, error: sessionError } = await supabase
       .from('research_states')
       .select('*')
@@ -829,7 +815,6 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
     if (sessionError) {
       console.error(`[${new Date().toISOString()}] ❌ Error fetching latest session state:`, sessionError);
       
-      // Try to get from local storage regardless of error
       const cachedState = getStateFromLocalStorage("", sessionId, user.user.id);
       if (cachedState) {
         console.log(`[${new Date().toISOString()}] ✅ Found cached state for session:`, sessionId);
@@ -850,19 +835,16 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
         status: result.status
       });
       
-      // Enhanced state with any cached data we might have
       return enhanceStateWithCachedData(result, sessionId);
     } else {
       console.log(`[${new Date().toISOString()}] ⚠️ No database state found for session:`, sessionId);
       
-      // Try to build from localStorage
       const cachedState = getStateFromLocalStorage("", sessionId, user.user.id);
       if (cachedState) {
         console.log(`[${new Date().toISOString()}] ✅ Found cached state for session:`, sessionId);
         return enhanceStateWithCachedData(cachedState, sessionId);
       }
       
-      // Create a minimal fallback state
       console.log(`[${new Date().toISOString()}] ⚠️ Creating minimal fallback state for session:`, sessionId);
       return {
         research_id: "",
@@ -879,7 +861,6 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
     console.error(`[${new Date().toISOString()}] 🔥 Critical error in getLatestSessionState:`, error);
     
     try {
-      // Last resort - try to build synthetic state from just sessionId
       const sessionAnswerKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, sessionId);
       const cachedAnswer = localStorage.getItem(sessionAnswerKey);
       
@@ -916,7 +897,6 @@ function enhanceStateWithCachedData(state: ResearchState, sessionId: string): Re
       enhancedState.human_interactions = [];
     }
     
-    // Try to enhance with cached data if our state is missing information
     if (!enhancedState.sources || enhancedState.sources.length === 0) {
       const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
       const cachedSessionSources = localStorage.getItem(sessionSourcesKey) || 
@@ -959,7 +939,6 @@ function enhanceStateWithCachedData(state: ResearchState, sessionId: string): Re
       }
     }
     
-    // Try to get user_model syntheses from other caches if not present
     if (!enhancedState.user_model) {
       const sessionSynthesisKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SYNTHESIS_CACHE, sessionId);
       const cachedSynthesis = localStorage.getItem(sessionSynthesisKey);
@@ -982,3 +961,5 @@ function enhanceStateWithCachedData(state: ResearchState, sessionId: string): Re
   
   return enhancedState;
 }
+
+export { subscribeToResearchState };
