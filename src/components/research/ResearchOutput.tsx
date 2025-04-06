@@ -138,22 +138,22 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
 
   const exportToDocx = async () => {
     try {
-      // Using docx library to create Word documents
-      const { Document, Packer, Paragraph, TextRun } = await import('docx');
+      // Dynamically import the docx library
+      const docx = await import('docx');
       
       // Create document
-      const doc = new Document({
+      const doc = new docx.Document({
         sections: [{
           properties: {},
           children: [
-            new Paragraph({
+            new docx.Paragraph({
               children: [
-                new TextRun({ text: "Research Results", bold: true, size: 28 }),
+                new docx.TextRun({ text: "Research Results", bold: true, size: 28 }),
               ],
             }),
-            new Paragraph({
+            new docx.Paragraph({
               children: [
-                new TextRun({ text: output, size: 24 }),
+                new docx.TextRun({ text: output, size: 24 }),
               ],
             }),
           ],
@@ -161,7 +161,7 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
       });
       
       // Generate and save document
-      const buffer = await Packer.toBuffer(doc);
+      const buffer = await docx.Packer.toBuffer(doc);
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
       saveAs(blob, "research-output.docx");
       toast.success("DOCX downloaded successfully");
