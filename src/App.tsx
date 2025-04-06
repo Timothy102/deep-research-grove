@@ -141,24 +141,34 @@ function AppRoutes() {
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const [lastPath, setLastPath] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<string | null>(null);
+  const location = useLocation();
 
   useEffect(() => {
     // Configure CORS proxy
     configureModalApiProxy();
     
-    // First check if there's a current session to restore
+    // First check if we're already on a specific path - don't redirect in that case
+    const currentPath = window.location.pathname;
+    if (currentPath !== '/' && currentPath !== '/auth') {
+      console.log(`[${new Date().toISOString()}] 📍 Already on a specific path:`, currentPath);
+      setIsLoading(false);
+      return;
+    }
+    
+    // Next check if there's a current session to restore
     const currentSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID);
     
-    if (currentSessionId && window.location.pathname === '/') {
+    if (currentSessionId && currentPath === '/') {
       // If we have an active session but we're on the root path,
       // we should navigate to the research page with that session
+      console.log(`[${new Date().toISOString()}] 🔄 Found active session:`, currentSessionId);
       setActiveSession(currentSessionId);
       setShouldRedirect(true);
     } else {
       // If no current session or already on a specific path,
       // fall back to the last path logic
       const savedPath = localStorage.getItem('lastPath');
-      if (savedPath && window.location.pathname === '/') {
+      if (savedPath && currentPath === '/') {
         setLastPath(savedPath);
         // Only redirect if explicitly coming from another page
         // Don't redirect if the user is intentionally visiting the root
@@ -201,6 +211,15 @@ function AppRoutes() {
       window.removeEventListener('popstate', handleRouteChange);
     };
   }, []);
+
+  // Also save the path when the location changes
+  useEffect(() => {
+    const currentPath = location.pathname;
+    if (currentPath !== '/' && !currentPath.includes('/auth')) {
+      console.log(`[${new Date().toISOString()}] 📍 Saving location path:`, currentPath);
+      localStorage.setItem('lastPath', currentPath);
+    }
+  }, [location]);
 
   // Show nothing while we're determining the redirect
   if (isLoading) {
