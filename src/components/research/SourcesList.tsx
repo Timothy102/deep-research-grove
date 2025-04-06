@@ -82,19 +82,34 @@ const SourcesList: React.FC<SourcesListProps> = ({
     setSortedSources(newSortedSources);
   }, [displaySources, findingsBySource]);
 
+  // Enhanced session data loading with better fallbacks
   useEffect(() => {
     try {
       if (sessionId) {
+        console.log(`[${new Date().toISOString()}] 🔍 Attempting to load data for session: ${sessionId}`);
+        
+        // First try to get comprehensive session data
         const sessionData = getSessionData(sessionId);
         
         if (sessionData) {
+          // Handle sources with proper validation
           if (sessionData.sources && Array.isArray(sessionData.sources) && sessionData.sources.length > 0) {
             if (sources.length === 0 || sessionData.sources.length > sources.length) {
               console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.sources.length} sources from session data`);
               setDisplaySources(sessionData.sources);
+              
+              // Save the expanded state for each source
+              const newExpandedState = { ...expandedSources };
+              sessionData.sources.forEach(source => {
+                if (expandedSources[source] === undefined) {
+                  newExpandedState[source] = true;
+                }
+              });
+              setExpandedSources(newExpandedState);
             }
           }
           
+          // Handle findings with proper validation
           if (sessionData.findings && Array.isArray(sessionData.findings) && sessionData.findings.length > 0) {
             if (findings.length === 0 || sessionData.findings.length > findings.length) {
               console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.findings.length} findings from session data`);
@@ -105,60 +120,92 @@ const SourcesList: React.FC<SourcesListProps> = ({
           return;
         }
         
+        // Fall back to individual storage keys
         const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
         const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
         
         const sessionCachedSources = localStorage.getItem(sessionSourcesKey);
         const sessionCachedFindings = localStorage.getItem(sessionFindingsKey);
         
+        // Process sources
         if (sessionCachedSources) {
-          const parsedSources = JSON.parse(sessionCachedSources);
-          if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-            console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedSources.length} sources from session cache for: ${sessionId}`);
-            setDisplaySources(parsedSources);
+          try {
+            const parsedSources = JSON.parse(sessionCachedSources);
+            if (Array.isArray(parsedSources) && parsedSources.length > 0) {
+              console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedSources.length} sources from session cache for: ${sessionId}`);
+              setDisplaySources(parsedSources);
+              
+              // Save the expanded state for each source
+              const newExpandedState = { ...expandedSources };
+              parsedSources.forEach(source => {
+                if (expandedSources[source] === undefined) {
+                  newExpandedState[source] = true;
+                }
+              });
+              setExpandedSources(newExpandedState);
+            }
+          } catch (e) {
+            console.error("Error parsing cached sources:", e);
           }
         }
         
+        // Process findings
         if (sessionCachedFindings) {
-          const parsedFindings = JSON.parse(sessionCachedFindings);
-          if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
-            console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedFindings.length} findings from session cache for: ${sessionId}`);
-            setDisplayFindings(parsedFindings);
+          try {
+            const parsedFindings = JSON.parse(sessionCachedFindings);
+            if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
+              console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedFindings.length} findings from session cache for: ${sessionId}`);
+              setDisplayFindings(parsedFindings);
+            }
+          } catch (e) {
+            console.error("Error parsing cached findings:", e);
           }
         }
         
         return;
       }
       
+      // Fall back to global cache if no session ID
       const cachedSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
       const cachedFindings = localStorage.getItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
       
+      // Process global sources cache
       if (cachedSources) {
-        const parsedSources = JSON.parse(cachedSources);
-        if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-          if (sources.length === 0) {
-            setDisplaySources(parsedSources);
-          } else if (sources.length !== parsedSources.length) {
-            setDisplaySources(sources.length > parsedSources.length ? sources : parsedSources);
+        try {
+          const parsedSources = JSON.parse(cachedSources);
+          if (Array.isArray(parsedSources) && parsedSources.length > 0) {
+            if (sources.length === 0) {
+              setDisplaySources(parsedSources);
+            } else if (sources.length !== parsedSources.length) {
+              setDisplaySources(sources.length > parsedSources.length ? sources : parsedSources);
+            }
           }
+        } catch (e) {
+          console.error("Error parsing global cached sources:", e);
         }
       }
       
+      // Process global findings cache
       if (cachedFindings) {
-        const parsedFindings = JSON.parse(cachedFindings);
-        if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
-          if (findings.length === 0) {
-            setDisplayFindings(parsedFindings);
-          } else if (findings.length !== parsedFindings.length) {
-            setDisplayFindings(findings.length > parsedFindings.length ? findings : parsedFindings);
+        try {
+          const parsedFindings = JSON.parse(cachedFindings);
+          if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
+            if (findings.length === 0) {
+              setDisplayFindings(parsedFindings);
+            } else if (findings.length !== parsedFindings.length) {
+              setDisplayFindings(findings.length > parsedFindings.length ? findings : parsedFindings);
+            }
           }
+        } catch (e) {
+          console.error("Error parsing global cached findings:", e);
         }
       }
     } catch (e) {
       console.error("Error loading sources or findings from cache:", e);
     }
-  }, [sources, findings, sessionId]);
+  }, [sources, findings, sessionId, expandedSources]);
 
+  // Save sources to persistent storage when they change
   useEffect(() => {
     if (sources.length > 0) {
       setDisplaySources(sources);
@@ -167,8 +214,10 @@ const SourcesList: React.FC<SourcesListProps> = ({
         localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(sources));
         
         if (sessionId) {
+          // Save to comprehensive session data
           saveSessionData(sessionId, { sources });
           
+          // Also save to individual session cache
           const sessionCacheKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
           localStorage.setItem(sessionCacheKey, JSON.stringify(sources));
           console.log(`[${new Date().toISOString()}] 💾 Saved ${sources.length} sources to session cache for: ${sessionId}`);
@@ -179,6 +228,7 @@ const SourcesList: React.FC<SourcesListProps> = ({
     }
   }, [sources, sessionId]);
 
+  // Save findings to persistent storage when they change
   useEffect(() => {
     if (findings.length > 0) {
       setDisplayFindings(findings);
@@ -187,8 +237,10 @@ const SourcesList: React.FC<SourcesListProps> = ({
         localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(findings));
         
         if (sessionId) {
+          // Save to comprehensive session data
           saveSessionData(sessionId, { findings });
           
+          // Also save to individual session cache
           const sessionCacheKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
           localStorage.setItem(sessionCacheKey, JSON.stringify(findings));
           console.log(`[${new Date().toISOString()}] 💾 Saved ${findings.length} findings to session cache for: ${sessionId}`);

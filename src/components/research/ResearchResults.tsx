@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import SourcesList from "./SourcesList";
 
 export type Finding = {
   content: string;
@@ -283,6 +284,24 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const navigate = useNavigate();
   const [currentResult, setCurrentResult] = useState<ResearchResult | null>(result);
   const [isCopied, setIsCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    try {
+      if (result?.session_id) {
+        const sessionActiveTabKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.CURRENT_STATE, result.session_id);
+        const storedState = localStorage.getItem(sessionActiveTabKey);
+        if (storedState) {
+          const parsedState = JSON.parse(storedState);
+          if (parsedState.active_tab) {
+            return parsedState.active_tab;
+          }
+        }
+      }
+      return "answer";
+    } catch (e) {
+      console.error("Error restoring active tab:", e);
+      return "answer";
+    }
+  });
   
   const handleRealtimeUpdate = useCallback((event: CustomEvent) => {
     if (!currentResult?.session_id) return;
@@ -345,7 +364,8 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
               sources: updatedResult.sources,
               reasoningPath: updatedResult.reasoning_path,
               findings: updatedResult.findings,
-              syntheses: updatedResult.syntheses
+              syntheses: updatedResult.syntheses,
+              active_tab: activeTab
             });
           }
         } catch (e) {
@@ -367,7 +387,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         }
       }
     }
-  }, [currentResult]);
+  }, [currentResult, activeTab]);
   
   useEffect(() => {
     window.addEventListener('research_state_update', handleRealtimeUpdate as EventListener);
@@ -396,10 +416,12 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
             researchId: currentResult.research_id,
             findings: currentResult.findings,
             syntheses: currentResult.syntheses,
+            active_tab: activeTab,
             state: {
               query: currentResult.query,
               session_id: currentResult.session_id,
               research_id: currentResult.research_id,
+              active_tab: activeTab,
               created_at: new Date().toISOString()
             }
           });
@@ -412,18 +434,40 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
           
           const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, currentResult.session_id);
           localStorage.setItem(sessionPathKey, JSON.stringify(currentResult.reasoning_path));
+          
+          if (currentResult.findings && currentResult.findings.length > 0) {
+            const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, currentResult.session_id);
+            localStorage.setItem(sessionFindingsKey, JSON.stringify(currentResult.findings));
+          }
         }
       } catch (e) {
         console.error("Error caching research result:", e);
       }
     }
-  }, [currentResult]);
+  }, [currentResult, activeTab]);
 
   useEffect(() => {
     if (currentResult && resultRef.current) {
       resultRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [currentResult]);
+  
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    
+    if (currentResult?.session_id) {
+      try {
+        saveSessionData(currentResult.session_id, { 
+          active_tab: value,
+          state: {
+            active_tab: value
+          }
+        });
+      } catch (e) {
+        console.error("Error saving active tab:", e);
+      }
+    }
+  };
 
   const copyFullResearchToClipboard = async () => {
     if (!currentResult) return;
@@ -514,7 +558,8 @@ ${currentResult.reasoning_path.map((step, index) => `${index + 1}. ${step}`).joi
         detail: { 
           sessionId: currentResult.session_id,
           query: currentResult.query,
-          isNew: false
+          isNew: false,
+          activeTab: activeTab
         }
       }));
       
@@ -585,7 +630,7 @@ ${currentResult.reasoning_path.map((step, index) => `${index + 1}. ${step}`).joi
         <p className="text-sm text-muted-foreground">Query: {currentResult.query}</p>
       </div>
 
-      <Tabs defaultValue="answer">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="mb-4">
           <TabsTrigger value="answer">Answer</TabsTrigger>
           <TabsTrigger value="sources">
@@ -606,7 +651,8 @@ ${currentResult.reasoning_path.map((step, index) => `${index + 1}. ${step}`).joi
         <TabsContent value="sources">
           <SourcesList 
             sources={currentResult.sources} 
-            findings={currentResult.findings} 
+            findings={currentResult.findings}
+            sessionId={currentResult.session_id}
           />
         </TabsContent>
         

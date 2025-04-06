@@ -140,22 +140,35 @@ function AppRoutes() {
   const [isLoading, setIsLoading] = useState(true);
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const [lastPath, setLastPath] = useState<string | null>(null);
+  const [activeSession, setActiveSession] = useState<string | null>(null);
 
   useEffect(() => {
     // Configure CORS proxy
     configureModalApiProxy();
     
-    // Get the last path from local storage on initial load
-    const savedPath = localStorage.getItem('lastPath');
-    if (savedPath && window.location.pathname === '/') {
-      setLastPath(savedPath);
-      // Only redirect if explicitly coming from another page
-      // Don't redirect if the user is intentionally visiting the root
-      const referrer = document.referrer;
-      if (referrer && referrer.includes(window.location.host)) {
-        setShouldRedirect(true);
+    // First check if there's a current session to restore
+    const currentSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID);
+    
+    if (currentSessionId && window.location.pathname === '/') {
+      // If we have an active session but we're on the root path,
+      // we should navigate to the research page with that session
+      setActiveSession(currentSessionId);
+      setShouldRedirect(true);
+    } else {
+      // If no current session or already on a specific path,
+      // fall back to the last path logic
+      const savedPath = localStorage.getItem('lastPath');
+      if (savedPath && window.location.pathname === '/') {
+        setLastPath(savedPath);
+        // Only redirect if explicitly coming from another page
+        // Don't redirect if the user is intentionally visiting the root
+        const referrer = document.referrer;
+        if (referrer && referrer.includes(window.location.host)) {
+          setShouldRedirect(true);
+        }
       }
     }
+    
     setIsLoading(false);
 
     // Save current path to localStorage whenever it changes
@@ -194,7 +207,13 @@ function AppRoutes() {
     return null;
   }
 
-  // Only redirect if we explicitly want to
+  // Prioritize active session redirection
+  if (activeSession && shouldRedirect && window.location.pathname === '/') {
+    console.log(`[${new Date().toISOString()}] 🔄 Redirecting to active session:`, activeSession);
+    return <Navigate to={`/research/${activeSession}`} replace />;
+  }
+  
+  // Fall back to last path logic
   if (shouldRedirect && lastPath && lastPath !== '/' && window.location.pathname === '/') {
     console.log(`[${new Date().toISOString()}] 🔄 Redirecting to last path:`, lastPath);
     return <Navigate to={lastPath} replace />;
