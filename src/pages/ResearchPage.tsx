@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -70,7 +69,7 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
   const [lastHeartbeat, setLastHeartbeat] = useState(new Date());
   const [history, setHistory] = useState<any[]>([]);
 
-  const { toast } = useToast();
+  const { toast: toastNotification } = useToast();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { sessionId: routeSessionId } = useParams<{ sessionId: string }>();
@@ -78,7 +77,6 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
   const formRef = useRef<HTMLFormElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Load the current session from local storage
   const loadCurrentSession = useCallback(() => {
     const storedSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID);
     if (storedSessionId) {
@@ -86,7 +84,6 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, []);
 
-  // Load the current research ID from local storage
   const loadCurrentResearchId = useCallback(() => {
     const storedResearchId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID);
     if (storedResearchId) {
@@ -94,13 +91,11 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, []);
 
-  // Load sidebar state from local storage
   const loadSidebarState = useCallback(() => {
     const savedState = localStorage.getItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE);
     setShowSidebar(savedState !== null ? savedState === 'true' : false);
   }, []);
 
-  // Load the current query from local storage
   const loadCurrentQuery = useCallback(() => {
     const storedQuery = localStorage.getItem(LOCAL_STORAGE_KEYS.RESEARCH_OBJECTIVE);
     if (storedQuery) {
@@ -108,7 +103,6 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, []);
 
-  // Load the current active tab from local storage
   const loadActiveTab = useCallback(() => {
     const storedActiveTab = localStorage.getItem('deepresearch.active_tab');
     if (storedActiveTab) {
@@ -116,7 +110,6 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, []);
 
-  // Load the current onboarding status from local storage
   const loadOnboardingStatus = useCallback(() => {
     const storedOnboardingStatus = localStorage.getItem('deepresearch.onboarding_status');
     if (storedOnboardingStatus) {
@@ -124,7 +117,6 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, []);
 
-  // Load the current user model from local storage
   const loadUserModel = useCallback(async () => {
     if (user) {
       try {
@@ -136,7 +128,6 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, [user]);
 
-  // Load the current research state from local storage
   const loadResearchState = useCallback(async () => {
     if (sessionId && researchId) {
       try {
@@ -150,7 +141,6 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, [sessionId, researchId]);
 
-  // Load the latest session state from local storage
   const loadLatestSessionState = useCallback(async () => {
     if (sessionId) {
       try {
@@ -164,7 +154,6 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, [sessionId]);
 
-  // Load the current session data from local storage
   const loadSessionData = useCallback(async () => {
     if (sessionId) {
       try {
@@ -178,7 +167,6 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, [sessionId]);
 
-  // Load user onboarding status
   const loadUserOnboardingStatus = useCallback(async () => {
     if (user) {
       try {
@@ -190,7 +178,6 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, [user]);
 
-  // Load user models
   const loadUserModels = useCallback(async () => {
     if (user) {
       try {
@@ -204,25 +191,20 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, [user]);
 
-  // Handle history item click
   const handleHistoryItemClick = (item: any) => {
     console.log("History item clicked:", item);
   };
 
-  // Handle select item
   const handleSelectItem = (item: any) => {
     console.log("Selected item:", item);
   };
 
-  // Toggle sidebar
   const toggleSidebar = () => {
     const newState = !showSidebar;
     setShowSidebar(newState);
-    // Save to local storage as a string
     localStorage.setItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE, String(newState));
   };
 
-  // Fetch research history
   const fetchResearchHistory = useCallback(async () => {
     if (user) {
       try {
@@ -235,24 +217,16 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
     }
   }, [user]);
 
-  // Handle research submit
   const handleResearchSubmit = (query: string) => {
     console.log("Research submitted:", query);
-    // Handle research submission logic here
-    // This would typically include:
-    // 1. Saving the research state
-    // 2. Starting the research process
-    // 3. Updating UI accordingly
   };
 
-  // Effect to fetch history data when component mounts
   useEffect(() => {
     fetchResearchHistory();
   }, [fetchResearchHistory]);
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
       <div className={cn(
         "fixed left-0 top-0 z-20 h-full w-64 transform border-r bg-background transition-transform duration-200 ease-in-out md:relative md:translate-x-0",
         showSidebar ? "translate-x-0" : "-translate-x-full"
@@ -266,10 +240,8 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
         />
       </div>
 
-      {/* Main content */}
       <div className="flex-1 p-4">
         <h1 className="text-2xl font-bold mb-4">Research Page</h1>
-        {/* Research form with the specified max iterations and depth */}
         <div className="mb-4">
           <ResearchForm 
             onSubmit={handleResearchSubmit}
