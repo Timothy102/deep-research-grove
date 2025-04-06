@@ -49,6 +49,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
   },
   // Add persistent storage options for better session management
   global: {
+    // Fix: Remove the spread operator and properly define the fetch function
     fetch: (input, init) => fetch(input, init),
   },
   db: {
@@ -79,21 +80,6 @@ export const syncSession = async () => {
       // Ensure the session is properly stored
       localStorage.setItem('supabase.auth.token', JSON.stringify(session));
       console.log(`[${new Date().toISOString()}] 🔄 Synced session to localStorage: ${session.access_token.substring(0, 15)}...`);
-      
-      // Also initialize realtime subscriptions when syncing
-      const channel = supabase.channel('research_states_changes')
-        .on('postgres_changes', 
-          { event: '*', schema: 'public', table: 'research_states' }, 
-          (payload) => {
-            console.log(`[${new Date().toISOString()}] 📊 Realtime update received:`, payload);
-            window.dispatchEvent(new CustomEvent('research_state_update', { 
-              detail: { payload, timestamp: new Date().toISOString() }
-            }));
-          })
-        .subscribe();
-        
-      console.log(`[${new Date().toISOString()}] 🔌 Initialized realtime channel when syncing session`);
-      
       return session;
     }
   } catch (e) {
@@ -175,10 +161,6 @@ export const reconnectToSupabase = async (maxRetries = 5, initialDelay = 1000) =
     
     if (await checkSupabaseConnection()) {
       console.log(`[${new Date().toISOString()}] ✅ Successfully reconnected to Supabase`);
-      
-      // When reconnected, force sync the session and reinitialize realtime
-      await syncSession();
-      
       return true;
     }
     
@@ -193,17 +175,3 @@ export const reconnectToSupabase = async (maxRetries = 5, initialDelay = 1000) =
   console.error(`[${new Date().toISOString()}] ❌ Failed to reconnect to Supabase after ${maxRetries} attempts`);
   return false;
 };
-
-// Setup a listener for online/offline events to handle reconnections
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', async () => {
-    console.log(`[${new Date().toISOString()}] 🌐 Browser back online, reconnecting to Supabase...`);
-    await reconnectToSupabase();
-  });
-  
-  // Perform an initial connection test at startup
-  setTimeout(async () => {
-    await checkSupabaseConnection();
-    await syncSession();
-  }, 1000);
-}

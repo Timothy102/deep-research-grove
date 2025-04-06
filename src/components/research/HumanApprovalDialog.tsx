@@ -11,7 +11,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ThumbsUp, ThumbsDown, Loader2 } from "lucide-react";
-import { submitHumanFeedback } from "@/services/humanInteractionService";
 
 export interface HumanApprovalDialogProps {
   isOpen: boolean;
@@ -43,8 +42,6 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
   const handleApprove = async () => {
     setIsSubmitting(true);
     try {
-      // Submit feedback directly using our internal service
-      await submitHumanFeedback(nodeId, "Approved", "approve", callId);
       await onApprove(callId, nodeId);
     } finally {
       setIsSubmitting(false);
@@ -55,8 +52,6 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
     if (showRejectionInput) {
       setIsSubmitting(true);
       try {
-        // Submit feedback with rejection reason
-        await submitHumanFeedback(nodeId, rejectionReason, "reject", callId);
         await onReject(callId, nodeId, rejectionReason);
       } finally {
         setIsSubmitting(false);

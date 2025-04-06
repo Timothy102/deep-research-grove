@@ -42,8 +42,6 @@ export async function submitHumanFeedback(
     return data;
   } catch (error) {
     console.error(`[${new Date().toISOString()}] ❌ Error submitting human feedback:`, error);
-    // Unlike before, don't throw the error - we want to gracefully handle failures
-    // Just log it and return a basic response
-    return { success: false, error: error instanceof Error ? error.message : String(error) };
+    throw error;
   }
 }
