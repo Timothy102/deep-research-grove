@@ -2,7 +2,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, AlertTriangle, MessageSquare, User, ThumbsUp, ThumbsDown, MessageCircleQuestion } from 'lucide-react';
+import { Loader2, AlertTriangle, MessageCircleQuestion } from 'lucide-react';
 
 interface ResearchAnswerProps {
   result: string | null;
@@ -11,8 +11,7 @@ interface ResearchAnswerProps {
   sources: string[];
   activeSessionId: string | null;
   currentSessionStatus: string;
-  isHumanFeedbackRequired: boolean;
-  onFeedbackFormToggle: () => void;
+  onFeedbackFormToggle?: () => void;
 }
 
 export const ResearchAnswer: React.FC<ResearchAnswerProps> = ({
@@ -22,7 +21,6 @@ export const ResearchAnswer: React.FC<ResearchAnswerProps> = ({
   sources,
   activeSessionId,
   currentSessionStatus,
-  isHumanFeedbackRequired,
   onFeedbackFormToggle
 }) => {
   const renderContent = () => {
@@ -72,34 +70,6 @@ export const ResearchAnswer: React.FC<ResearchAnswerProps> = ({
         <div className="prose dark:prose-invert max-w-none">
           {result}
         </div>
-        
-        {isHumanFeedbackRequired && (
-          <div className="mt-8 flex justify-center">
-            <Card className="w-full max-w-md border-dashed">
-              <CardHeader>
-                <CardTitle className="text-center flex items-center justify-center gap-2">
-                  <User className="h-5 w-5 text-primary" />
-                  Feedback Requested
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-center text-muted-foreground mb-4">
-                  Your feedback helps improve the research results.
-                </p>
-                <div className="flex justify-center gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex items-center gap-2"
-                    onClick={onFeedbackFormToggle}
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    Provide Feedback
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
       </div>
     );
   };

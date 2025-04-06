@@ -1,4 +1,3 @@
-
 import React, {
   useState,
   useEffect,
@@ -30,16 +29,28 @@ import { Slider } from "@/components/ui/slider"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useToast } from "@/components/ui/use-toast"
 
-import { Sparkles, Lightbulb, Search, BookOpenCheck, BrainCircuit, MessageCircleQuestion, User2, Loader2, AlertTriangle, CheckCircle2, BookText, FileSearch2, HelpCircle, LucideIcon } from "lucide-react";
+import { 
+  Sparkles, 
+  Lightbulb, 
+  Search, 
+  BookOpenCheck, 
+  BrainCircuit, 
+  MessageCircleQuestion, 
+  User2, 
+  Loader2, 
+  AlertTriangle, 
+  CheckCircle2, 
+  BookText, 
+  FileSearch2, 
+  HelpCircle
+} from "lucide-react";
 
 import ResearchHistorySidebar from '@/components/research/ResearchHistorySidebar';
 import ReasoningPath from '@/components/research/ReasoningPath';
 import SourcesList from '@/components/research/SourcesList';
-
-const ResearchTabs = ({ children, activeTab, onTabChange }: any) => <div>{children}</div>;
-const ResearchTab = ({ children, label, value, icon: Icon }: any) => <div>{label}: {children}</div>;
-const ResearchObjective = ({ objective, onObjectiveChange, onValidityChange, onSubmit, isLoading, isActive, isObjectiveValid, researchObjectiveRef }: any) => <div>Research Objective</div>;
-const ResearchAnswer = ({ result, isLoading, errorMessage, sources, activeSessionId, currentSessionStatus }: any) => <div>Research Answer</div>;
+import { ResearchTabs, ResearchTab } from '@/components/research/ResearchTabs';
+import { ResearchAnswer } from '@/components/research/ResearchAnswer';
+import { ResearchObjective } from '@/components/research/ResearchObjective';
 
 const useUser = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -335,8 +346,8 @@ const ResearchPage = () => {
     
     return () => {
       window.removeEventListener('research-update', (event: any) => {
-        const { result, sources, reasoningPath, rawEventData } = event.detail;
-        handleResearchUpdate(result, sources, reasoningPath, result, rawEventData);
+        const { result, sources, reasoningPath, findings, rawEventData } = event.detail;
+        handleResearchUpdate(result, sources, reasoningPath, findings, rawEventData);
       });
       
       window.removeEventListener('session-selected', handleSessionSelect as EventListener);
@@ -540,7 +551,7 @@ const ResearchPage = () => {
         </header>
         
         <main className="flex-grow overflow-auto">
-          <div className="container mx-auto h-full flex flex-col">
+          <div className="container mx-auto py-6">
             <ResearchObjective
               objective={objective}
               onObjectiveChange={handleObjectiveChange}
@@ -552,8 +563,9 @@ const ResearchPage = () => {
               researchObjectiveRef={researchObjectiveRef}
             />
             
-            <ResearchTabs activeTab={activeTab} onTabChange={handleTabChange}>
-              <ResearchTab label="Research" value="research" icon={FileSearch2}>
+            <div className="mt-6">
+              <div className="flex flex-col space-y-2">
+                <div className="font-medium">Research:</div>
                 <ResearchAnswer
                   result={result}
                   isLoading={isLoading}
@@ -562,9 +574,10 @@ const ResearchPage = () => {
                   activeSessionId={activeSessionId}
                   currentSessionStatus={currentSessionStatus}
                 />
-              </ResearchTab>
+              </div>
               
-              <ResearchTab label="Reasoning" value="reasoning" icon={BrainCircuit}>
+              <div className="mt-6">
+                <div className="font-medium">Reasoning:</div>
                 <ReasoningPath
                   reasoningPath={reasoningPath}
                   sources={sources}
@@ -574,12 +587,17 @@ const ResearchPage = () => {
                   rawData={rawEventData}
                   sessionId={activeSessionId}
                 />
-              </ResearchTab>
+              </div>
               
-              <ResearchTab label="Sources" value="sources" icon={BookText}>
-                <SourcesList sources={sources} findings={findings} sessionId={activeSessionId} />
-              </ResearchTab>
-            </ResearchTabs>
+              <div className="mt-6">
+                <div className="font-medium">Sources:</div>
+                <SourcesList 
+                  sources={sources} 
+                  findings={findings} 
+                  sessionId={activeSessionId} 
+                />
+              </div>
+            </div>
           </div>
         </main>
       </div>
