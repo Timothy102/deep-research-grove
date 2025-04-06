@@ -147,8 +147,25 @@ function AppRoutes() {
     // Configure CORS proxy
     configureModalApiProxy();
     
-    // First check if we're already on a specific path - don't redirect in that case
+    // First check if the current path is a research path with a session ID
     const currentPath = window.location.pathname;
+    const isResearchPathWithSession = currentPath.match(/^\/research\/[a-zA-Z0-9-]+$/);
+    
+    if (isResearchPathWithSession) {
+      // If we're already on a research path with a session ID, don't redirect
+      console.log(`[${new Date().toISOString()}] 📍 Already on a research path with session:`, currentPath);
+      setIsLoading(false);
+      
+      // Extract the session ID from the path and set it as the active session
+      const pathSessionId = currentPath.split('/').pop();
+      if (pathSessionId) {
+        localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, pathSessionId);
+        console.log(`[${new Date().toISOString()}] 🔄 Setting current session from URL:`, pathSessionId);
+      }
+      return;
+    }
+    
+    // For non-research paths, check if we're already on a specific path
     if (currentPath !== '/' && currentPath !== '/auth') {
       console.log(`[${new Date().toISOString()}] 📍 Already on a specific path:`, currentPath);
       setIsLoading(false);
@@ -218,6 +235,16 @@ function AppRoutes() {
     if (currentPath !== '/' && !currentPath.includes('/auth')) {
       console.log(`[${new Date().toISOString()}] 📍 Saving location path:`, currentPath);
       localStorage.setItem('lastPath', currentPath);
+    }
+    
+    // If this is a research path with a session ID, set it as the current session
+    const isResearchPathWithSession = currentPath.match(/^\/research\/[a-zA-Z0-9-]+$/);
+    if (isResearchPathWithSession) {
+      const pathSessionId = currentPath.split('/').pop();
+      if (pathSessionId) {
+        localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, pathSessionId);
+        console.log(`[${new Date().toISOString()}] 🔄 Setting current session from location change:`, pathSessionId);
+      }
     }
   }, [location]);
 
