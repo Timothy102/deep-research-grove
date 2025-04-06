@@ -1,4 +1,3 @@
-
 import { supabase, getClientId } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
@@ -159,15 +158,15 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     state.human_interactions = [];
   }
   
-  // Convert specific types to match what Supabase expects
-  const validState: Record<string, unknown> = {
+  // Create an object with the proper types expected by Supabase
+  const insertData = {
     research_id: state.research_id,
     session_id: state.session_id,
     status: state.status,
     query: state.query,
     answer: state.answer,
     sources: state.sources,
-    findings: state.findings ? JSON.stringify(state.findings) as unknown as Json : undefined,
+    findings: state.findings ? JSON.stringify(state.findings) : null,
     reasoning_path: state.reasoning_path,
     user_model: state.user_model,
     error: state.error,
@@ -184,7 +183,7 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     // Always include the client_id in every operation
     const { data, error } = await supabase
       .from('research_states')
-      .insert(validState)
+      .insert(insertData)
       .select();
       
     if (error) {
@@ -194,15 +193,15 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
       if (state.active_tab && error.message.includes("violates not-null constraint")) {
         console.log(`[${new Date().toISOString()}] 🔄 Trying with active_tab included`);
         
-        // Add active_tab to our validState object for the retry
-        const validStateWithTab = {
-          ...validState,
+        // Create a properly typed object for insertion with active_tab
+        const insertDataWithTab = {
+          ...insertData,
           active_tab: state.active_tab
         };
         
         const { data: dataWithTab, error: errorWithTab } = await supabase
           .from('research_states')
-          .insert(validStateWithTab)
+          .insert(insertDataWithTab)
           .select();
           
         if (errorWithTab) {
@@ -367,30 +366,6 @@ export async function updateResearchState(
         console.error("Error processing custom_data for human interaction", e);
       }
     }
-    
-    // Convert specific types to match what Supabase expects
-    const validUpdates: Record<string, unknown> = {};
-    
-    // Copy properties that don't need conversion
-    Object.entries(updates).forEach(([key, value]) => {
-      if (key === 'findings' && value) {
-        validUpdates[key] = JSON.stringify(value) as unknown as Json;
-      } else if (key === 'human_interactions' && value) {
-        validUpdates[key] = JSON.stringify(value);
-      } else if (key !== 'active_tab') { // Handle active_tab separately
-        validUpdates[key] = value;
-      }
-    });
-    
-    // Special handling for sources to address the incorrect source count issue
-    if (updates.sources) {
-      // Store actual sources in local storage for better persistence
-      localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(updates.sources));
-      
-      // Also store in session-specific cache
-      const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
-      localStorage.setItem(sessionSourcesKey, JSON.stringify(updates.sources));
-    }
   } catch (error) {
     console.error("Error getting current state for human interaction updates", error);
   }
@@ -398,17 +373,17 @@ export async function updateResearchState(
   // Filter out active_tab if it exists in updates
   const { active_tab, ...otherUpdates } = updates;
   
-  // Base updates without active_tab
-  const validUpdates: Record<string, unknown> = {};
+  // Prepare the update data with the right types for Supabase
+  const updateData: Record<string, any> = {};
   
   // Copy properties, converting types where needed
   Object.entries(otherUpdates).forEach(([key, value]) => {
     if (key === 'findings' && value) {
-      validUpdates[key] = JSON.stringify(value) as unknown as Json;
+      updateData[key] = JSON.stringify(value);
     } else if (key === 'human_interactions' && value) {
-      validUpdates[key] = JSON.stringify(value);
+      updateData[key] = JSON.stringify(value);
     } else {
-      validUpdates[key] = value;
+      updateData[key] = value;
     }
   });
   
@@ -417,14 +392,15 @@ export async function updateResearchState(
     try {
       console.log(`[${new Date().toISOString()}] 🔄 Updating with active_tab and client_id:`, clientId);
       
-      const updateWithActiveTab = {
-        ...validUpdates,
+      // Create a properly typed object that includes all required fields
+      const completeUpdateData = {
+        ...updateData,
         active_tab
       };
       
       const { data, error } = await supabase
         .from('research_states')
-        .update(updateWithActiveTab)
+        .update(completeUpdateData)
         .match({ 
           research_id: researchId, 
           session_id: sessionId, 
@@ -462,7 +438,7 @@ export async function updateResearchState(
   
   const { data, error } = await supabase
     .from('research_states')
-    .update(validUpdates)
+    .update(updateData)
     .match({ 
       research_id: researchId, 
       session_id: sessionId, 
