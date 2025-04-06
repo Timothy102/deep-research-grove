@@ -842,4 +842,89 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
       // Fix up sources from local cache
       try {
         // First try session-specific cache
-        const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_
+        const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
+        const cachedSessionSources = localStorage.getItem(sessionSourcesKey);
+        
+        if (cachedSessionSources) {
+          const parsedSources = JSON.parse(cachedSessionSources);
+          if (Array.isArray(parsedSources) && parsedSources.length > 0) {
+            result.sources = parsedSources;
+          }
+        } else {
+          // Fall back to general cache
+          const cachedSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
+          if (cachedSources) {
+            const parsedSources = JSON.parse(cachedSources);
+            if (Array.isArray(parsedSources) && parsedSources.length > 0) {
+              result.sources = parsedSources;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error retrieving cached sources:", e);
+      }
+      
+      // Now do the same for findings
+      try {
+        const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
+        const cachedSessionFindings = localStorage.getItem(sessionFindingsKey);
+        
+        if (cachedSessionFindings) {
+          const parsedFindings = JSON.parse(cachedSessionFindings);
+          if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
+            result.findings = parsedFindings;
+          }
+        } else {
+          // Fall back to general cache
+          const cachedFindings = localStorage.getItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
+          if (cachedFindings) {
+            const parsedFindings = JSON.parse(cachedFindings);
+            if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
+              result.findings = parsedFindings;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error retrieving cached findings:", e);
+      }
+      
+      // And for reasoning_path
+      try {
+        const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
+        const cachedSessionPath = localStorage.getItem(sessionPathKey);
+        
+        if (cachedSessionPath) {
+          const parsedPath = JSON.parse(cachedSessionPath);
+          if (Array.isArray(parsedPath) && parsedPath.length > 0) {
+            result.reasoning_path = parsedPath;
+          }
+        } else {
+          // Fall back to general cache
+          const cachedPath = localStorage.getItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE);
+          if (cachedPath) {
+            const parsedPath = JSON.parse(cachedPath);
+            if (Array.isArray(parsedPath) && parsedPath.length > 0) {
+              result.reasoning_path = parsedPath;
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Error retrieving cached reasoning path:", e);
+      }
+      
+      // Make sure we save this complete state to localStorage
+      try {
+        saveStateToLocalStorage(result);
+      } catch (e) {
+        console.error("Error saving state to localStorage:", e);
+      }
+      
+      return result;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] ❌ Error in getLatestSessionState:`, error);
+    return null;
+  }
+}
