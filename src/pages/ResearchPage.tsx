@@ -216,7 +216,10 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
 
   // Toggle sidebar
   const toggleSidebar = () => {
-    setShowSidebar(!showSidebar);
+    const newState = !showSidebar;
+    setShowSidebar(newState);
+    // Save to local storage as a string
+    localStorage.setItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE, String(newState));
   };
 
   // Fetch research history
