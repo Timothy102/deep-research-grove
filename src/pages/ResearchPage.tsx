@@ -1,3 +1,4 @@
+
 import React, {
   useState,
   useEffect,
@@ -35,12 +36,10 @@ import ResearchHistorySidebar from '@/components/research/ResearchHistorySidebar
 import ReasoningPath from '@/components/research/ReasoningPath';
 import SourcesList from '@/components/research/SourcesList';
 
-const HumanInputRequest = ({ humanInteractionRequest, onClose, onSubmit }: any) => <div>Human Input Request</div>;
-const HumanFeedbackForm = ({ isOpen, onOpenChange, onSubmit, onFeedbackChange }: any) => <div>Human Feedback Form</div>;
 const ResearchTabs = ({ children, activeTab, onTabChange }: any) => <div>{children}</div>;
 const ResearchTab = ({ children, label, value, icon: Icon }: any) => <div>{label}: {children}</div>;
 const ResearchObjective = ({ objective, onObjectiveChange, onValidityChange, onSubmit, isLoading, isActive, isObjectiveValid, researchObjectiveRef }: any) => <div>Research Objective</div>;
-const ResearchAnswer = ({ result, isLoading, errorMessage, sources, activeSessionId, currentSessionStatus, isHumanFeedbackRequired, onFeedbackFormToggle }: any) => <div>Research Answer</div>;
+const ResearchAnswer = ({ result, isLoading, errorMessage, sources, activeSessionId, currentSessionStatus }: any) => <div>Research Answer</div>;
 
 const useUser = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -77,7 +76,6 @@ const ResearchPage = () => {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isActive, setIsActive] = useState<boolean>(false);
-  const [isWaitingForUserInput, setIsWaitingForUserInput] = useState<boolean>(false);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [currentSessionStatus, setCurrentSessionStatus] = useState<string>('in_progress');
   const [rawEventData, setRawEventData] = useState<Record<string, string>>({});
@@ -89,12 +87,6 @@ const ResearchPage = () => {
   const [objective, setObjective] = useState<string>('');
   const [userModel, setUserModel] = useState<any>(null);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState<boolean>(false);
-  const [isFeedbackFormOpen, setIsFeedbackFormOpen] = useState<boolean>(false);
-  const [humanInteractionRequest, setHumanInteractionRequest] = useState<string | null>(null);
-  const [humanInteractionResult, setHumanInteractionResult] = useState<string | null>(null);
-  const [isHumanFeedbackRequired, setIsHumanFeedbackRequired] = useState<boolean>(false);
-  const [isHumanFeedbackApproved, setIsHumanFeedbackApproved] = useState<boolean>(false);
-  const [humanFeedbackComment, setHumanFeedbackComment] = useState<string>('');
   const [isInitialLoad, setIsInitialLoad] = useState<boolean>(true);
   const [isSupabaseConnected, setIsSupabaseConnected] = useState<boolean>(true);
   const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
@@ -136,61 +128,6 @@ const ResearchPage = () => {
   const handleModelSelect = (model: any) => {
     setUserModel(model);
     setIsModelSelectorOpen(false);
-  };
-
-  const handleFeedbackFormToggle = () => {
-    setIsFeedbackFormOpen(!isFeedbackFormOpen);
-  };
-
-  const handleHumanFeedbackChange = (approved: boolean, comment: string) => {
-    setIsHumanFeedbackApproved(approved);
-    setHumanFeedbackComment(comment);
-  };
-
-  const handleHumanFeedbackSubmit = async () => {
-    if (!activeSessionId) {
-      console.error("No active session to submit feedback for.");
-      return;
-    }
-    
-    const feedbackData = {
-      approved: isHumanFeedbackApproved,
-      comment: humanFeedbackComment,
-      timestamp: new Date().toISOString()
-    };
-    
-    try {
-      await updateResearchState(activeSessionId, activeSessionId, {
-        human_interactions: [{
-          call_id: crypto.randomUUID(),
-          node_id: 'feedback-form',
-          interaction_type: 'human_feedback',
-          content: JSON.stringify(feedbackData),
-          status: 'completed' as const,
-          response: {
-            approved: isHumanFeedbackApproved,
-            comment: humanFeedbackComment,
-            timestamp: new Date().toISOString()
-          }
-        }]
-      });
-      
-      toast({
-        title: "Feedback Submitted",
-        description: "Thank you for your feedback!",
-        duration: 3000
-      });
-      
-      setIsHumanFeedbackRequired(false);
-      setIsFeedbackFormOpen(false);
-    } catch (error) {
-      console.error("Error submitting human feedback:", error);
-      toast({
-        title: "Error Submitting Feedback",
-        description: "Failed to submit feedback. Please try again.",
-        variant: "destructive"
-      });
-    }
   };
 
   const handleNewResearch = async () => {
@@ -347,79 +284,12 @@ const ResearchPage = () => {
     }
     
     setIsActive(false);
-    setIsWaitingForUserInput(false);
     
     if (forceRestore) {
       localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, sessionId);
       console.log(`[${new Date().toISOString()}] 🔄 Force restoring session ${sessionId}`);
     }
   }, []);
-
-  const handleUserInputRequest = useCallback((event: CustomEvent) => {
-    const { interactionType, content, callId, nodeId } = event.detail;
-    
-    console.log(`[${new Date().toISOString()}] 🙋‍♀️ Received human input request:`, { interactionType, content, callId, nodeId });
-    
-    setIsWaitingForUserInput(true);
-    setIsActive(false);
-    setHumanInteractionRequest(JSON.stringify({
-      interaction_type: interactionType,
-      content: content,
-      call_id: callId,
-      node_id: nodeId
-    }));
-  }, []);
-
-  const handleSubmitHumanInput = async (result: string) => {
-    setHumanInteractionResult(result);
-    setIsWaitingForUserInput(false);
-    setIsHumanFeedbackRequired(true);
-    
-    try {
-      const resultData = JSON.parse(result);
-      
-      await updateResearchState(activeSessionId!, activeSessionId!, {
-        human_interactions: [{
-          call_id: resultData.call_id || crypto.randomUUID(),
-          node_id: resultData.node_id || 'human-input',
-          interaction_type: resultData.interaction_type || 'human_input',
-          content: resultData.content || '',
-          status: 'completed' as const,
-          response: {
-            approved: true,
-            comment: 'Input submitted by user',
-            timestamp: new Date().toISOString()
-          }
-        }],
-        status: 'awaiting_human_input'
-      });
-      
-      toast({
-        title: "Human Input Received",
-        description: "Your input has been saved. Please provide feedback.",
-        duration: 3000
-      });
-    } catch (error) {
-      console.error("Error saving human input:", error);
-      
-      await updateResearchState(activeSessionId!, activeSessionId!, {
-        human_interactions: [{
-          call_id: crypto.randomUUID(),
-          node_id: 'human-input-fallback',
-          interaction_type: 'human_input',
-          content: result,
-          status: 'completed' as const
-        }],
-        status: 'awaiting_human_input'
-      });
-      
-      toast({
-        title: "Error Saving Input",
-        description: "Failed to save input. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
 
   const handleHistoryRefresh = useCallback(async () => {
     await fetchHistory();
@@ -445,7 +315,6 @@ const ResearchPage = () => {
     if (isNew) {
       setIsActive(true);
       setIsLoading(false);
-      setIsWaitingForUserInput(false);
     }
   }, []);
 
@@ -460,7 +329,6 @@ const ResearchPage = () => {
     });
     
     window.addEventListener('session-selected', handleSessionSelect as EventListener);
-    window.addEventListener('human-input-required', handleUserInputRequest as EventListener);
     window.addEventListener('refresh-history-requested', handleHistoryRefresh as EventListener);
     window.addEventListener('new-chat-requested', handleNewChatRequested as EventListener);
     window.addEventListener('research-new-event', handleResearchEvents as EventListener);
@@ -472,12 +340,11 @@ const ResearchPage = () => {
       });
       
       window.removeEventListener('session-selected', handleSessionSelect as EventListener);
-      window.removeEventListener('human-input-required', handleUserInputRequest as EventListener);
       window.removeEventListener('refresh-history-requested', handleHistoryRefresh as EventListener);
       window.removeEventListener('new-chat-requested', handleNewChatRequested as EventListener);
       window.removeEventListener('research-new-event', handleResearchEvents as EventListener);
     };
-  }, [handleResearchUpdate, handleSessionSelect, handleUserInputRequest, handleHistoryRefresh, handleNewChatRequested, handleResearchEvents]);
+  }, [handleResearchUpdate, handleSessionSelect, handleHistoryRefresh, handleNewChatRequested, handleResearchEvents]);
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -541,20 +408,7 @@ const ResearchPage = () => {
         setFindings(restoredState.findings || []);
         setActiveTab(restoredState.active_tab || 'research');
         
-        if (restoredState.human_interaction_request) {
-          setHumanInteractionRequest(restoredState.human_interaction_request);
-          setIsWaitingForUserInput(true);
-          setIsActive(false);
-        } else {
-          setIsWaitingForUserInput(false);
-          setIsActive(true);
-        }
-        
-        if (restoredState.status === 'awaiting_human_input') {
-          setIsHumanFeedbackRequired(true);
-        } else {
-          setIsHumanFeedbackRequired(false);
-        }
+        setIsActive(true);
         
         if (restoredState.error) {
           setErrorMessage(restoredState.error);
@@ -579,7 +433,6 @@ const ResearchPage = () => {
         
         setIsActive(true);
         setIsLoading(false);
-        setIsWaitingForUserInput(false);
       }
     } catch (error: any) {
       console.error(`[${new Date().toISOString()}] 🔥 Error restoring session:`, error);
@@ -625,7 +478,6 @@ const ResearchPage = () => {
       } else {
         setIsActive(true);
         setIsLoading(false);
-        setIsWaitingForUserInput(false);
         setIsInitialLoad(false);
       }
     }
@@ -689,69 +541,45 @@ const ResearchPage = () => {
         
         <main className="flex-grow overflow-auto">
           <div className="container mx-auto h-full flex flex-col">
-            {isWaitingForUserInput && humanInteractionRequest ? (
-              <HumanInputRequest
-                humanInteractionRequest={humanInteractionRequest}
-                onClose={() => {
-                  setIsWaitingForUserInput(false);
-                  setHumanInteractionRequest(null);
-                }}
-                onSubmit={handleSubmitHumanInput}
-              />
-            ) : (
-              <>
-                {isHumanFeedbackRequired && (
-                  <HumanFeedbackForm
-                    isOpen={isFeedbackFormOpen}
-                    onOpenChange={setIsFeedbackFormOpen}
-                    onSubmit={handleHumanFeedbackSubmit}
-                    onFeedbackChange={handleHumanFeedbackChange}
-                  />
-                )}
-                
-                <ResearchObjective
-                  objective={objective}
-                  onObjectiveChange={handleObjectiveChange}
-                  onValidityChange={handleObjectiveValidityChange}
-                  onSubmit={handleNewResearch}
+            <ResearchObjective
+              objective={objective}
+              onObjectiveChange={handleObjectiveChange}
+              onValidityChange={handleObjectiveValidityChange}
+              onSubmit={handleNewResearch}
+              isLoading={isLoading}
+              isActive={isActive}
+              isObjectiveValid={isObjectiveValid}
+              researchObjectiveRef={researchObjectiveRef}
+            />
+            
+            <ResearchTabs activeTab={activeTab} onTabChange={handleTabChange}>
+              <ResearchTab label="Research" value="research" icon={FileSearch2}>
+                <ResearchAnswer
+                  result={result}
                   isLoading={isLoading}
-                  isActive={isActive}
-                  isObjectiveValid={isObjectiveValid}
-                  researchObjectiveRef={researchObjectiveRef}
+                  errorMessage={errorMessage}
+                  sources={sources}
+                  activeSessionId={activeSessionId}
+                  currentSessionStatus={currentSessionStatus}
                 />
-                
-                <ResearchTabs activeTab={activeTab} onTabChange={handleTabChange}>
-                  <ResearchTab label="Research" value="research" icon={FileSearch2}>
-                    <ResearchAnswer
-                      result={result}
-                      isLoading={isLoading}
-                      errorMessage={errorMessage}
-                      sources={sources}
-                      activeSessionId={activeSessionId}
-                      currentSessionStatus={currentSessionStatus}
-                      isHumanFeedbackRequired={isHumanFeedbackRequired}
-                      onFeedbackFormToggle={handleFeedbackFormToggle}
-                    />
-                  </ResearchTab>
-                  
-                  <ResearchTab label="Reasoning" value="reasoning" icon={BrainCircuit}>
-                    <ReasoningPath
-                      reasoningPath={reasoningPath}
-                      sources={sources}
-                      findings={findings}
-                      isActive={isActive}
-                      isLoading={isLoading}
-                      rawData={rawEventData}
-                      sessionId={activeSessionId}
-                    />
-                  </ResearchTab>
-                  
-                  <ResearchTab label="Sources" value="sources" icon={BookText}>
-                    <SourcesList sources={sources} findings={findings} sessionId={activeSessionId} />
-                  </ResearchTab>
-                </ResearchTabs>
-              </>
-            )}
+              </ResearchTab>
+              
+              <ResearchTab label="Reasoning" value="reasoning" icon={BrainCircuit}>
+                <ReasoningPath
+                  reasoningPath={reasoningPath}
+                  sources={sources}
+                  findings={findings}
+                  isActive={isActive}
+                  isLoading={isLoading}
+                  rawData={rawEventData}
+                  sessionId={activeSessionId}
+                />
+              </ResearchTab>
+              
+              <ResearchTab label="Sources" value="sources" icon={BookText}>
+                <SourcesList sources={sources} findings={findings} sessionId={activeSessionId} />
+              </ResearchTab>
+            </ResearchTabs>
           </div>
         </main>
       </div>

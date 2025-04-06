@@ -14,25 +14,12 @@ export interface Finding {
   node_id?: string;
 }
 
-export interface HumanInteraction {
-  call_id: string;
-  node_id: string;
-  interaction_type: string;
-  content: string;
-  status: 'pending' | 'completed';
-  response?: {
-    approved: boolean;
-    comment?: string;
-    timestamp: string;
-  };
-}
-
 export interface ResearchState {
   id?: string;
   research_id: string;
   session_id: string;
   user_id: string;
-  status: 'in_progress' | 'completed' | 'error' | 'awaiting_human_input';
+  status: 'in_progress' | 'completed' | 'error';
   query: string;
   answer?: string;
   sources?: string[];
@@ -44,9 +31,7 @@ export interface ResearchState {
   active_tab?: string;
   error?: string;
   client_id?: string;
-  human_interaction_request?: string;
   custom_data?: string;
-  human_interactions?: HumanInteraction[];
   active_nodes?: number | null;
   completed_nodes?: number | null;
   findings_count?: number | null;
@@ -70,9 +55,7 @@ interface RawResearchStateData {
   active_tab?: string;
   error?: string;
   client_id?: string;
-  human_interaction_request?: string;
   custom_data?: string;
-  human_interactions?: string;
   active_nodes?: number;
   completed_nodes?: number;
   findings_count?: number;
@@ -94,8 +77,6 @@ interface ResearchStateInsert {
   active_nodes?: number;
   completed_nodes?: number;
   custom_data?: string;
-  human_interaction_request?: string;
-  human_interactions?: Json;
   user_model?: Json;
   error?: string;
   last_update?: string;
@@ -117,25 +98,9 @@ function convertToResearchState(raw: RawResearchStateData): ResearchState {
     }
   }
 
-  let humanInteractions: HumanInteraction[] = [];
-  if (raw.human_interactions) {
-    try {
-      if (typeof raw.human_interactions === 'string') {
-        humanInteractions = JSON.parse(raw.human_interactions) as HumanInteraction[];
-      } else if (Array.isArray(raw.human_interactions)) {
-        humanInteractions = raw.human_interactions as unknown as HumanInteraction[];
-      } else {
-        console.warn('Unexpected human_interactions format:', raw.human_interactions);
-      }
-    } catch (e) {
-      console.error('Error parsing human_interactions:', e);
-      humanInteractions = [];
-    }
-  }
-
   // Ensure status is a valid value
-  let status = raw.status as 'in_progress' | 'completed' | 'error' | 'awaiting_human_input';
-  if (!['in_progress', 'completed', 'error', 'awaiting_human_input'].includes(status)) {
+  let status = raw.status as 'in_progress' | 'completed' | 'error';
+  if (!['in_progress', 'completed', 'error'].includes(status)) {
     status = 'in_progress';
   }
 
@@ -156,9 +121,7 @@ function convertToResearchState(raw: RawResearchStateData): ResearchState {
     active_tab: raw.active_tab,
     error: raw.error,
     client_id: raw.client_id,
-    human_interaction_request: raw.human_interaction_request,
     custom_data: raw.custom_data,
-    human_interactions: humanInteractions,
     active_nodes: raw.active_nodes,
     completed_nodes: raw.completed_nodes,
     findings_count: raw.findings_count,
@@ -192,10 +155,6 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
   const clientId = getClientId();
   console.log(`[${new Date().toISOString()}] 🔑 Using client ID for research state:`, clientId);
   
-  if (!state.human_interactions) {
-    state.human_interactions = [];
-  }
-  
   const activeTab = state.active_tab;
   
   const insertData: ResearchStateInsert = {
@@ -223,20 +182,12 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     insertData.error = state.error;
   }
   
-  if (state.human_interaction_request) {
-    insertData.human_interaction_request = state.human_interaction_request;
-  }
-  
   if (state.custom_data) {
     insertData.custom_data = state.custom_data;
   }
   
   if (state.findings) {
     insertData.findings = JSON.stringify(state.findings) as unknown as Json;
-  }
-  
-  if (state.human_interactions) {
-    insertData.human_interactions = JSON.stringify(state.human_interactions) as unknown as Json;
   }
   
   try {
@@ -353,49 +304,6 @@ export async function updateResearchState(
         }
       }
     }
-    
-    if (updates.human_interaction_request && currentState) {
-      try {
-        const requestData = JSON.parse(updates.human_interaction_request);
-        let interactions = currentState.human_interactions || [];
-        
-        interactions.push({
-          call_id: requestData.call_id,
-          node_id: requestData.node_id,
-          interaction_type: requestData.interaction_type,
-          content: requestData.content,
-          status: 'pending'
-        });
-        
-        otherUpdates.human_interactions = interactions;
-      } catch (e) {
-        console.error("Error parsing human_interaction_request", e);
-      }
-    }
-    
-    if (updates.custom_data && currentState) {
-      try {
-        const responseData = JSON.parse(updates.custom_data);
-        
-        if (responseData.call_id) {
-          let interactions = currentState.human_interactions || [];
-          const interactionIndex = interactions.findIndex(i => i.call_id === responseData.call_id);
-          
-          if (interactionIndex >= 0) {
-            interactions[interactionIndex].status = 'completed';
-            interactions[interactionIndex].response = {
-              approved: responseData.approved,
-              comment: responseData.comment,
-              timestamp: new Date().toISOString()
-            };
-            
-            otherUpdates.human_interactions = interactions;
-          }
-        }
-      } catch (e) {
-        console.error("Error processing custom_data for human interaction", e);
-      }
-    }
   } catch (error) {
     console.error("Error getting current state for human interaction updates", error);
   }
@@ -404,8 +312,6 @@ export async function updateResearchState(
   
   Object.entries(otherUpdates).forEach(([key, value]) => {
     if (key === 'findings' && value) {
-      updateData[key] = JSON.stringify(value);
-    } else if (key === 'human_interactions' && value) {
       updateData[key] = JSON.stringify(value);
     } else {
       updateData[key] = value;
@@ -628,8 +534,7 @@ export async function getResearchState(researchId: string, sessionId: string): P
       
       if (result.status !== 'in_progress' && 
           result.status !== 'completed' && 
-          result.status !== 'error' && 
-          result.status !== 'awaiting_human_input') {
+          result.status !== 'error') {
         result.status = 'in_progress';
       }
       
@@ -907,8 +812,7 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
       
       if (result.status !== 'in_progress' && 
           result.status !== 'completed' && 
-          result.status !== 'error' && 
-          result.status !== 'awaiting_human_input') {
+          result.status !== 'error') {
         result.status = 'in_progress';
       }
       
