@@ -95,7 +95,7 @@ const ResearchPage: React.FC<ResearchPageProps> = () => {
   // Load sidebar state from local storage
   const loadSidebarState = useCallback(() => {
     const savedState = localStorage.getItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE);
-    setShowSidebar(savedState !== null ? savedState === 'true' : false;
+    setShowSidebar(savedState !== null ? savedState === 'true' : false);
   }, []);
 
   // Load the current query from local storage
