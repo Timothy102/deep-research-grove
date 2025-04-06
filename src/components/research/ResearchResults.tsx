@@ -12,7 +12,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { getLatestSessionState } from "@/services/researchStateService";
 
 export type Finding = {
-  content: string;
+  content?: string;
   source: string;
   finding?: {
     title?: string;
@@ -328,13 +328,24 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
           
           setCurrentSessionId(sessionId);
           
+          const processedFindings: Finding[] = (latestState.findings || []).map(finding => ({
+            source: finding.source,
+            content: finding.content || "",
+            ...(finding as any)
+          }));
+
+          const processedSyntheses: Record<string, any> = 
+            typeof latestState.user_model === 'object' && latestState.user_model !== null 
+              ? latestState.user_model as Record<string, any> 
+              : {};
+          
           const completeAnswer: ResearchResult = {
             query: latestState.query || query,
             answer: latestState.answer || "",
             sources: latestState.sources || [],
             reasoning_path: latestState.reasoning_path || [],
-            findings: latestState.findings || [],
-            syntheses: latestState.user_model || {},
+            findings: processedFindings,
+            syntheses: processedSyntheses,
             confidence: latestState.completed_nodes ? (latestState.completed_nodes / 10) : 0.8,
             session_id: sessionId,
             research_id: latestState.research_id
