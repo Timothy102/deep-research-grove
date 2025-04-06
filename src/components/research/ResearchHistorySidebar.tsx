@@ -60,6 +60,32 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         // Also save session-specific state
         const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, item.session_id);
         localStorage.setItem(sessionStateKey, JSON.stringify(latestState));
+        
+        // Prefetch and cache all sources, reasoning path, findings for this session
+        if (latestState.session_id) {
+          try {
+            // Store session-specific caches
+            if (latestState.sources) {
+              const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, item.session_id);
+              localStorage.setItem(sessionSourcesKey, JSON.stringify(latestState.sources));
+              localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(latestState.sources));
+            }
+            
+            if (latestState.reasoning_path) {
+              const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, item.session_id);
+              localStorage.setItem(sessionPathKey, JSON.stringify(latestState.reasoning_path));
+              localStorage.setItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, JSON.stringify(latestState.reasoning_path));
+            }
+            
+            if (latestState.findings) {
+              const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, item.session_id);
+              localStorage.setItem(sessionFindingsKey, JSON.stringify(latestState.findings));
+              localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(latestState.findings));
+            }
+          } catch (e) {
+            console.error("Error caching session data components:", e);
+          }
+        }
       } else {
         console.warn(`[${new Date().toISOString()}] ⚠️ Could not find state for session:`, item.session_id);
       }
