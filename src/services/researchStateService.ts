@@ -1,6 +1,7 @@
 import { supabase, getClientId } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
+import { toast } from "@/components/ui/use-toast";
 
 export interface Finding {
   source: string;
@@ -72,6 +73,28 @@ interface RawResearchStateData {
   last_update?: string;
 }
 
+interface ResearchStateInsert {
+  research_id: string;
+  session_id: string;
+  user_id: string;
+  status: string;
+  query: string;
+  answer?: string;
+  sources?: string[];
+  reasoning_path?: string[];
+  client_id?: string;
+  findings?: Json;
+  findings_count?: number;
+  active_nodes?: number;
+  completed_nodes?: number;
+  custom_data?: string;
+  human_interaction_request?: string;
+  human_interactions?: Json;
+  user_model?: Json;
+  error?: string;
+  last_update?: string;
+}
+
 function convertToResearchState(raw: RawResearchStateData): ResearchState {
   let findings: Finding[] | undefined;
   if (raw.findings) {
@@ -136,6 +159,11 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
   
   if (!user.user) {
     console.error(`[${new Date().toISOString()}] 🚫 User not authenticated`);
+    toast({
+      title: "Authentication Error",
+      description: "User not authenticated. Please sign in again.",
+      variant: "destructive"
+    });
     throw new Error("User not authenticated");
   }
   
@@ -152,23 +180,24 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
   
   const activeTab = state.active_tab;
   
-  const insertData: Record<string, any> = {
+  const insertData: ResearchStateInsert = {
     research_id: state.research_id,
     session_id: state.session_id,
     status: state.status,
     query: state.query,
-    answer: state.answer,
-    sources: state.sources,
-    reasoning_path: state.reasoning_path,
     user_id: user.user.id,
-    client_id: clientId
+    client_id: clientId,
+    reasoning_path: state.reasoning_path
   };
+  
+  if (state.answer) insertData.answer = state.answer;
+  if (state.sources) insertData.sources = state.sources;
   
   if (state.user_model) {
     if (typeof state.user_model === 'object') {
-      insertData.user_model = state.user_model;
+      insertData.user_model = state.user_model as Json;
     } else {
-      insertData.user_model = state.user_model;
+      insertData.user_model = state.user_model as unknown as Json;
     }
   }
   
@@ -185,11 +214,11 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
   }
   
   if (state.findings) {
-    insertData.findings = JSON.stringify(state.findings);
+    insertData.findings = JSON.stringify(state.findings) as unknown as Json;
   }
   
   if (state.human_interactions) {
-    insertData.human_interactions = JSON.stringify(state.human_interactions);
+    insertData.human_interactions = JSON.stringify(state.human_interactions) as unknown as Json;
   }
   
   try {
@@ -202,6 +231,11 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
       
     if (error) {
       console.error(`[${new Date().toISOString()}] ❌ Error saving research state:`, error);
+      toast({
+        title: "Error Saving Research",
+        description: error.message,
+        variant: "destructive"
+      });
       throw error;
     }
     
