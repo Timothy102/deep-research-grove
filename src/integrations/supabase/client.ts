@@ -175,3 +175,34 @@ export const reconnectToSupabase = async (maxRetries = 5, initialDelay = 1000) =
   console.error(`[${new Date().toISOString()}] ❌ Failed to reconnect to Supabase after ${maxRetries} attempts`);
   return false;
 };
+
+// Enable realtime subscriptions for research_states
+export const subscribeToResearchState = (researchId, sessionId, callback) => {
+  console.log(`[${new Date().toISOString()}] 🔄 Setting up realtime subscription for research state:`, { researchId, sessionId });
+  
+  const channel = supabase
+    .channel('research_state_changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'research_states',
+        filter: `research_id=eq.${researchId}`
+      },
+      (payload) => {
+        console.log(`[${new Date().toISOString()}] 📊 Received realtime update for research state:`, {
+          event: payload.eventType,
+          researchId,
+          sessionId
+        });
+        
+        if (callback && typeof callback === 'function') {
+          callback(payload);
+        }
+      }
+    )
+    .subscribe();
+    
+  return channel;
+};

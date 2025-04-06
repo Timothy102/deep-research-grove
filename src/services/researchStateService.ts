@@ -1,4 +1,5 @@
-import { supabase, getClientId } from "@/integrations/supabase/client";
+
+import { supabase, getClientId, subscribeToResearchState } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
 
@@ -11,7 +12,14 @@ export interface ResearchState {
   query: string;
   answer?: string;
   sources?: string[];
-  findings?: Array<{ source: string; content?: string; [key: string]: any }>;
+  findings?: Array<{ 
+    source: string; 
+    content?: string; 
+    node_id?: string;
+    query?: string;
+    finding?: any;
+    [key: string]: any;
+  }>;
   reasoning_path?: string[];
   created_at?: string;
   updated_at?: string;
@@ -62,6 +70,19 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
   
   if (!state.human_interactions) {
     state.human_interactions = [];
+  }
+  
+  // Ensure findings is a valid JSONB array
+  if (state.findings) {
+    // Make sure each finding has at least source property
+    state.findings = state.findings.map(finding => {
+      if (!finding.source) {
+        finding.source = "Unknown source";
+      }
+      return finding;
+    });
+  } else {
+    state.findings = [];
   }
   
   const findingsCount = state.findings ? state.findings.length : 0;
@@ -189,8 +210,26 @@ export async function updateResearchState(
     delete (updates as any).human_interaction_result;
   }
   
+  // Properly handle findings updates
   if (updates.findings) {
+    // Ensure each finding has the required properties
+    updates.findings = updates.findings.map(finding => {
+      if (!finding.source) {
+        finding.source = "Unknown source";
+      }
+      return finding;
+    });
+    
     updates.findings_count = updates.findings.length;
+    
+    // Cache findings immediately
+    try {
+      const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
+      localStorage.setItem(sessionFindingsKey, JSON.stringify(updates.findings));
+      localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(updates.findings));
+    } catch (e) {
+      console.error("Error caching findings:", e);
+    }
   }
   
   if (updates.reasoning_path) {
@@ -366,6 +405,17 @@ function saveStateToLocalStorage(state: ResearchState) {
     localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID, state.research_id);
     localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, state.session_id);
     
+    // Extract findings if they're in weird format
+    let processedFindings = state.findings || [];
+    if (typeof processedFindings === 'string') {
+      try {
+        processedFindings = JSON.parse(processedFindings);
+      } catch (e) {
+        console.error("Error parsing findings string:", e);
+        processedFindings = [];
+      }
+    }
+    
     localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, JSON.stringify({
       id: state.id,
       research_id: state.research_id,
@@ -374,7 +424,7 @@ function saveStateToLocalStorage(state: ResearchState) {
       query: state.query,
       answer: state.answer,
       sources: state.sources,
-      findings: state.findings,
+      findings: processedFindings,
       reasoning_path: state.reasoning_path,
       active_tab: state.active_tab,
       client_id: state.client_id,
@@ -400,9 +450,18 @@ function saveStateToLocalStorage(state: ResearchState) {
     }
     
     if (state.findings) {
-      localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(state.findings));
+      // Make sure findings is an array of objects with at least a source property
+      const validFindings = Array.isArray(state.findings) 
+        ? state.findings.map(f => ({
+            source: f.source || "Unknown source",
+            content: f.content || "",
+            ...f
+          }))
+        : [];
+      
+      localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(validFindings));
       const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, state.session_id);
-      localStorage.setItem(sessionFindingsKey, JSON.stringify(state.findings));
+      localStorage.setItem(sessionFindingsKey, JSON.stringify(validFindings));
     }
     
     if (state.answer) {
@@ -411,6 +470,7 @@ function saveStateToLocalStorage(state: ResearchState) {
         answer: state.answer,
         sources: state.sources || [],
         reasoning_path: state.reasoning_path || [],
+        findings: state.findings || [],
         confidence: 0.8,
         session_id: state.session_id
       };
@@ -463,6 +523,44 @@ export async function getResearchState(researchId: string, sessionId: string): P
     
     if (data) {
       const result = data as ResearchState;
+      
+      // Process findings data from database
+      try {
+        // If findings is a JSON string, parse it
+        if (typeof result.findings === 'string') {
+          try {
+            result.findings = JSON.parse(result.findings);
+          } catch (e) {
+            console.error("Error parsing findings string from database:", e);
+            result.findings = [];
+          }
+        }
+        
+        // Ensure findings is an array
+        if (!Array.isArray(result.findings)) {
+          console.warn("Findings is not an array, converting:", result.findings);
+          if (result.findings && typeof result.findings === 'object') {
+            // If it's an object but not an array, try to convert it
+            result.findings = Object.values(result.findings);
+          } else {
+            result.findings = [];
+          }
+        }
+        
+        // Ensure each finding has the required properties
+        result.findings = result.findings.map(finding => {
+          if (!finding) return { source: "Unknown source" };
+          
+          return {
+            source: finding.source || "Unknown source",
+            content: finding.content || "",
+            ...finding
+          };
+        });
+      } catch (e) {
+        console.error("Error processing findings:", e);
+        result.findings = [];
+      }
       
       if (typeof result.human_interactions === 'string') {
         try {

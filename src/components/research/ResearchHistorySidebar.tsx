@@ -12,8 +12,8 @@ import { CalendarDays, Clock, ChevronsLeft, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
 import { toast } from "sonner";
-import { supabase, syncSession } from "@/integrations/supabase/client";
-import { getLatestSessionState } from "@/services/researchStateService";
+import { supabase, syncSession, getClientId } from "@/integrations/supabase/client";
+import { getLatestSessionState, subscribeToResearchState } from "@/services/researchStateService";
 
 interface ResearchHistorySidebarProps {
   isOpen: boolean;
@@ -82,6 +82,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         console.log(`[${new Date().toISOString()}] ✅ Retrieved complete state for session:`, sessionId);
         console.log("Query from state:", latestState.query);
         console.log("Answer first 100 chars:", latestState.answer?.substring(0, 100) || "No answer found");
+        console.log("Findings count:", latestState.findings?.length || 0);
         
         // Validate that the state query matches the history item's query
         if (latestState.query !== item.query) {
@@ -91,7 +92,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         // Process findings to ensure they match the expected format
         const processedFindings = Array.isArray(latestState.findings) 
           ? latestState.findings.map(finding => ({
-              source: finding.source,
+              source: finding.source || "Unknown source",
               content: finding.content || "",
               finding: finding.finding || undefined,
               node_id: finding.node_id || undefined,
@@ -103,6 +104,14 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         const processedSyntheses = typeof latestState.user_model === 'object' && latestState.user_model !== null
           ? latestState.user_model as Record<string, any>
           : {};
+        
+        // Store findings in cache
+        if (processedFindings.length > 0) {
+          const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
+          localStorage.setItem(sessionFindingsKey, JSON.stringify(processedFindings));
+          localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(processedFindings));
+          console.log(`[${new Date().toISOString()}] 💾 Cached ${processedFindings.length} findings for session:`, sessionId);
+        }
         
         // Build a comprehensive answer object with all state data
         const completeAnswer = {
@@ -140,15 +149,49 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
           localStorage.setItem(sessionPathKey, JSON.stringify(latestState.reasoning_path));
         }
         
-        if (latestState.findings && latestState.findings.length > 0) {
-          localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(processedFindings));
-          const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
-          localStorage.setItem(sessionFindingsKey, JSON.stringify(processedFindings));
-        }
-        
         if (processedSyntheses && Object.keys(processedSyntheses).length > 0) {
           const sessionSynthesisKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SYNTHESIS_CACHE, sessionId);
           localStorage.setItem(sessionSynthesisKey, JSON.stringify(processedSyntheses));
+        }
+        
+        // Set up realtime subscription to state updates
+        try {
+          const clientId = getClientId();
+          const channel = subscribeToResearchState(
+            latestState.research_id, 
+            sessionId,
+            (payload) => {
+              console.log(`[${new Date().toISOString()}] 🔄 Realtime update received:`, payload.eventType);
+              // Reload the state cache
+              getLatestSessionState(sessionId).then(updatedState => {
+                if (updatedState) {
+                  const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId);
+                  localStorage.setItem(sessionStateKey, JSON.stringify(updatedState));
+                  
+                  if (updatedState.findings && Array.isArray(updatedState.findings)) {
+                    const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
+                    localStorage.setItem(sessionFindingsKey, JSON.stringify(updatedState.findings));
+                    localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(updatedState.findings));
+                  }
+                  
+                  // Notify other components about the state update
+                  window.dispatchEvent(new CustomEvent('research_state_update', {
+                    detail: {
+                      sessionId,
+                      researchId: updatedState.research_id,
+                      timestamp: new Date().toISOString()
+                    }
+                  }));
+                }
+              }).catch(err => {
+                console.error("Error refreshing state after realtime update:", err);
+              });
+            }
+          );
+          
+          console.log(`[${new Date().toISOString()}] 🔄 Set up realtime subscription for session:`, sessionId);
+        } catch (e) {
+          console.error("Error setting up realtime subscription:", e);
         }
       } else {
         console.warn(`[${new Date().toISOString()}] ⚠️ Could not find state for session:`, sessionId);
