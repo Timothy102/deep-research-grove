@@ -1,365 +1,97 @@
 
-import React, { useEffect, useState } from 'react';
-import { ExternalLink, Search, FileText, Lightbulb } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { LOCAL_STORAGE_KEYS, getSessionStorageKey, getSessionData, saveSessionData } from '@/lib/constants';
-import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Button } from '@/components/ui/button';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-
-interface Finding {
-  source: string;
-  content?: string;
-  node_id?: string;
-  query?: string;
-  raw_data?: string;
-  finding?: {
-    title?: string;
-    summary?: string;
-    confidence_score?: number;
-    url?: string;
-  };
-}
+import React from 'react';
+import { Separator } from "@/components/ui/separator";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { FileText, Link, ExternalLink } from 'lucide-react';
+import { Finding } from '@/services/researchStateService';
 
 interface SourcesListProps {
   sources: string[];
-  findings?: Finding[];
-  className?: string;
-  sessionId?: string;
+  findings: Finding[];
+  sessionId?: string | null;
 }
 
-const SourcesList: React.FC<SourcesListProps> = ({ 
-  sources = [], 
-  findings = [], 
-  className, 
-  sessionId 
-}) => {
-  const [displaySources, setDisplaySources] = useState<string[]>(sources);
-  const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings);
-  const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
-  const [sortedSources, setSortedSources] = useState<string[]>([]);
+const SourcesList: React.FC<SourcesListProps> = ({ sources, findings, sessionId }) => {
+  // Combine sources from both arrays, removing duplicates
+  const allSources = Array.from(new Set([
+    ...(sources || []),
+    ...(findings?.map(f => f.source) || []).filter(Boolean)
+  ]));
 
-  const findingsBySource = displayFindings.reduce((acc: Record<string, Finding[]>, finding) => {
-    if (!finding.source) return acc;
-    
-    if (!acc[finding.source]) {
-      acc[finding.source] = [];
-    }
-    
-    if (!acc[finding.source].some(f => 
-      f.finding?.title === finding.finding?.title && 
-      f.finding?.summary === finding.finding?.summary
-    )) {
+  // Group findings by source
+  const findingsBySource = (findings || []).reduce((acc, finding) => {
+    if (finding.source) {
+      if (!acc[finding.source]) {
+        acc[finding.source] = [];
+      }
       acc[finding.source].push(finding);
     }
-    
     return acc;
-  }, {});
+  }, {} as Record<string, Finding[]>);
 
-  useEffect(() => {
-    const newExpandedState = { ...expandedSources };
-    let hasChanges = false;
-    
-    displaySources.forEach(source => {
-      if (expandedSources[source] === undefined) {
-        newExpandedState[source] = true;
-        hasChanges = true;
-      }
-    });
-    
-    if (hasChanges) {
-      setExpandedSources(newExpandedState);
-    }
-  }, [displaySources, expandedSources]);
-
-  // Sort sources with findings at the top
-  useEffect(() => {
-    const sourcesWithFindings = Object.keys(findingsBySource);
-    const sourcesWithoutFindings = displaySources.filter(source => !sourcesWithFindings.includes(source));
-    
-    const newSortedSources = [...sourcesWithFindings, ...sourcesWithoutFindings];
-    setSortedSources(newSortedSources);
-  }, [displaySources, findingsBySource]);
-
-  // Enhanced session data loading with better fallbacks
-  useEffect(() => {
-    try {
-      if (sessionId) {
-        console.log(`[${new Date().toISOString()}] 🔍 Attempting to load data for session: ${sessionId}`);
-        
-        // First try to get comprehensive session data
-        const sessionData = getSessionData(sessionId);
-        
-        if (sessionData) {
-          // Handle sources with proper validation
-          if (sessionData.sources && Array.isArray(sessionData.sources) && sessionData.sources.length > 0) {
-            if (sources.length === 0 || sessionData.sources.length > sources.length) {
-              console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.sources.length} sources from session data`);
-              setDisplaySources(sessionData.sources);
-              
-              // Save the expanded state for each source
-              const newExpandedState = { ...expandedSources };
-              sessionData.sources.forEach(source => {
-                if (expandedSources[source] === undefined) {
-                  newExpandedState[source] = true;
-                }
-              });
-              setExpandedSources(newExpandedState);
-            }
-          }
-          
-          // Handle findings with proper validation
-          if (sessionData.findings && Array.isArray(sessionData.findings) && sessionData.findings.length > 0) {
-            if (findings.length === 0 || sessionData.findings.length > findings.length) {
-              console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.findings.length} findings from session data`);
-              setDisplayFindings(sessionData.findings);
-            }
-          }
-          
-          return;
-        }
-        
-        // Fall back to individual storage keys
-        const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
-        const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
-        
-        const sessionCachedSources = localStorage.getItem(sessionSourcesKey);
-        const sessionCachedFindings = localStorage.getItem(sessionFindingsKey);
-        
-        // Process sources
-        if (sessionCachedSources) {
-          try {
-            const parsedSources = JSON.parse(sessionCachedSources);
-            if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-              console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedSources.length} sources from session cache for: ${sessionId}`);
-              setDisplaySources(parsedSources);
-              
-              // Save the expanded state for each source
-              const newExpandedState = { ...expandedSources };
-              parsedSources.forEach(source => {
-                if (expandedSources[source] === undefined) {
-                  newExpandedState[source] = true;
-                }
-              });
-              setExpandedSources(newExpandedState);
-            }
-          } catch (e) {
-            console.error("Error parsing cached sources:", e);
-          }
-        }
-        
-        // Process findings
-        if (sessionCachedFindings) {
-          try {
-            const parsedFindings = JSON.parse(sessionCachedFindings);
-            if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
-              console.log(`[${new Date().toISOString()}] 📂 Loaded ${parsedFindings.length} findings from session cache for: ${sessionId}`);
-              setDisplayFindings(parsedFindings);
-            }
-          } catch (e) {
-            console.error("Error parsing cached findings:", e);
-          }
-        }
-        
-        return;
-      }
-      
-      // Fall back to global cache if no session ID
-      const cachedSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
-      const cachedFindings = localStorage.getItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
-      
-      // Process global sources cache
-      if (cachedSources) {
-        try {
-          const parsedSources = JSON.parse(cachedSources);
-          if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-            if (sources.length === 0) {
-              setDisplaySources(parsedSources);
-            } else if (sources.length !== parsedSources.length) {
-              setDisplaySources(sources.length > parsedSources.length ? sources : parsedSources);
-            }
-          }
-        } catch (e) {
-          console.error("Error parsing global cached sources:", e);
-        }
-      }
-      
-      // Process global findings cache
-      if (cachedFindings) {
-        try {
-          const parsedFindings = JSON.parse(cachedFindings);
-          if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
-            if (findings.length === 0) {
-              setDisplayFindings(parsedFindings);
-            } else if (findings.length !== parsedFindings.length) {
-              setDisplayFindings(findings.length > parsedFindings.length ? findings : parsedFindings);
-            }
-          }
-        } catch (e) {
-          console.error("Error parsing global cached findings:", e);
-        }
-      }
-    } catch (e) {
-      console.error("Error loading sources or findings from cache:", e);
-    }
-  }, [sources, findings, sessionId, expandedSources]);
-
-  // Save sources to persistent storage when they change
-  useEffect(() => {
-    if (sources.length > 0) {
-      setDisplaySources(sources);
-      
-      try {
-        localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(sources));
-        
-        if (sessionId) {
-          // Save to comprehensive session data
-          saveSessionData(sessionId, { sources });
-          
-          // Also save to individual session cache
-          const sessionCacheKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
-          localStorage.setItem(sessionCacheKey, JSON.stringify(sources));
-          console.log(`[${new Date().toISOString()}] 💾 Saved ${sources.length} sources to session cache for: ${sessionId}`);
-        }
-      } catch (e) {
-        console.error("Error saving sources to cache:", e);
-      }
-    }
-  }, [sources, sessionId]);
-
-  // Save findings to persistent storage when they change
-  useEffect(() => {
-    if (findings.length > 0) {
-      setDisplayFindings(findings);
-      
-      try {
-        localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(findings));
-        
-        if (sessionId) {
-          // Save to comprehensive session data
-          saveSessionData(sessionId, { findings });
-          
-          // Also save to individual session cache
-          const sessionCacheKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
-          localStorage.setItem(sessionCacheKey, JSON.stringify(findings));
-          console.log(`[${new Date().toISOString()}] 💾 Saved ${findings.length} findings to session cache for: ${sessionId}`);
-        }
-      } catch (e) {
-        console.error("Error saving findings to cache:", e);
-      }
-    }
-  }, [findings, sessionId]);
-
-  const toggleSourceExpanded = (source: string) => {
-    setExpandedSources(prev => ({
-      ...prev,
-      [source]: !prev[source]
-    }));
-  };
-
-  if (displaySources.length === 0) {
+  if (!allSources.length && !Object.keys(findingsBySource).length) {
     return (
-      <div className={`flex flex-col items-center justify-center p-8 ${className}`}>
-        <Search className="h-12 w-12 text-muted-foreground/50 mb-4" />
-        <p className="text-muted-foreground">No sources yet</p>
+      <div className="flex flex-col items-center justify-center h-full p-8 text-center text-muted-foreground">
+        <FileText className="h-12 w-12 mb-4 opacity-50" />
+        <h3 className="text-lg font-medium mb-2">No Sources Yet</h3>
+        <p>Sources will appear here as the research progresses.</p>
       </div>
     );
   }
 
   return (
-    <div className={className}>
-      <h3 className="font-medium mb-4 flex items-center justify-between">
-        <span>Sources ({displaySources.length})</span>
-          <Badge variant="outline" className="text-xs">
-            {displayFindings.length} finding{displayFindings.length !== 1 ? 's' : ''}
-          </Badge>
-      </h3>
-      <ScrollArea className="h-[calc(100vh-250px)]">
-        <div className="space-y-3">
-          {sortedSources.map((source, index) => {
-            const sourceFindings = findingsBySource[source] || [];
-            const isExpanded = expandedSources[source] !== false;
-            
-            return (
-              <Collapsible 
-                key={`${source}-${index}`} 
-                open={isExpanded}
-                onOpenChange={() => toggleSourceExpanded(source)}
-                className="border border-muted-foreground/10 rounded-md overflow-hidden"
-              >
-                <div className="flex items-center justify-between p-3 bg-background hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center flex-1 min-w-0">
-                    <CollapsibleTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="p-0 h-5 w-5 mr-2 hover:bg-transparent"
-                      >
-                        {isExpanded ? 
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" /> : 
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        }
-                      </Button>
-                    </CollapsibleTrigger>
-                    <span className="text-sm truncate">{source}</span>
-                  </div>
-                  
-                  <div className="flex items-center ml-2 space-x-2">
-                    {sourceFindings.length > 0 && (
-                      <Badge variant="outline" className="text-xs bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
-                        {sourceFindings.length} 
-                      </Badge>
-                    )}
-                    <a 
-                      href={source} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-primary hover:text-primary/80 transition-colors" 
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <ExternalLink size={16} />
-                    </a>
+    <ScrollArea className="h-[calc(100vh-280px)]">
+      <div className="p-4 space-y-6">
+        {allSources.map((source, index) => (
+          <Card key={index} className="mb-4">
+            <CardHeader className="py-4">
+              <CardTitle className="text-md flex items-center">
+                <Link className="mr-2 h-4 w-4" />
+                <span className="font-medium">Source {index + 1}</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="py-2">
+              <div className="text-sm font-mono break-all mb-2">
+                {source}
+                {source.startsWith('http') && (
+                  <a 
+                    href={source} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="ml-2 inline-flex items-center text-blue-600 hover:underline"
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Open
+                  </a>
+                )}
+              </div>
+              
+              {findingsBySource[source] && findingsBySource[source].length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-semibold mb-2">Findings from this source:</h4>
+                  <div className="space-y-3">
+                    {findingsBySource[source].map((finding, idx) => (
+                      <div key={idx} className="text-sm p-3 bg-secondary/50 rounded-md">
+                        {finding.finding?.title && (
+                          <h5 className="font-medium mb-1">{finding.finding.title}</h5>
+                        )}
+                        {finding.finding?.summary && (
+                          <p className="text-muted-foreground">{finding.finding.summary}</p>
+                        )}
+                        {finding.content && !finding.finding?.summary && (
+                          <p className="text-muted-foreground">{finding.content}</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
-                
-                <CollapsibleContent>
-                  {sourceFindings.length > 0 ? (
-                    <div className="p-3 pt-0 space-y-3 bg-slate-50/50 dark:bg-slate-900/50">
-                      {sourceFindings.map((finding, i) => (
-                        <div key={`finding-${i}`} className="mt-3 p-3 rounded-md border border-muted bg-background/90">
-                          {finding.finding?.title && (
-                            <h4 className="text-sm font-medium mb-1">{finding.finding.title}</h4>
-                          )}
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                            {finding.finding?.summary || finding.content || "No content available"}
-                          </p>
-                          {finding.finding?.confidence_score && (
-                            <Badge variant="outline" className="mt-2 text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
-                              Confidence: {Math.round(finding.finding.confidence_score * 100)}%
-                            </Badge>
-                          )}
-                          {finding.node_id && (
-                            <div className="mt-2 flex items-center">
-                              <Lightbulb className="h-3 w-3 text-amber-500 mr-1" />
-                              <span className="text-xs text-muted-foreground">Step {finding.node_id}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="p-3 pt-0 bg-slate-50/50 dark:bg-slate-900/50">
-                      <p className="text-xs text-muted-foreground italic">No findings yet for this source</p>
-                    </div>
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-            );
-          })}
-        </div>
-      </ScrollArea>
-    </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </ScrollArea>
   );
 };
 

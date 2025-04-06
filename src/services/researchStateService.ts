@@ -14,6 +14,19 @@ export interface Finding {
   node_id?: string;
 }
 
+export interface HumanInteraction {
+  call_id: string;
+  node_id: string;
+  interaction_type: string;
+  content: string;
+  status: 'pending' | 'completed';
+  response?: {
+    approved: boolean;
+    comment?: string;
+    timestamp: string;
+  };
+}
+
 export interface ResearchState {
   id?: string;
   research_id: string;
@@ -33,18 +46,11 @@ export interface ResearchState {
   client_id?: string;
   human_interaction_request?: string;
   custom_data?: string;
-  human_interactions?: Array<{
-    call_id: string;
-    node_id: string;
-    interaction_type: string;
-    content: string;
-    status: 'pending' | 'completed';
-    response?: {
-      approved: boolean;
-      comment?: string;
-      timestamp: string;
-    };
-  }>;
+  human_interactions?: HumanInteraction[];
+  active_nodes?: number | null;
+  completed_nodes?: number | null;
+  findings_count?: number | null;
+  last_update?: string | null;
 }
 
 interface RawResearchStateData {
@@ -111,13 +117,15 @@ function convertToResearchState(raw: RawResearchStateData): ResearchState {
     }
   }
 
-  let humanInteractions;
+  let humanInteractions: HumanInteraction[] = [];
   if (raw.human_interactions) {
     try {
       if (typeof raw.human_interactions === 'string') {
-        humanInteractions = JSON.parse(raw.human_interactions);
+        humanInteractions = JSON.parse(raw.human_interactions) as HumanInteraction[];
+      } else if (Array.isArray(raw.human_interactions)) {
+        humanInteractions = raw.human_interactions as unknown as HumanInteraction[];
       } else {
-        humanInteractions = raw.human_interactions;
+        console.warn('Unexpected human_interactions format:', raw.human_interactions);
       }
     } catch (e) {
       console.error('Error parsing human_interactions:', e);
@@ -125,12 +133,18 @@ function convertToResearchState(raw: RawResearchStateData): ResearchState {
     }
   }
 
+  // Ensure status is a valid value
+  let status = raw.status as 'in_progress' | 'completed' | 'error' | 'awaiting_human_input';
+  if (!['in_progress', 'completed', 'error', 'awaiting_human_input'].includes(status)) {
+    status = 'in_progress';
+  }
+
   return {
     id: raw.id,
     research_id: raw.research_id,
     session_id: raw.session_id,
     user_id: raw.user_id,
-    status: raw.status as 'in_progress' | 'completed' | 'error' | 'awaiting_human_input',
+    status: status,
     query: raw.query,
     answer: raw.answer,
     sources: raw.sources,
@@ -144,7 +158,11 @@ function convertToResearchState(raw: RawResearchStateData): ResearchState {
     client_id: raw.client_id,
     human_interaction_request: raw.human_interaction_request,
     custom_data: raw.custom_data,
-    human_interactions: humanInteractions
+    human_interactions: humanInteractions,
+    active_nodes: raw.active_nodes,
+    completed_nodes: raw.completed_nodes,
+    findings_count: raw.findings_count,
+    last_update: raw.last_update
   };
 }
 

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData, getSessionData } from "@/lib/constants";
 import { toast } from "sonner";
 import { supabase, syncSession } from "@/integrations/supabase/client";
-import { getLatestSessionState } from "@/services/researchStateService";
+import { getLatestSessionState, ResearchState } from "@/services/researchStateService";
 
 interface ResearchHistorySidebarProps {
   isOpen: boolean;
@@ -89,7 +89,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
       // Also try to get any locally cached session data
       const cachedSessionData = getSessionData(item.session_id);
       
-      let mergedState = latestState;
+      let mergedState: ResearchState | null = latestState;
       
       // If we have both remote and local data, merge them to get the most complete state
       if (remoteData || (latestState && cachedSessionData)) {
@@ -103,27 +103,41 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         const remoteReasoningPath = remoteData?.reasoning_path || [];
         const remoteFindings = remoteData?.findings || [];
         
+        // Make sure status is one of the allowed values
+        const status = baseState?.status || 'in_progress';
+        const validStatus = ['in_progress', 'completed', 'error', 'awaiting_human_input'].includes(status) 
+          ? status as 'in_progress' | 'completed' | 'error' | 'awaiting_human_input'
+          : 'in_progress';
+        
         // Merge the data, prioritizing remote data but ensuring arrays are properly merged
-        mergedState = {
-          ...baseState,
-          // For arrays, take the one with more items
-          sources: Array.isArray(remoteSources) && remoteSources.length > 0 
-            ? remoteSources 
-            : (cachedSessionData?.sourcesKey || latestState?.sources || []),
+        if (baseState) {
+          mergedState = {
+            ...baseState,
+            status: validStatus,
+            // For arrays, take the one with more items
+            sources: Array.isArray(remoteSources) && remoteSources.length > 0 
+              ? remoteSources 
+              : (cachedSessionData?.sourcesKey || latestState?.sources || []),
+              
+            reasoning_path: Array.isArray(remoteReasoningPath) && remoteReasoningPath.length > 0 
+              ? remoteReasoningPath 
+              : (cachedSessionData?.reasoningPathKey || latestState?.reasoning_path || []),
+              
+            findings: Array.isArray(remoteFindings) && remoteFindings.length > 0
+              ? remoteFindings
+              : (cachedSessionData?.findingsKey || latestState?.findings || []),
             
-          reasoning_path: Array.isArray(remoteReasoningPath) && remoteReasoningPath.length > 0 
-            ? remoteReasoningPath 
-            : (cachedSessionData?.reasoningPathKey || latestState?.reasoning_path || []),
-            
-          findings: Array.isArray(remoteFindings) && remoteFindings.length > 0
-            ? remoteFindings
-            : (cachedSessionData?.findingsKey || latestState?.findings || [])
-        };
+            // Ensure human_interactions is an array
+            human_interactions: Array.isArray(baseState.human_interactions) 
+              ? baseState.human_interactions 
+              : [],
+          } as ResearchState;
+        }
         
         console.log(`[${new Date().toISOString()}] 📊 Merged state has:`, {
-          sources: mergedState.sources?.length || 0,
-          reasoning_path: mergedState.reasoning_path?.length || 0,
-          findings: mergedState.findings?.length || 0
+          sources: mergedState?.sources?.length || 0,
+          reasoning_path: mergedState?.reasoning_path?.length || 0,
+          findings: mergedState?.findings?.length || 0
         });
       }
       

@@ -34,7 +34,7 @@ import { Sparkles, Lightbulb, Search, BookOpenCheck, BrainCircuit, MessageCircle
 import ResearchHistorySidebar from '@/components/research/ResearchHistorySidebar';
 import ReasoningPath from '@/components/research/ReasoningPath';
 import SourcesList from '@/components/research/SourcesList';
-// Temporarily create stub components for the missing ones
+
 const HumanInputRequest = ({ humanInteractionRequest, onClose, onSubmit }: any) => <div>Human Input Request</div>;
 const HumanFeedbackForm = ({ isOpen, onOpenChange, onSubmit, onFeedbackChange }: any) => <div>Human Feedback Form</div>;
 const ResearchTabs = ({ children, activeTab, onTabChange }: any) => <div>{children}</div>;
@@ -42,12 +42,10 @@ const ResearchTab = ({ children, label, value, icon: Icon }: any) => <div>{label
 const ResearchObjective = ({ objective, onObjectiveChange, onValidityChange, onSubmit, isLoading, isActive, isObjectiveValid, researchObjectiveRef }: any) => <div>Research Objective</div>;
 const ResearchAnswer = ({ result, isLoading, errorMessage, sources, activeSessionId, currentSessionStatus, isHumanFeedbackRequired, onFeedbackFormToggle }: any) => <div>Research Answer</div>;
 
-// Get user context
 const useUser = () => {
   const [user, setUser] = useState<User | null>(null);
   
   useEffect(() => {
-    // Get the current user
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
@@ -55,7 +53,6 @@ const useUser = () => {
     
     getUser();
     
-    // Set up listener for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -164,7 +161,18 @@ const ResearchPage = () => {
     
     try {
       await updateResearchState(activeSessionId, activeSessionId, {
-        human_interactions: JSON.stringify(feedbackData)
+        human_interactions: [{
+          call_id: crypto.randomUUID(),
+          node_id: 'feedback-form',
+          interaction_type: 'human_feedback',
+          content: JSON.stringify(feedbackData),
+          status: 'completed' as const,
+          response: {
+            approved: isHumanFeedbackApproved,
+            comment: humanFeedbackComment,
+            timestamp: new Date().toISOString()
+          }
+        }]
       });
       
       toast({
@@ -300,11 +308,9 @@ const ResearchPage = () => {
   const handleSessionSelect = useCallback((event: CustomEvent) => {
     const { sessionId, query, state, isNew, forceRestore, fullReset } = event.detail;
     
-    // If fullReset is true, we need to completely refresh the page state
     if (fullReset) {
       console.log(`[${new Date().toISOString()}] 🔄 Full reset requested for session ${sessionId}`);
       
-      // Clear any existing state that might be conflicting
       setResult(null);
       setErrorMessage('');
       setSources([]);
@@ -312,7 +318,6 @@ const ResearchPage = () => {
       setFindings([]);
       setRawEventData({});
       
-      // Small delay to ensure the state is fully reset before restoring
       setTimeout(() => {
         if (state) {
           if (state.query) setCurrentQuery(state.query);
@@ -326,7 +331,6 @@ const ResearchPage = () => {
         }
       }, 50);
     } else {
-      // Original restore logic
       if (sessionId) {
         setActiveSessionId(sessionId);
         if (query) setCurrentQuery(query);
@@ -342,7 +346,6 @@ const ResearchPage = () => {
       }
     }
     
-    // Set isActive to false since we're just viewing a past session
     setIsActive(false);
     setIsWaitingForUserInput(false);
     
@@ -366,6 +369,57 @@ const ResearchPage = () => {
       node_id: nodeId
     }));
   }, []);
+
+  const handleSubmitHumanInput = async (result: string) => {
+    setHumanInteractionResult(result);
+    setIsWaitingForUserInput(false);
+    setIsHumanFeedbackRequired(true);
+    
+    try {
+      const resultData = JSON.parse(result);
+      
+      await updateResearchState(activeSessionId!, activeSessionId!, {
+        human_interactions: [{
+          call_id: resultData.call_id || crypto.randomUUID(),
+          node_id: resultData.node_id || 'human-input',
+          interaction_type: resultData.interaction_type || 'human_input',
+          content: resultData.content || '',
+          status: 'completed' as const,
+          response: {
+            approved: true,
+            comment: 'Input submitted by user',
+            timestamp: new Date().toISOString()
+          }
+        }],
+        status: 'awaiting_human_input'
+      });
+      
+      toast({
+        title: "Human Input Received",
+        description: "Your input has been saved. Please provide feedback.",
+        duration: 3000
+      });
+    } catch (error) {
+      console.error("Error saving human input:", error);
+      
+      await updateResearchState(activeSessionId!, activeSessionId!, {
+        human_interactions: [{
+          call_id: crypto.randomUUID(),
+          node_id: 'human-input-fallback',
+          interaction_type: 'human_input',
+          content: result,
+          status: 'completed' as const
+        }],
+        status: 'awaiting_human_input'
+      });
+      
+      toast({
+        title: "Error Saving Input",
+        description: "Failed to save input. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleHistoryRefresh = useCallback(async () => {
     await fetchHistory();
@@ -432,7 +486,6 @@ const ResearchPage = () => {
       if (historyData) {
         const parsedHistory = JSON.parse(historyData);
         
-        // Group items by date
         const groupedHistory = parsedHistory.reduce((acc: any, item: any) => {
           const date = new Date(item.created_at).toLocaleDateString();
           if (!acc[date]) {
@@ -442,13 +495,11 @@ const ResearchPage = () => {
           return acc;
         }, {});
         
-        // Convert grouped object to array of groups
         const historyGroups = Object.entries(groupedHistory).map(([date, items]: [string, any]) => ({
           date: date === new Date().toLocaleDateString() ? 'Today' : date,
           items: items.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
         }));
         
-        // Sort groups by date
         historyGroups.sort((a: any, b: any) => {
           const dateA = a.date === 'Today' ? new Date() : new Date(a.date);
           const dateB = b.date === 'Today' ? new Date() : new Date(b.date);
@@ -645,31 +696,7 @@ const ResearchPage = () => {
                   setIsWaitingForUserInput(false);
                   setHumanInteractionRequest(null);
                 }}
-                onSubmit={async (result: string) => {
-                  setHumanInteractionResult(result);
-                  setIsWaitingForUserInput(false);
-                  setIsHumanFeedbackRequired(true);
-                  
-                  try {
-                    await updateResearchState(activeSessionId!, activeSessionId!, {
-                      human_interactions: result,
-                      status: 'awaiting_human_input'
-                    });
-                    
-                    toast({
-                      title: "Human Input Received",
-                      description: "Your input has been saved. Please provide feedback.",
-                      duration: 3000
-                    });
-                  } catch (error) {
-                    console.error("Error saving human input:", error);
-                    toast({
-                      title: "Error Saving Input",
-                      description: "Failed to save input. Please try again.",
-                      variant: "destructive"
-                    });
-                  }
-                }}
+                onSubmit={handleSubmitHumanInput}
               />
             ) : (
               <>
