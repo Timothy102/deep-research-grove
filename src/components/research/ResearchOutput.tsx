@@ -1,9 +1,13 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { FileText, Copy, Download, CheckCircle2 } from "lucide-react";
+import { saveAs } from 'file-saver';
+import { toast } from 'sonner';
 
 export interface ResearchOutputProps {
   output: string;
@@ -21,6 +25,7 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
   onSelectModel
 }) => {
   const navigate = useNavigate();
+  const [isCopied, setIsCopied] = useState(false);
 
   if (isLoading) {
     return (
@@ -94,8 +99,111 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
     );
   }
 
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(output);
+      setIsCopied(true);
+      toast.success("Output copied to clipboard");
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy text:", err);
+      toast.error("Failed to copy text");
+    }
+  };
+
+  const exportToPdf = async () => {
+    try {
+      // We'll use a simple approach with html-to-pdf conversion
+      const { jsPDF } = await import('jspdf');
+      
+      const doc = new jsPDF();
+      
+      // Set title
+      doc.setFontSize(16);
+      doc.text("Research Results", 20, 20);
+      
+      // Add content with word wrapping
+      doc.setFontSize(12);
+      const splitText = doc.splitTextToSize(output, 170);
+      doc.text(splitText, 20, 30);
+      
+      // Save the PDF
+      doc.save("research-output.pdf");
+      toast.success("PDF downloaded successfully");
+    } catch (err) {
+      console.error("Failed to export as PDF:", err);
+      toast.error("Failed to export as PDF");
+    }
+  };
+
+  const exportToDocx = async () => {
+    try {
+      // Using docx library to create Word documents
+      const { Document, Packer, Paragraph, TextRun } = await import('docx');
+      
+      // Create document
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: "Research Results", bold: true, size: 28 }),
+              ],
+            }),
+            new Paragraph({
+              children: [
+                new TextRun({ text: output, size: 24 }),
+              ],
+            }),
+          ],
+        }],
+      });
+      
+      // Generate and save document
+      const buffer = await Packer.toBuffer(doc);
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      saveAs(blob, "research-output.docx");
+      toast.success("DOCX downloaded successfully");
+    } catch (err) {
+      console.error("Failed to export as DOCX:", err);
+      toast.error("Failed to export as DOCX");
+    }
+  };
+
   return (
     <div className="prose prose-sm max-w-none dark:prose-invert">
+      {/* Export Options */}
+      <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1" 
+          onClick={copyToClipboard}
+        >
+          {isCopied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
+          <span>{isCopied ? "Copied" : "Copy"}</span>
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1" 
+          onClick={exportToPdf}
+        >
+          <FileText size={16} />
+          <span>PDF</span>
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1" 
+          onClick={exportToDocx}
+        >
+          <Download size={16} />
+          <span>DOCX</span>
+        </Button>
+      </div>
+      
       <div className="whitespace-pre-wrap">{output}</div>
     </div>
   );
