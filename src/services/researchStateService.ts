@@ -540,7 +540,7 @@ export async function getResearchState(researchId: string, sessionId: string): P
         result.human_interactions = [];
       }
       
-      // Fix up sources from local cache if available
+      // Fix up sources from local cache if possible
       try {
         // First try session-specific cache
         const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
@@ -846,4 +846,31 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
         findings: Array.isArray(rawData.findings) 
           ? rawData.findings 
           : (typeof rawData.findings === 'string' 
-              ? JSON.parse(rawData.findings)
+              ? JSON.parse(rawData.findings) 
+              : [])
+      };
+      
+      // Convert human_interactions back from JSON string
+      if (typeof result.human_interactions === 'string') {
+        try {
+          result.human_interactions = JSON.parse(result.human_interactions);
+        } catch (e) {
+          console.error("Error parsing human_interactions", e);
+          result.human_interactions = [];
+        }
+      } else if (!result.human_interactions) {
+        result.human_interactions = [];
+      }
+      
+      // Save to localStorage for better persistence
+      saveStateToLocalStorage(result);
+      
+      return result;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error in getLatestSessionState:", error);
+    return null;
+  }
+}
