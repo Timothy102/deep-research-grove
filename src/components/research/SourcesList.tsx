@@ -38,6 +38,7 @@ const SourcesList: React.FC<SourcesListProps> = ({
   const [displaySources, setDisplaySources] = useState<string[]>(sources);
   const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings);
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
+  const [sortedSources, setSortedSources] = useState<string[]>([]);
 
   const findingsBySource = displayFindings.reduce((acc: Record<string, Finding[]>, finding) => {
     if (!finding.source) return acc;
@@ -71,6 +72,15 @@ const SourcesList: React.FC<SourcesListProps> = ({
       setExpandedSources(newExpandedState);
     }
   }, [displaySources, expandedSources]);
+
+  // Sort sources with findings at the top
+  useEffect(() => {
+    const sourcesWithFindings = Object.keys(findingsBySource);
+    const sourcesWithoutFindings = displaySources.filter(source => !sourcesWithFindings.includes(source));
+    
+    const newSortedSources = [...sourcesWithFindings, ...sourcesWithoutFindings];
+    setSortedSources(newSortedSources);
+  }, [displaySources, findingsBySource]);
 
   useEffect(() => {
     try {
@@ -215,7 +225,7 @@ const SourcesList: React.FC<SourcesListProps> = ({
       </h3>
       <ScrollArea className="h-[calc(100vh-250px)]">
         <div className="space-y-3">
-          {displaySources.map((source, index) => {
+          {sortedSources.map((source, index) => {
             const sourceFindings = findingsBySource[source] || [];
             const isExpanded = expandedSources[source] !== false;
             
