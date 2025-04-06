@@ -45,23 +45,32 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
       // First, ensure session is synced
       await syncSession();
       
-      console.log(`[${new Date().toISOString()}] 🔍 Selecting history session:`, item.session_id, "with query:", item.query);
+      const sessionId = item.session_id;
+      console.log(`[${new Date().toISOString()}] 🔍 Selecting history session:`, sessionId, "with query:", item.query);
       
-      // Clear any old cached state first to prevent mixing data from different sessions
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE);
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE);
-      localStorage.removeItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
+      // Clear ALL previous state caches to prevent mixing states
+      const allKeys = Object.keys(localStorage);
+      allKeys.forEach(key => {
+        if (
+          key.includes(LOCAL_STORAGE_KEYS.CURRENT_STATE) ||
+          key.includes(LOCAL_STORAGE_KEYS.ANSWER_CACHE) ||
+          key.includes(LOCAL_STORAGE_KEYS.SOURCES_CACHE) ||
+          key.includes(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE) || 
+          key.includes(LOCAL_STORAGE_KEYS.FINDINGS_CACHE) ||
+          key !== getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId)
+        ) {
+          localStorage.removeItem(key);
+        }
+      });
       
-      // Store current session ID to ensure proper state restoration
-      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, item.session_id);
+      // Set the current session ID
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, sessionId);
       
-      // Get the FULL latest state for this session from Supabase
-      const latestState = await getLatestSessionState(item.session_id);
+      // Get the complete latest state for this session from Supabase
+      const latestState = await getLatestSessionState(sessionId);
       
       if (latestState) {
-        console.log(`[${new Date().toISOString()}] ✅ Retrieved complete state for session:`, item.session_id);
+        console.log(`[${new Date().toISOString()}] ✅ Retrieved complete state for session:`, sessionId);
         console.log("Query from state:", latestState.query);
         console.log("Answer first 100 chars:", latestState.answer?.substring(0, 100));
         
@@ -72,48 +81,47 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         
         // Build a comprehensive answer object with all state data
         const completeAnswer = {
-          query: latestState.query || item.query, // Fallback to history item query if needed
+          query: latestState.query || item.query,
           answer: latestState.answer || "",
           sources: latestState.sources || [],
           reasoning_path: latestState.reasoning_path || [],
           findings: latestState.findings || [],
           syntheses: latestState.user_model || {},
           confidence: latestState.completed_nodes ? (latestState.completed_nodes / 10) : 0.8,
-          session_id: item.session_id,
+          session_id: sessionId,
           research_id: latestState.research_id
         };
         
-        // Store the complete state and answer in local storage
+        // Store all state information in local storage
         localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, JSON.stringify(latestState));
         localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(completeAnswer));
         
         // Also store session-specific caches
-        const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, item.session_id);
+        const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId);
         localStorage.setItem(sessionStateKey, JSON.stringify(latestState));
         
-        const sessionAnswerKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, item.session_id);
+        const sessionAnswerKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, sessionId);
         localStorage.setItem(sessionAnswerKey, JSON.stringify(completeAnswer));
         
-        // Also cache individual data for better resilience
         if (latestState.sources && latestState.sources.length > 0) {
           localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(latestState.sources));
-          const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, item.session_id);
+          const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
           localStorage.setItem(sessionSourcesKey, JSON.stringify(latestState.sources));
         }
         
         if (latestState.reasoning_path && latestState.reasoning_path.length > 0) {
           localStorage.setItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, JSON.stringify(latestState.reasoning_path));
-          const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, item.session_id);
+          const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
           localStorage.setItem(sessionPathKey, JSON.stringify(latestState.reasoning_path));
         }
         
         if (latestState.findings && latestState.findings.length > 0) {
           localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(latestState.findings));
-          const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, item.session_id);
+          const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
           localStorage.setItem(sessionFindingsKey, JSON.stringify(latestState.findings));
         }
       } else {
-        console.warn(`[${new Date().toISOString()}] ⚠️ Could not find state for session:`, item.session_id);
+        console.warn(`[${new Date().toISOString()}] ⚠️ Could not find state for session:`, sessionId);
         
         // Fallback to minimal data from history item
         const fallbackAnswer = {
@@ -124,28 +132,28 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
           findings: [],
           syntheses: {},
           confidence: 0.5,
-          session_id: item.session_id
+          session_id: sessionId
         };
         
         localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(fallbackAnswer));
-        const sessionAnswerKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, item.session_id);
+        const sessionAnswerKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, sessionId);
         localStorage.setItem(sessionAnswerKey, JSON.stringify(fallbackAnswer));
         
         toast.error("Could not load complete session data. Trying with partial data.");
       }
       
-      // Dispatch a custom event for session restoration with correct session info
+      // Dispatch a session-selected event for components to handle
       window.dispatchEvent(new CustomEvent('session-selected', { 
         detail: { 
-          sessionId: item.session_id,
-          query: item.query, // Always use the query from the history item
+          sessionId: sessionId,
+          query: item.query,
           isNew: false,
           historyItem: item,
           timestamp: new Date().toISOString()
         }
       }));
       
-      // Then handle the click through passed callbacks
+      // Handle the click through passed callbacks
       onHistoryItemClick(item);
       onSelectItem(item);
       

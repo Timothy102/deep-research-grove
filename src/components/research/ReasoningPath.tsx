@@ -66,6 +66,21 @@ const ReasoningPath = ({
   const [answersData, setAnswersData] = useState<Record<string, any>>({});
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [forcedUpdate, setForcedUpdate] = useState(0);
+  const [lastSessionId, setLastSessionId] = useState<string | null>(null);
+  
+  // Handle session change
+  useEffect(() => {
+    if (sessionId && sessionId !== lastSessionId) {
+      console.log(`[${new Date().toISOString()}] 🔄 Session changed from ${lastSessionId} to ${sessionId}, resetting state`);
+      setDisplayReasoningPath(reasoningPath);
+      setDisplayFindings(findings);
+      setDisplaySources(sources);
+      setSynthesesData({});
+      setAnswersData({});
+      setSessionLoaded(false);
+      setLastSessionId(sessionId);
+    }
+  }, [sessionId, lastSessionId, reasoningPath, findings, sources]);
   
   // Load initial data
   useEffect(() => {

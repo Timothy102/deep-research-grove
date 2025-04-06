@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { getLatestSessionState } from "@/services/researchStateService";
 
 export type Finding = {
   content: string;
@@ -282,12 +283,15 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const navigate = useNavigate();
   const [currentResult, setCurrentResult] = useState<ResearchResult | null>(result);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   useEffect(() => {
     if (result) {
-      if (!currentResult || 
-          result.session_id !== currentResult.session_id || 
-          result.query !== currentResult.query) {
+      const isNewSession = !currentResult || 
+                          result.session_id !== currentResult.session_id || 
+                          result.query !== currentResult.query;
+                          
+      if (isNewSession) {
         console.log(`[${new Date().toISOString()}] 🔄 Result props changed:`, {
           newQuery: result.query,
           newSessionId: result.session_id,
@@ -304,31 +308,55 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   }, [result, currentResult]);
   
   useEffect(() => {
-    const handleSessionSelected = (event: CustomEvent) => {
-      if (event.detail && event.detail.sessionId) {
-        const { sessionId, query } = event.detail;
-        console.log(`[${new Date().toISOString()}] 📢 Session selected:`, { sessionId, query });
+    const handleSessionSelected = async (event: CustomEvent) => {
+      if (!event.detail || !event.detail.sessionId) return;
+      
+      const { sessionId, query, historyItem } = event.detail;
+      setIsLoading(true);
+      
+      console.log(`[${new Date().toISOString()}] 📢 Session selected:`, { sessionId, query });
+      
+      if (currentSessionId === sessionId) {
+        console.log(`[${new Date().toISOString()}] ⚠️ Session ${sessionId} already selected, reloading data`);
+      }
+      
+      try {
+        const latestState = await getLatestSessionState(sessionId);
         
-        if (currentSessionId === sessionId) {
-          console.log(`[${new Date().toISOString()}] ⚠️ Session ${sessionId} already selected, ignoring`);
-          return;
-        }
-        
-        setCurrentSessionId(sessionId);
-        
-        try {
+        if (latestState) {
+          console.log(`[${new Date().toISOString()}] ✅ Retrieved state for session from database:`, sessionId);
+          
+          setCurrentSessionId(sessionId);
+          
+          const completeAnswer: ResearchResult = {
+            query: latestState.query || query,
+            answer: latestState.answer || "",
+            sources: latestState.sources || [],
+            reasoning_path: latestState.reasoning_path || [],
+            findings: latestState.findings || [],
+            syntheses: latestState.user_model || {},
+            confidence: latestState.completed_nodes ? (latestState.completed_nodes / 10) : 0.8,
+            session_id: sessionId,
+            research_id: latestState.research_id
+          };
+          
+          setCurrentResult(completeAnswer);
+        } else {
+          console.log(`[${new Date().toISOString()}] ⚠️ No database state found, checking local storage for session:`, sessionId);
+          
+          setCurrentSessionId(sessionId);
+          
           const sessionAnswerKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, sessionId);
           const cachedSessionAnswer = localStorage.getItem(sessionAnswerKey);
           
           if (cachedSessionAnswer) {
             const parsedAnswer = JSON.parse(cachedSessionAnswer);
+            console.log(`[${new Date().toISOString()}] ✅ Found cached answer for session:`, sessionId);
             
             if (parsedAnswer.query === query) {
-              console.log(`[${new Date().toISOString()}] ✅ Found matching cached answer for session:`, sessionId);
               setCurrentResult(parsedAnswer);
             } else {
               console.warn(`[${new Date().toISOString()}] ⚠️ Query mismatch in cached answer: expected "${query}", found "${parsedAnswer.query}"`);
-              
               setCurrentResult({
                 ...parsedAnswer,
                 query: query
@@ -345,10 +373,37 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
               confidence: 0.5,
               session_id: sessionId
             });
+            
+            try {
+              const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
+              const cachedSources = localStorage.getItem(sessionSourcesKey);
+              
+              const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
+              const cachedPath = localStorage.getItem(sessionPathKey);
+              
+              const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
+              const cachedFindings = localStorage.getItem(sessionFindingsKey);
+              
+              if (cachedSources || cachedPath || cachedFindings) {
+                console.log(`[${new Date().toISOString()}] 🔄 Building state from cached components`);
+                
+                setCurrentResult(prev => ({
+                  ...prev,
+                  sources: cachedSources ? JSON.parse(cachedSources) : [],
+                  reasoning_path: cachedPath ? JSON.parse(cachedPath) : [],
+                  findings: cachedFindings ? JSON.parse(cachedFindings) : []
+                }));
+              }
+            } catch (e) {
+              console.error("Error building state from components:", e);
+            }
           }
-        } catch (e) {
-          console.error("Error processing session selection:", e);
         }
+      } catch (error) {
+        console.error("Error processing session selection:", error);
+        toast.error("Failed to load session data. Try refreshing the page.");
+      } finally {
+        setIsLoading(false);
       }
     };
     
@@ -394,8 +449,8 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         shouldUpdate = true;
       }
       
-      if (payload.new.syntheses && typeof payload.new.syntheses === 'object') {
-        updates.syntheses = payload.new.syntheses;
+      if (payload.new.user_model && typeof payload.new.user_model === 'object') {
+        updates.syntheses = payload.new.user_model;
         shouldUpdate = true;
       }
       
@@ -483,6 +538,11 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
           
           const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, currentResult.session_id);
           localStorage.setItem(sessionPathKey, JSON.stringify(currentResult.reasoning_path));
+          
+          if (currentResult.findings) {
+            const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, currentResult.session_id);
+            localStorage.setItem(sessionFindingsKey, JSON.stringify(currentResult.findings));
+          }
         }
       } catch (e) {
         console.error("Error caching research result:", e);
