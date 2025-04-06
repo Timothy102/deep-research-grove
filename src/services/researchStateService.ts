@@ -159,15 +159,15 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     state.human_interactions = [];
   }
   
-  // Filter out properties that might not exist in the table schema
-  const validState = {
+  // Convert specific types to match what Supabase expects
+  const validState: Record<string, unknown> = {
     research_id: state.research_id,
     session_id: state.session_id,
     status: state.status,
     query: state.query,
     answer: state.answer,
     sources: state.sources,
-    findings: state.findings,
+    findings: state.findings ? JSON.stringify(state.findings) as unknown as Json : undefined,
     reasoning_path: state.reasoning_path,
     user_model: state.user_model,
     error: state.error,
@@ -184,7 +184,7 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     // Always include the client_id in every operation
     const { data, error } = await supabase
       .from('research_states')
-      .insert({...validState, client_id: clientId})
+      .insert(validState)
       .select();
       
     if (error) {
@@ -193,13 +193,16 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
       // Try with active_tab if it exists in state
       if (state.active_tab && error.message.includes("violates not-null constraint")) {
         console.log(`[${new Date().toISOString()}] 🔄 Trying with active_tab included`);
+        
+        // Add active_tab to our validState object for the retry
+        const validStateWithTab = {
+          ...validState,
+          active_tab: state.active_tab
+        };
+        
         const { data: dataWithTab, error: errorWithTab } = await supabase
           .from('research_states')
-          .insert({
-            ...validState,
-            active_tab: state.active_tab,
-            client_id: clientId
-          })
+          .insert(validStateWithTab)
           .select();
           
         if (errorWithTab) {
@@ -365,10 +368,19 @@ export async function updateResearchState(
       }
     }
     
-    // Convert human_interactions array to JSON string for storage
-    if (updates.human_interactions) {
-      (updates as any).human_interactions = JSON.stringify(updates.human_interactions);
-    }
+    // Convert specific types to match what Supabase expects
+    const validUpdates: Record<string, unknown> = {};
+    
+    // Copy properties that don't need conversion
+    Object.entries(updates).forEach(([key, value]) => {
+      if (key === 'findings' && value) {
+        validUpdates[key] = JSON.stringify(value) as unknown as Json;
+      } else if (key === 'human_interactions' && value) {
+        validUpdates[key] = JSON.stringify(value);
+      } else if (key !== 'active_tab') { // Handle active_tab separately
+        validUpdates[key] = value;
+      }
+    });
     
     // Special handling for sources to address the incorrect source count issue
     if (updates.sources) {
@@ -387,16 +399,32 @@ export async function updateResearchState(
   const { active_tab, ...otherUpdates } = updates;
   
   // Base updates without active_tab
-  const validUpdates = { ...otherUpdates };
+  const validUpdates: Record<string, unknown> = {};
+  
+  // Copy properties, converting types where needed
+  Object.entries(otherUpdates).forEach(([key, value]) => {
+    if (key === 'findings' && value) {
+      validUpdates[key] = JSON.stringify(value) as unknown as Json;
+    } else if (key === 'human_interactions' && value) {
+      validUpdates[key] = JSON.stringify(value);
+    } else {
+      validUpdates[key] = value;
+    }
+  });
   
   // Try with active_tab first if it exists
   if (active_tab !== undefined) {
     try {
       console.log(`[${new Date().toISOString()}] 🔄 Updating with active_tab and client_id:`, clientId);
       
+      const updateWithActiveTab = {
+        ...validUpdates,
+        active_tab
+      };
+      
       const { data, error } = await supabase
         .from('research_states')
-        .update({ ...validUpdates, active_tab })
+        .update(updateWithActiveTab)
         .match({ 
           research_id: researchId, 
           session_id: sessionId, 
