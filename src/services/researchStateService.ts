@@ -1,3 +1,4 @@
+
 import { supabase, getClientId } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
@@ -159,67 +160,92 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
   }
   
   // Create an object with the proper types expected by Supabase
-  const insertData = {
+  const insertData: any = {
     research_id: state.research_id,
     session_id: state.session_id,
     status: state.status,
     query: state.query,
     answer: state.answer,
     sources: state.sources,
-    findings: state.findings ? JSON.stringify(state.findings) : null,
     reasoning_path: state.reasoning_path,
-    user_model: state.user_model,
-    error: state.error,
     user_id: user.user.id,
-    client_id: clientId,
-    human_interaction_request: state.human_interaction_request,
-    custom_data: state.custom_data,
-    human_interactions: JSON.stringify(state.human_interactions)
+    client_id: clientId
   };
+  
+  // Add optional fields if they exist
+  if (state.user_model) {
+    if (typeof state.user_model === 'object') {
+      insertData.user_model = state.user_model;
+    } else {
+      insertData.user_model = state.user_model;
+    }
+  }
+  
+  if (state.error) {
+    insertData.error = state.error;
+  }
+  
+  if (state.human_interaction_request) {
+    insertData.human_interaction_request = state.human_interaction_request;
+  }
+  
+  if (state.custom_data) {
+    insertData.custom_data = state.custom_data;
+  }
+  
+  // Handle JSON fields properly
+  if (state.findings) {
+    insertData.findings = JSON.stringify(state.findings);
+  }
+  
+  if (state.human_interactions) {
+    insertData.human_interactions = JSON.stringify(state.human_interactions);
+  }
   
   try {
     console.log(`[${new Date().toISOString()}] 🔄 Attempting to insert research state with user_id:`, user.user.id, "and client_id:", clientId);
     
-    // Always include the client_id in every operation
+    // Determine if we need to include active_tab
+    let dataToInsert = insertData;
+    if (state.active_tab) {
+      // We need to store active_tab but it's not part of the standard schema,
+      // so we need to try with and without it
+      const extendedData = { ...insertData, active_tab: state.active_tab };
+      
+      try {
+        const { data, error } = await supabase
+          .from('research_states')
+          .insert(extendedData)
+          .select();
+        
+        if (!error) {
+          console.log(`[${new Date().toISOString()}] ✅ Successfully saved research state with active_tab`);
+          
+          if (data && data.length > 0) {
+            const result = convertToResearchState(data[0] as RawResearchStateData);
+            // Save to localStorage for persistence
+            saveStateToLocalStorage(result);
+            return result;
+          }
+          return null;
+        }
+        
+        console.error(`[${new Date().toISOString()}] ❌ Error saving with active_tab:`, error);
+        console.log(`[${new Date().toISOString()}] 🔄 Will try without active_tab`);
+      } catch (e) {
+        console.error(`[${new Date().toISOString()}] ❌ Exception saving with active_tab:`, e);
+      }
+    }
+    
+    // Try without active_tab if needed
     const { data, error } = await supabase
       .from('research_states')
-      .insert(insertData)
+      .insert(dataToInsert)
       .select();
       
     if (error) {
       console.error(`[${new Date().toISOString()}] ❌ Error saving research state:`, error);
-      
-      // Try with active_tab if it exists in state
-      if (state.active_tab && error.message.includes("violates not-null constraint")) {
-        console.log(`[${new Date().toISOString()}] 🔄 Trying with active_tab included`);
-        
-        // Create a properly typed object for insertion with active_tab
-        const insertDataWithTab = {
-          ...insertData,
-          active_tab: state.active_tab
-        };
-        
-        const { data: dataWithTab, error: errorWithTab } = await supabase
-          .from('research_states')
-          .insert(insertDataWithTab)
-          .select();
-          
-        if (errorWithTab) {
-          console.error(`[${new Date().toISOString()}] ❌ Error saving research state with active_tab:`, errorWithTab);
-          throw errorWithTab;
-        }
-        
-        console.log(`[${new Date().toISOString()}] ✅ Successfully saved research state with active_tab`);
-        
-        if (dataWithTab && dataWithTab.length > 0) {
-          const result = convertToResearchState(dataWithTab[0] as RawResearchStateData);
-          // Save to localStorage for persistence
-          saveStateToLocalStorage(result);
-          return result;
-        }
-      } else {
-        throw error;
-      }
+      throw error;
     }
     
     console.log(`[${new Date().toISOString()}] ✅ Successfully saved research state`);
@@ -370,7 +396,7 @@ export async function updateResearchState(
     console.error("Error getting current state for human interaction updates", error);
   }
   
-  // Filter out active_tab if it exists in updates
+  // Extract active_tab from updates to handle it separately
   const { active_tab, ...otherUpdates } = updates;
   
   // Prepare the update data with the right types for Supabase
@@ -392,59 +418,114 @@ export async function updateResearchState(
     try {
       console.log(`[${new Date().toISOString()}] 🔄 Updating with active_tab and client_id:`, clientId);
       
-      // Create a properly typed object that includes all required fields
-      const completeUpdateData = {
-        ...updateData,
-        active_tab
-      };
-      
-      const { data, error } = await supabase
-        .from('research_states')
-        .update(completeUpdateData)
-        .match({ 
-          research_id: researchId, 
-          session_id: sessionId, 
-          user_id: user.user.id,
-          client_id: clientId
-        })
-        .select();
+      // First try updating with both updateData and active_tab
+      try {
+        // Create a complete update object including active_tab
+        const completeData = { ...updateData };
         
-      if (error) {
-        if (error.message.includes("active_tab")) {
-          console.log(`[${new Date().toISOString()}] ℹ️ active_tab column doesn't exist, trying without it`);
-          // Fall through to try without active_tab
+        // Only add this if updateData is not empty, to avoid empty updates
+        if (Object.keys(updateData).length > 0) {
+          const { data, error } = await supabase
+            .from('research_states')
+            .update(completeData)
+            .eq('research_id', researchId)
+            .eq('session_id', sessionId)
+            .eq('user_id', user.user.id)
+            .eq('client_id', clientId)
+            .select();
+            
+          if (!error) {
+            // Now try to update just the active_tab in a separate call
+            try {
+              await supabase
+                .from('research_states')
+                .update({ active_tab })
+                .eq('research_id', researchId)
+                .eq('session_id', sessionId)
+                .eq('user_id', user.user.id)
+                .eq('client_id', clientId);
+              
+              console.log(`[${new Date().toISOString()}] ✅ Successfully updated active_tab separately`);
+            } catch (e) {
+              console.error(`[${new Date().toISOString()}] ❌ Error updating active_tab separately:`, e);
+            }
+            
+            if (data && data.length > 0) {
+              const result = convertToResearchState(data[0] as RawResearchStateData);
+              result.active_tab = active_tab; // Make sure active_tab is in the result
+              saveStateToLocalStorage(result);
+              return result;
+            }
+            
+            // If no data returned but no error, get the state
+            const currentState = await getResearchState(researchId, sessionId);
+            if (currentState) {
+              currentState.active_tab = active_tab;
+              saveStateToLocalStorage(currentState);
+              return currentState;
+            }
+            
+            return null;
+          }
         } else {
-          console.error(`[${new Date().toISOString()}] ❌ Error updating research state:`, error);
-          throw error;
+          // If updateData is empty, just try to update active_tab
+          try {
+            const { data, error } = await supabase
+              .from('research_states')
+              .update({ active_tab })
+              .eq('research_id', researchId)
+              .eq('session_id', sessionId)
+              .eq('user_id', user.user.id)
+              .eq('client_id', clientId)
+              .select();
+              
+            if (!error) {
+              console.log(`[${new Date().toISOString()}] ✅ Successfully updated just active_tab`);
+              
+              if (data && data.length > 0) {
+                const result = convertToResearchState(data[0] as RawResearchStateData);
+                saveStateToLocalStorage(result);
+                return result;
+              }
+              
+              // If no data returned but no error, get the state
+              const currentState = await getResearchState(researchId, sessionId);
+              if (currentState) {
+                currentState.active_tab = active_tab;
+                saveStateToLocalStorage(currentState);
+                return currentState;
+              }
+              
+              return null;
+            }
+          } catch (e) {
+            console.error(`[${new Date().toISOString()}] ❌ Error updating just active_tab:`, e);
+          }
         }
-      } else {
-        // If no error, return the result
-        if (data && data.length > 0) {
-          const result = convertToResearchState(data[0] as RawResearchStateData);
-          // Update localStorage
-          saveStateToLocalStorage(result);
-          return result;
-        }
-        return null;
+      } catch (e) {
+        console.error(`[${new Date().toISOString()}] ❌ Error in combined update:`, e);
       }
     } catch (error) {
       console.error(`[${new Date().toISOString()}] ❌ Error in update attempt with active_tab:`, error);
-      // Fall through to try without active_tab
     }
   }
   
-  // Try without active_tab if we got here
+  // If we're here and updateData is empty, just return the current state
+  if (Object.keys(updateData).length === 0) {
+    console.log(`[${new Date().toISOString()}] ℹ️ No updates to apply, retrieving current state`);
+    return getResearchState(researchId, sessionId);
+  }
+  
+  // Try without active_tab
   console.log(`[${new Date().toISOString()}] 🔄 Updating without active_tab but with client_id:`, clientId);
   
   const { data, error } = await supabase
     .from('research_states')
     .update(updateData)
-    .match({ 
-      research_id: researchId, 
-      session_id: sessionId, 
-      user_id: user.user.id,
-      client_id: clientId  // Always use client_id to ensure isolation
-    })
+    .eq('research_id', researchId)
+    .eq('session_id', sessionId)
+    .eq('user_id', user.user.id)
+    .eq('client_id', clientId)
     .select();
     
   if (error) {
@@ -470,6 +551,12 @@ export async function updateResearchState(
   
   if (data && data.length > 0) {
     const result = convertToResearchState(data[0] as RawResearchStateData);
+    
+    // If active_tab was provided, make sure it's in the result
+    if (active_tab !== undefined) {
+      result.active_tab = active_tab;
+    }
+    
     // Update localStorage
     saveStateToLocalStorage(result);
     return result;
