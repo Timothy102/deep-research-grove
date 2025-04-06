@@ -34,6 +34,11 @@ export interface ResearchState {
       timestamp: string;
     };
   }>;
+  // New fields
+  active_nodes?: number;
+  completed_nodes?: number;
+  findings_count?: number;
+  last_update?: string;
 }
 
 // Save initial research state
@@ -65,6 +70,10 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     state.human_interactions = [];
   }
   
+  // Add metrics for new fields
+  const findingsCount = state.findings ? state.findings.length : 0;
+  const completedNodes = state.reasoning_path ? state.reasoning_path.length : 0;
+  
   // Filter out properties that might not exist in the table schema
   const validState = {
     research_id: state.research_id,
@@ -81,7 +90,11 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     client_id: clientId,
     human_interaction_request: state.human_interaction_request,
     custom_data: state.custom_data,
-    human_interactions: JSON.stringify(state.human_interactions)
+    human_interactions: JSON.stringify(state.human_interactions),
+    // Include new metrics fields
+    findings_count: findingsCount,
+    completed_nodes: completedNodes,
+    active_nodes: state.active_nodes || 1
   };
   
   try {
@@ -193,6 +206,18 @@ export async function updateResearchState(
     updates.custom_data = humanInteractionResult;
     delete (updates as any).human_interaction_result;
   }
+  
+  // Update metrics for the new fields
+  if (updates.findings) {
+    updates.findings_count = updates.findings.length;
+  }
+  
+  if (updates.reasoning_path) {
+    updates.completed_nodes = updates.reasoning_path.length;
+  }
+  
+  // Set last_update to current time
+  updates.last_update = new Date().toISOString();
   
   // Get current state to access human_interactions array
   try {
@@ -399,7 +424,11 @@ function saveStateToLocalStorage(state: ResearchState) {
       reasoning_path: state.reasoning_path,
       active_tab: state.active_tab,
       client_id: state.client_id,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      // Include the new metrics
+      active_nodes: state.active_nodes || 1,
+      completed_nodes: state.completed_nodes || (state.reasoning_path?.length || 0),
+      findings_count: state.findings_count || (state.findings?.length || 0)
     }));
     
     // Also save session-specific state
