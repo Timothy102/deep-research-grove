@@ -105,8 +105,8 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         
         // Make sure status is one of the allowed values
         const status = baseState?.status || 'in_progress';
-        const validStatus = ['in_progress', 'completed', 'error', 'awaiting_human_input'].includes(status) 
-          ? status as 'in_progress' | 'completed' | 'error' | 'awaiting_human_input'
+        const validStatus = ['in_progress', 'completed', 'error'].includes(status) 
+          ? status as 'in_progress' | 'completed' | 'error'
           : 'in_progress';
         
         // Merge the data, prioritizing remote data but ensuring arrays are properly merged
@@ -126,11 +126,6 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
             findings: Array.isArray(remoteFindings) && remoteFindings.length > 0
               ? remoteFindings
               : (cachedSessionData?.findingsKey || latestState?.findings || []),
-            
-            // Ensure human_interactions is an array
-            human_interactions: Array.isArray(baseState.human_interactions) 
-              ? baseState.human_interactions 
-              : [],
           } as ResearchState;
         }
         
