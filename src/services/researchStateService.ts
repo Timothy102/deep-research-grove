@@ -384,7 +384,7 @@ export async function updateResearchState(
         // Merge the updates with the cached state
         const updatedCachedState = { ...parsedCachedState, ...updates };
         // Save back to localStorage
-        saveStateToLocalStorage(updatedCachedState);
+        saveStateToLocalStorage(updatedCachedState);\
       }
     } catch (e) {
       console.error("Failed to update localStorage after Supabase error:", e);
@@ -435,7 +435,7 @@ function saveStateToLocalStorage(state: ResearchState) {
     
     // Also save session-specific state
     const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, state.session_id);
-    localStorage.setItem(sessionStateKey, localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_STATE)!);
+    localStorage.setItem(sessionStateKey, localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_STATE)!);\
     
     // Ensure all components are cached separately for resilience
     if (state.sources) {
