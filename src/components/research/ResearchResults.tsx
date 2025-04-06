@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ExternalLink, Copy, CheckCircle2, MessageSquare, Lightbulb, Download, FileText, FileCode } from "lucide-react";
+import { ExternalLink, Copy, CheckCircle2, MessageSquare, Lightbulb } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData } from "@/lib/constants";
@@ -10,8 +10,6 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import SourcesList from "./SourcesList";
 
 export type Finding = {
   content: string;
@@ -36,10 +34,10 @@ export type ResearchResult = {
   syntheses?: Record<string, any>;
 };
 
-// Renamed to SourcesListLocal to avoid conflict with imported component
-const SourcesListLocal = ({ sources, findings }: { sources: string[]; findings?: Finding[] }) => {
+const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Finding[] }) => {
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
   
+  // Group findings by source
   const findingsBySource = (findings || []).reduce((acc: Record<string, Finding[]>, finding) => {
     if (!finding.source) return acc;
     
@@ -47,6 +45,7 @@ const SourcesListLocal = ({ sources, findings }: { sources: string[]; findings?:
       acc[finding.source] = [];
     }
     
+    // Only add if not already present
     if (!acc[finding.source].some(f => 
       f.finding?.title === finding.finding?.title && 
       f.finding?.summary === finding.finding?.summary
@@ -73,7 +72,7 @@ const SourcesListLocal = ({ sources, findings }: { sources: string[]; findings?:
         ) : (
           sources.map((source, index) => {
             const sourceFindings = findingsBySource[source] || [];
-            const isExpanded = expandedSources[source] !== false;
+            const isExpanded = expandedSources[source] !== false; // Default to true
             
             return (
               <Collapsible 
@@ -157,6 +156,7 @@ const SourcesListLocal = ({ sources, findings }: { sources: string[]; findings?:
 const ReasoningPath = ({ path, syntheses }: { path: string[]; syntheses?: Record<string, any> }) => {
   const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
   
+  // Pre-defined colors for reasoning path steps to ensure persistence
   const stepTypes = [
     { pattern: "search", color: "bg-violet-100 dark:bg-violet-900/80 border-violet-300 dark:border-violet-700 text-violet-800 dark:text-violet-300" },
     { pattern: "reason", color: "bg-amber-100 dark:bg-amber-900/80 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300" },
@@ -189,6 +189,7 @@ const ReasoningPath = ({ path, syntheses }: { path: string[]; syntheses?: Record
           <p className="text-sm text-muted-foreground">No reasoning path available</p>
         ) : (
           path.map((step, index) => {
+            // Extract node ID using various patterns
             const nodeId = step.match(/node(?:_id|[\s_]id)?:?\s*['"]?([a-zA-Z0-9_-]+)['"]?/i)?.[1] || 
                         step.match(/node\s+(\d+)|#(\d+)/i)?.[1] || 
                         step.match(/step-(\d+)/i)?.[1] ||
@@ -285,26 +286,8 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const resultRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [currentResult, setCurrentResult] = useState<ResearchResult | null>(result);
-  const [isCopied, setIsCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>(() => {
-    try {
-      if (result?.session_id) {
-        const sessionActiveTabKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.CURRENT_STATE, result.session_id);
-        const storedState = localStorage.getItem(sessionActiveTabKey);
-        if (storedState) {
-          const parsedState = JSON.parse(storedState);
-          if (parsedState.active_tab) {
-            return parsedState.active_tab;
-          }
-        }
-      }
-      return "answer";
-    } catch (e) {
-      console.error("Error restoring active tab:", e);
-      return "answer";
-    }
-  });
   
+  // Handle real-time updates
   const handleRealtimeUpdate = useCallback((event: CustomEvent) => {
     if (!currentResult?.session_id) return;
     
@@ -314,6 +297,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
     if (payload.new && payload.new.session_id === currentResult.session_id) {
       console.log(`[${new Date().toISOString()}] 🔄 Processing result update for session ${currentResult.session_id}`);
       
+      // Check if there are meaningful updates to apply
       let shouldUpdate = false;
       const updates: Partial<ResearchResult> = {};
       
@@ -348,6 +332,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       if (shouldUpdate) {
         console.log(`[${new Date().toISOString()}] ✏️ Updating result with real-time data:`, updates);
         
+        // Create a new result with the updates
         const updatedResult: ResearchResult = {
           ...currentResult,
           ...updates,
@@ -355,6 +340,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         
         setCurrentResult(updatedResult);
         
+        // Store updates in cache
         try {
           localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(updatedResult));
           if (currentResult.session_id) {
@@ -366,14 +352,14 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
               sources: updatedResult.sources,
               reasoningPath: updatedResult.reasoning_path,
               findings: updatedResult.findings,
-              syntheses: updatedResult.syntheses,
-              active_tab: activeTab
+              syntheses: updatedResult.syntheses
             });
           }
         } catch (e) {
           console.error("Error caching updated research result:", e);
         }
         
+        // Show a toast notification for the update
         if (updates.answer) {
           toast.info("Research answer has been updated", {
             className: "realtime-update-toast"
@@ -389,8 +375,9 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         }
       }
     }
-  }, [currentResult, activeTab]);
+  }, [currentResult]);
   
+  // Register and unregister the realtime update listener
   useEffect(() => {
     window.addEventListener('research_state_update', handleRealtimeUpdate as EventListener);
     
@@ -399,18 +386,22 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
     };
   }, [handleRealtimeUpdate]);
   
+  // Initialize with the provided result
   useEffect(() => {
     if (result) {
       setCurrentResult(result);
     }
   }, [result]);
   
+  // Cache result in localStorage when it changes
   useEffect(() => {
     if (currentResult) {
       try {
+        // Store in both session-specific and general caches
         localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(currentResult));
         
         if (currentResult.session_id) {
+          // Use comprehensive session data storage
           saveSessionData(currentResult.session_id, {
             answer: currentResult,
             sources: currentResult.sources,
@@ -418,16 +409,15 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
             researchId: currentResult.research_id,
             findings: currentResult.findings,
             syntheses: currentResult.syntheses,
-            active_tab: activeTab,
             state: {
               query: currentResult.query,
               session_id: currentResult.session_id,
               research_id: currentResult.research_id,
-              active_tab: activeTab,
               created_at: new Date().toISOString()
             }
           });
           
+          // Also save individual cache components for backward compatibility
           const sessionCacheKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, currentResult.session_id);
           localStorage.setItem(sessionCacheKey, JSON.stringify(currentResult));
           
@@ -436,113 +426,18 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
           
           const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, currentResult.session_id);
           localStorage.setItem(sessionPathKey, JSON.stringify(currentResult.reasoning_path));
-          
-          if (currentResult.findings && currentResult.findings.length > 0) {
-            const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, currentResult.session_id);
-            localStorage.setItem(sessionFindingsKey, JSON.stringify(currentResult.findings));
-          }
         }
       } catch (e) {
         console.error("Error caching research result:", e);
       }
     }
-  }, [currentResult, activeTab]);
+  }, [currentResult]);
 
   useEffect(() => {
     if (currentResult && resultRef.current) {
       resultRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [currentResult]);
-  
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-    
-    if (currentResult?.session_id) {
-      try {
-        saveSessionData(currentResult.session_id, { 
-          active_tab: value,
-          state: {
-            active_tab: value
-          }
-        });
-      } catch (e) {
-        console.error("Error saving active tab:", e);
-      }
-    }
-  };
-
-  const copyFullResearchToClipboard = async () => {
-    if (!currentResult) return;
-    
-    try {
-      const fullResearch = `
-Research Query: ${currentResult.query}
-
-${currentResult.answer}
-
-Sources:
-${currentResult.sources.map(source => `- ${source}`).join('\n')}
-
-Research Process:
-${currentResult.reasoning_path.map((step, index) => `${index + 1}. ${step}`).join('\n')}
-      `.trim();
-      
-      await navigator.clipboard.writeText(fullResearch);
-      setIsCopied(true);
-      toast.success("Full research copied to clipboard");
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy research: ", err);
-      toast.error("Failed to copy research");
-    }
-  };
-
-  const downloadResearch = (format: 'docx' | 'pdf' | 'txt') => {
-    if (!currentResult) return;
-    
-    try {
-      const fullResearch = `
-Research Query: ${currentResult.query}
-
-${currentResult.answer}
-
-Sources:
-${currentResult.sources.map(source => `- ${source}`).join('\n')}
-
-Research Process:
-${currentResult.reasoning_path.map((step, index) => `${index + 1}. ${step}`).join('\n')}
-      `.trim();
-      
-      let mimeType = 'text/plain';
-      let extension = 'txt';
-      
-      if (format === 'docx') {
-        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        extension = 'docx';
-      } else if (format === 'pdf') {
-        mimeType = 'application/pdf';
-        extension = 'pdf';
-      }
-      
-      const blob = new Blob([fullResearch], { type: mimeType });
-      
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `research-${currentResult.query.slice(0, 30).replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.${extension}`;
-      
-      document.body.appendChild(a);
-      a.click();
-      
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      toast.success(`Downloaded research as ${format.toUpperCase()}`);
-    } catch (err) {
-      console.error(`Failed to download as ${format}: `, err);
-      toast.error(`Failed to download as ${format}`);
-    }
-  };
 
   if (!currentResult) {
     return (
@@ -554,14 +449,15 @@ ${currentResult.reasoning_path.map((step, index) => `${index + 1}. ${step}`).joi
 
   const handleSessionClick = () => {
     if (currentResult.session_id) {
+      // Save current session ID for proper restoration
       localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, currentResult.session_id);
       
+      // Trigger session-selected event for better coordination
       window.dispatchEvent(new CustomEvent('session-selected', { 
         detail: { 
           sessionId: currentResult.session_id,
           query: currentResult.query,
-          isNew: false,
-          activeTab: activeTab
+          isNew: false
         }
       }));
       
@@ -574,65 +470,22 @@ ${currentResult.reasoning_path.map((step, index) => `${index + 1}. ${step}`).joi
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold mb-1">Research Results</h2>
-          <div className="flex items-center space-x-2">
+          {currentResult.session_id && (
             <Button 
               variant="ghost" 
               size="sm" 
               className="flex items-center gap-1 text-primary"
-              onClick={copyFullResearchToClipboard}
+              onClick={handleSessionClick}
             >
-              {isCopied ? (
-                <CheckCircle2 className="h-4 w-4" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-              <span>Copy All</span>
+              <MessageSquare className="h-4 w-4" />
+              <span>View Session</span>
             </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="flex items-center gap-1 text-primary"
-                >
-                  <Download className="h-4 w-4" />
-                  <span>Download</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => downloadResearch('docx')}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  <span>Download as DOCX</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => downloadResearch('pdf')}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  <span>Download as PDF</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => downloadResearch('txt')}>
-                  <FileCode className="mr-2 h-4 w-4" />
-                  <span>Download as TXT</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            {currentResult.session_id && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="flex items-center gap-1 text-primary"
-                onClick={handleSessionClick}
-              >
-                <MessageSquare className="h-4 w-4" />
-                <span>View Session</span>
-              </Button>
-            )}
-          </div>
+          )}
         </div>
         <p className="text-sm text-muted-foreground">Query: {currentResult.query}</p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={handleTabChange}>
+      <Tabs defaultValue="answer">
         <TabsList className="mb-4">
           <TabsTrigger value="answer">Answer</TabsTrigger>
           <TabsTrigger value="sources">
@@ -651,10 +504,9 @@ ${currentResult.reasoning_path.map((step, index) => `${index + 1}. ${step}`).joi
         </TabsContent>
         
         <TabsContent value="sources">
-          {/* Use the imported SourcesList component and pass only the props it expects */}
           <SourcesList 
             sources={currentResult.sources} 
-            findings={currentResult.findings}
+            findings={currentResult.findings} 
           />
         </TabsContent>
         

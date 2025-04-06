@@ -1,4 +1,3 @@
-
 // Local storage keys for better state persistence
 export const LOCAL_STORAGE_KEYS = {
   CURRENT_RESEARCH_ID: "deepresearch.current_research_id",
@@ -61,56 +60,10 @@ export const getSessionData = (sessionId: string) => {
       }
     });
     
-    // If we don't have reasoning path from session-specific storage, try global
-    if (!data.reasoningPathKey) {
-      const globalPath = localStorage.getItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE);
-      if (globalPath) {
-        try {
-          data.reasoningPathKey = JSON.parse(globalPath);
-        } catch (e) {
-          console.error("Error parsing global reasoning path:", e);
-        }
-      }
-    }
-    
-    // Same for sources
-    if (!data.sourcesKey) {
-      const globalSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
-      if (globalSources) {
-        try {
-          data.sourcesKey = JSON.parse(globalSources);
-        } catch (e) {
-          console.error("Error parsing global sources:", e);
-        }
-      }
-    }
-    
-    // Same for findings
-    if (!data.findingsKey) {
-      const globalFindings = localStorage.getItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
-      if (globalFindings) {
-        try {
-          data.findingsKey = JSON.parse(globalFindings);
-        } catch (e) {
-          console.error("Error parsing global findings:", e);
-        }
-      }
-    }
-    
     // Also try to get general objective if exists
     const objective = localStorage.getItem(LOCAL_STORAGE_KEYS.RESEARCH_OBJECTIVE);
     if (objective && !data.objectiveKey) {
       data.objective = objective;
-    }
-    
-    // In case we find answer cache, include that too
-    const answerCache = localStorage.getItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE);
-    if (answerCache && !data.answerKey) {
-      try {
-        data.answerKey = JSON.parse(answerCache);
-      } catch (e) {
-        console.error("Error parsing global answer cache:", e);
-      }
     }
     
     return Object.keys(data).length > 0 ? data : null;

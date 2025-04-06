@@ -1,29 +1,18 @@
+
 import { supabase, getClientId } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
-import { toast } from "@/components/ui/use-toast";
-
-export interface Finding {
-  source: string;
-  content?: string;
-  finding?: {
-    title?: string;
-    summary?: string;
-    confidence_score?: number;
-  };
-  node_id?: string;
-}
 
 export interface ResearchState {
   id?: string;
   research_id: string;
   session_id: string;
   user_id: string;
-  status: 'in_progress' | 'completed' | 'error';
+  status: 'in_progress' | 'completed' | 'error' | 'awaiting_human_input';
   query: string;
   answer?: string;
   sources?: string[];
-  findings?: Finding[];
+  findings?: Array<{ source: string; content?: string }>;
   reasoning_path?: string[];
   created_at?: string;
   updated_at?: string;
@@ -31,104 +20,23 @@ export interface ResearchState {
   active_tab?: string;
   error?: string;
   client_id?: string;
+  human_interaction_request?: string;
   custom_data?: string;
-  active_nodes?: number | null;
-  completed_nodes?: number | null;
-  findings_count?: number | null;
-  last_update?: string | null;
+  human_interactions?: Array<{
+    call_id: string;
+    node_id: string;
+    interaction_type: string;
+    content: string;
+    status: 'pending' | 'completed';
+    response?: {
+      approved: boolean;
+      comment?: string;
+      timestamp: string;
+    };
+  }>;
 }
 
-interface RawResearchStateData {
-  id: string;
-  research_id: string;
-  session_id: string;
-  user_id: string;
-  status: string;
-  query: string;
-  answer?: string;
-  sources?: string[];
-  findings?: Json;
-  reasoning_path?: string[];
-  created_at?: string;
-  updated_at?: string;
-  user_model?: Json;
-  active_tab?: string;
-  error?: string;
-  client_id?: string;
-  custom_data?: string;
-  active_nodes?: number;
-  completed_nodes?: number;
-  findings_count?: number;
-  last_update?: string;
-}
-
-interface ResearchStateInsert {
-  research_id: string;
-  session_id: string;
-  user_id: string;
-  status: string;
-  query: string;
-  answer?: string;
-  sources?: string[];
-  reasoning_path?: string[];
-  client_id?: string;
-  findings?: Json;
-  findings_count?: number;
-  active_nodes?: number;
-  completed_nodes?: number;
-  custom_data?: string;
-  user_model?: Json;
-  error?: string;
-  last_update?: string;
-}
-
-function convertToResearchState(raw: RawResearchStateData): ResearchState {
-  let findings: Finding[] | undefined;
-  if (raw.findings) {
-    try {
-      if (typeof raw.findings === 'string') {
-        findings = JSON.parse(raw.findings) as Finding[];
-      } else if (Array.isArray(raw.findings)) {
-        findings = raw.findings as unknown as Finding[];
-      } else {
-        console.warn('Unexpected findings format:', raw.findings);
-      }
-    } catch (e) {
-      console.error('Error parsing findings:', e);
-    }
-  }
-
-  // Ensure status is a valid value
-  let status = raw.status as 'in_progress' | 'completed' | 'error';
-  if (!['in_progress', 'completed', 'error'].includes(status)) {
-    status = 'in_progress';
-  }
-
-  return {
-    id: raw.id,
-    research_id: raw.research_id,
-    session_id: raw.session_id,
-    user_id: raw.user_id,
-    status: status,
-    query: raw.query,
-    answer: raw.answer,
-    sources: raw.sources,
-    findings: findings,
-    reasoning_path: raw.reasoning_path,
-    created_at: raw.created_at,
-    updated_at: raw.updated_at,
-    user_model: raw.user_model,
-    active_tab: raw.active_tab,
-    error: raw.error,
-    client_id: raw.client_id,
-    custom_data: raw.custom_data,
-    active_nodes: raw.active_nodes,
-    completed_nodes: raw.completed_nodes,
-    findings_count: raw.findings_count,
-    last_update: raw.last_update
-  };
-}
-
+// Save initial research state
 export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): Promise<ResearchState | null> {
   console.log(`[${new Date().toISOString()}] 📝 Saving research state:`, { 
     research_id: state.research_id,
@@ -140,83 +48,89 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
   
   if (!user.user) {
     console.error(`[${new Date().toISOString()}] 🚫 User not authenticated`);
-    toast({
-      title: "Authentication Error",
-      description: "User not authenticated. Please sign in again.",
-      variant: "destructive"
-    });
     throw new Error("User not authenticated");
   }
   
+  // If there's no reasoning_path, initialize with first step
   if (!state.reasoning_path || state.reasoning_path.length === 0) {
     state.reasoning_path = ["Analyzing research objective..."];
   }
   
+  // Create a guaranteed unique client ID for this browser session/tab
   const clientId = getClientId();
   console.log(`[${new Date().toISOString()}] 🔑 Using client ID for research state:`, clientId);
   
-  const activeTab = state.active_tab;
+  // Initialize human_interactions if not present
+  if (!state.human_interactions) {
+    state.human_interactions = [];
+  }
   
-  const insertData: ResearchStateInsert = {
+  // Filter out properties that might not exist in the table schema
+  const validState = {
     research_id: state.research_id,
     session_id: state.session_id,
     status: state.status,
     query: state.query,
+    answer: state.answer,
+    sources: state.sources,
+    findings: state.findings,
+    reasoning_path: state.reasoning_path,
+    user_model: state.user_model,
+    error: state.error,
     user_id: user.user.id,
     client_id: clientId,
-    reasoning_path: state.reasoning_path
+    human_interaction_request: state.human_interaction_request,
+    custom_data: state.custom_data,
+    human_interactions: JSON.stringify(state.human_interactions)
   };
-  
-  if (state.answer) insertData.answer = state.answer;
-  if (state.sources) insertData.sources = state.sources;
-  
-  if (state.user_model) {
-    if (typeof state.user_model === 'object') {
-      insertData.user_model = state.user_model as Json;
-    } else {
-      insertData.user_model = state.user_model as unknown as Json;
-    }
-  }
-  
-  if (state.error) {
-    insertData.error = state.error;
-  }
-  
-  if (state.custom_data) {
-    insertData.custom_data = state.custom_data;
-  }
-  
-  if (state.findings) {
-    insertData.findings = JSON.stringify(state.findings) as unknown as Json;
-  }
   
   try {
     console.log(`[${new Date().toISOString()}] 🔄 Attempting to insert research state with user_id:`, user.user.id, "and client_id:", clientId);
     
+    // Always include the client_id in every operation
     const { data, error } = await supabase
       .from('research_states')
-      .insert(insertData)
+      .insert({...validState, client_id: clientId})
       .select();
       
     if (error) {
       console.error(`[${new Date().toISOString()}] ❌ Error saving research state:`, error);
-      toast({
-        title: "Error Saving Research",
-        description: error.message,
-        variant: "destructive"
-      });
-      throw error;
+      
+      // Try with active_tab if it exists in state
+      if (state.active_tab && error.message.includes("violates not-null constraint")) {
+        console.log(`[${new Date().toISOString()}] 🔄 Trying with active_tab included`);
+        const { data: dataWithTab, error: errorWithTab } = await supabase
+          .from('research_states')
+          .insert({
+            ...validState,
+            active_tab: state.active_tab,
+            client_id: clientId
+          })
+          .select();
+          
+        if (errorWithTab) {
+          console.error(`[${new Date().toISOString()}] ❌ Error saving research state with active_tab:`, errorWithTab);
+          throw errorWithTab;
+        }
+        
+        console.log(`[${new Date().toISOString()}] ✅ Successfully saved research state with active_tab`);
+        
+        if (dataWithTab && dataWithTab.length > 0) {
+          const result = dataWithTab[0] as ResearchState;
+          // Save to localStorage for persistence
+          saveStateToLocalStorage(result);
+          return result;
+        }
+      } else {
+        throw error;
+      }
     }
     
     console.log(`[${new Date().toISOString()}] ✅ Successfully saved research state`);
     
     if (data && data.length > 0) {
-      const result = convertToResearchState(data[0] as RawResearchStateData);
-      
-      if (activeTab) {
-        result.active_tab = activeTab;
-      }
-      
+      const result = data[0] as ResearchState;
+      // Save to localStorage for persistence
       saveStateToLocalStorage(result);
       return result;
     }
@@ -224,6 +138,7 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     console.error(`[${new Date().toISOString()}] 🔥 Critical error saving research state:`, error);
     
     try {
+      // Save to localStorage anyway as fallback
       const fallbackState = {
         ...state,
         user_id: user.user.id,
@@ -236,6 +151,7 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
       console.error("Failed to save fallback state to localStorage:", e);
     }
     
+    // Return a minimal valid research state so the UI doesn't break
     return {
       research_id: state.research_id,
       session_id: state.session_id,
@@ -249,6 +165,7 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
   return null;
 }
 
+// Update existing research state
 export async function updateResearchState(
   researchId: string, 
   sessionId: string, 
@@ -260,6 +177,7 @@ export async function updateResearchState(
     throw new Error("User not authenticated");
   }
   
+  // Client ID is crucial for isolating sessions
   const clientId = getClientId();
   
   console.log(`[${new Date().toISOString()}] 🔄 Updating research state:`, { 
@@ -269,21 +187,23 @@ export async function updateResearchState(
     updates: JSON.stringify(updates).substring(0, 100) + "..." 
   });
   
+  // Handle human_interaction_result by using custom_data instead
   if ('human_interaction_result' in updates) {
     const humanInteractionResult = (updates as any).human_interaction_result;
     updates.custom_data = humanInteractionResult;
     delete (updates as any).human_interaction_result;
   }
   
-  const { active_tab, ...otherUpdates } = updates;
-  
+  // Get current state to access human_interactions array
   try {
     const currentState = await getResearchState(researchId, sessionId);
     
+    // Update local storage with merged state for persistence
     if (currentState) {
       const updatedState = {...currentState, ...updates};
       saveStateToLocalStorage(updatedState);
       
+      // Also make individual caches for specific state components to improve resilience
       if (updates.reasoning_path) {
         try {
           const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
@@ -304,57 +224,143 @@ export async function updateResearchState(
         }
       }
     }
+    
+    // Handle human interaction updates
+    if (updates.human_interaction_request && currentState) {
+      try {
+        const requestData = JSON.parse(updates.human_interaction_request);
+        let interactions = currentState.human_interactions || [];
+        
+        // Add the new interaction request
+        interactions.push({
+          call_id: requestData.call_id,
+          node_id: requestData.node_id,
+          interaction_type: requestData.interaction_type,
+          content: requestData.content,
+          status: 'pending'
+        });
+        
+        updates.human_interactions = interactions;
+      } catch (e) {
+        console.error("Error parsing human_interaction_request", e);
+      }
+    }
+    
+    // Update an existing human interaction with response data
+    if (updates.custom_data && currentState) {
+      try {
+        const responseData = JSON.parse(updates.custom_data);
+        
+        if (responseData.call_id) {
+          let interactions = currentState.human_interactions || [];
+          const interactionIndex = interactions.findIndex(i => i.call_id === responseData.call_id);
+          
+          if (interactionIndex >= 0) {
+            interactions[interactionIndex].status = 'completed';
+            interactions[interactionIndex].response = {
+              approved: responseData.approved,
+              comment: responseData.comment,
+              timestamp: new Date().toISOString()
+            };
+            
+            updates.human_interactions = interactions;
+          }
+        }
+      } catch (e) {
+        console.error("Error processing custom_data for human interaction", e);
+      }
+    }
+    
+    // Convert human_interactions array to JSON string for storage
+    if (updates.human_interactions) {
+      (updates as any).human_interactions = JSON.stringify(updates.human_interactions);
+    }
+    
+    // Special handling for sources to address the incorrect source count issue
+    if (updates.sources) {
+      // Store actual sources in local storage for better persistence
+      localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(updates.sources));
+      
+      // Also store in session-specific cache
+      const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
+      localStorage.setItem(sessionSourcesKey, JSON.stringify(updates.sources));
+    }
   } catch (error) {
     console.error("Error getting current state for human interaction updates", error);
   }
   
-  const updateData: Record<string, any> = {};
+  // Filter out active_tab if it exists in updates
+  const { active_tab, ...otherUpdates } = updates;
   
-  Object.entries(otherUpdates).forEach(([key, value]) => {
-    if (key === 'findings' && value) {
-      updateData[key] = JSON.stringify(value);
-    } else {
-      updateData[key] = value;
-    }
-  });
+  // Base updates without active_tab
+  const validUpdates = { ...otherUpdates };
   
-  if (Object.keys(updateData).length === 0 && active_tab !== undefined) {
+  // Try with active_tab first if it exists
+  if (active_tab !== undefined) {
     try {
-      const currentState = await getResearchState(researchId, sessionId);
-      if (currentState) {
-        currentState.active_tab = active_tab;
-        saveStateToLocalStorage(currentState);
-        return currentState;
+      console.log(`[${new Date().toISOString()}] 🔄 Updating with active_tab and client_id:`, clientId);
+      
+      const { data, error } = await supabase
+        .from('research_states')
+        .update({ ...validUpdates, active_tab })
+        .match({ 
+          research_id: researchId, 
+          session_id: sessionId, 
+          user_id: user.user.id,
+          client_id: clientId
+        })
+        .select();
+        
+      if (error) {
+        if (error.message.includes("active_tab")) {
+          console.log(`[${new Date().toISOString()}] ℹ️ active_tab column doesn't exist, trying without it`);
+          // Fall through to try without active_tab
+        } else {
+          console.error(`[${new Date().toISOString()}] ❌ Error updating research state:`, error);
+          throw error;
+        }
+      } else {
+        // If no error, return the result
+        if (data && data.length > 0) {
+          const result = data[0] as ResearchState;
+          // Update localStorage
+          saveStateToLocalStorage(result);
+          return result;
+        }
+        return null;
       }
     } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error updating active_tab in localStorage:`, error);
+      console.error(`[${new Date().toISOString()}] ❌ Error in update attempt with active_tab:`, error);
+      // Fall through to try without active_tab
     }
   }
   
-  if (Object.keys(updateData).length === 0) {
-    console.log(`[${new Date().toISOString()}] ℹ️ No updates to apply, retrieving current state`);
-    return getResearchState(researchId, sessionId);
-  }
-  
+  // Try without active_tab if we got here
   console.log(`[${new Date().toISOString()}] 🔄 Updating without active_tab but with client_id:`, clientId);
   
   const { data, error } = await supabase
     .from('research_states')
-    .update(updateData)
-    .eq('research_id', researchId)
-    .eq('session_id', sessionId)
-    .eq('user_id', user.user.id)
-    .eq('client_id', clientId)
+    .update(validUpdates)
+    .match({ 
+      research_id: researchId, 
+      session_id: sessionId, 
+      user_id: user.user.id,
+      client_id: clientId  // Always use client_id to ensure isolation
+    })
     .select();
     
   if (error) {
     console.error(`[${new Date().toISOString()}] ❌ Error updating research state:`, error);
     
+    // Despite error, try to update local storage with the changes to maintain some state
     try {
+      // Get the current cached state
       const cachedState = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
       if (cachedState) {
         const parsedCachedState = JSON.parse(cachedState);
+        // Merge the updates with the cached state
         const updatedCachedState = { ...parsedCachedState, ...updates };
+        // Save back to localStorage
         saveStateToLocalStorage(updatedCachedState);
       }
     } catch (e) {
@@ -365,12 +371,8 @@ export async function updateResearchState(
   }
   
   if (data && data.length > 0) {
-    const result = convertToResearchState(data[0] as RawResearchStateData);
-    
-    if (active_tab !== undefined) {
-      result.active_tab = active_tab;
-    }
-    
+    const result = data[0] as ResearchState;
+    // Update localStorage
     saveStateToLocalStorage(result);
     return result;
   }
@@ -378,11 +380,13 @@ export async function updateResearchState(
   return null;
 }
 
+// Helper to save state to localStorage for better persistence
 function saveStateToLocalStorage(state: ResearchState) {
   try {
     localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID, state.research_id);
     localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, state.session_id);
     
+    // Save the current complete state
     localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, JSON.stringify({
       id: state.id,
       research_id: state.research_id,
@@ -398,9 +402,11 @@ function saveStateToLocalStorage(state: ResearchState) {
       updated_at: new Date().toISOString()
     }));
     
+    // Also save session-specific state
     const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, state.session_id);
     localStorage.setItem(sessionStateKey, localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_STATE)!);
     
+    // Ensure all components are cached separately for resilience
     if (state.sources) {
       localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(state.sources));
       const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, state.session_id);
@@ -437,6 +443,7 @@ function saveStateToLocalStorage(state: ResearchState) {
   }
 }
 
+// Get research state by research_id and session_id
 export async function getResearchState(researchId: string, sessionId: string): Promise<ResearchState | null> {
   const { data: user } = await supabase.auth.getUser();
   
@@ -444,6 +451,7 @@ export async function getResearchState(researchId: string, sessionId: string): P
     throw new Error("User not authenticated");
   }
   
+  // Include client_id in the match criteria for strict isolation
   const clientId = getClientId();
   
   console.log(`[${new Date().toISOString()}] 🔍 Fetching research state:`, { 
@@ -467,6 +475,7 @@ export async function getResearchState(researchId: string, sessionId: string): P
     if (error) {
       console.error(`[${new Date().toISOString()}] ❌ Error fetching research state:`, error);
       
+      // Try to get from localStorage as fallback
       const fallbackState = getStateFromLocalStorage(researchId, sessionId, user.user.id);
       if (fallbackState) {
         return fallbackState;
@@ -475,10 +484,25 @@ export async function getResearchState(researchId: string, sessionId: string): P
       throw error;
     }
     
+    // Ensure the returned data has the correct status type
     if (data) {
-      const result = convertToResearchState(data as RawResearchStateData);
+      const result = data as ResearchState;
       
+      // Convert human_interactions back from JSON string
+      if (typeof result.human_interactions === 'string') {
+        try {
+          result.human_interactions = JSON.parse(result.human_interactions);
+        } catch (e) {
+          console.error("Error parsing human_interactions", e);
+          result.human_interactions = [];
+        }
+      } else if (!result.human_interactions) {
+        result.human_interactions = [];
+      }
+      
+      // Fix up sources from local cache if available
       try {
+        // First try session-specific cache
         const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
         const cachedSessionSources = localStorage.getItem(sessionSourcesKey);
         
@@ -488,6 +512,7 @@ export async function getResearchState(researchId: string, sessionId: string): P
             result.sources = parsedSources;
           }
         } else {
+          // Fall back to general cache
           const cachedSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
           if (cachedSources) {
             const parsedSources = JSON.parse(cachedSources);
@@ -500,6 +525,7 @@ export async function getResearchState(researchId: string, sessionId: string): P
         console.error("Error retrieving cached sources:", e);
       }
       
+      // Apply the same logic for findings and reasoning_path
       try {
         const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
         const cachedSessionPath = localStorage.getItem(sessionPathKey);
@@ -524,7 +550,7 @@ export async function getResearchState(researchId: string, sessionId: string): P
           const parsedFindings = JSON.parse(cachedSessionFindings);
           if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
             if (!result.findings || parsedFindings.length > result.findings.length) {
-              result.findings = parsedFindings as Finding[];
+              result.findings = parsedFindings;
             }
           }
         }
@@ -534,10 +560,12 @@ export async function getResearchState(researchId: string, sessionId: string): P
       
       if (result.status !== 'in_progress' && 
           result.status !== 'completed' && 
-          result.status !== 'error') {
-        result.status = 'in_progress';
+          result.status !== 'error' && 
+          result.status !== 'awaiting_human_input') {
+        result.status = 'in_progress'; // Default to 'in_progress' if invalid status
       }
       
+      // Save to localStorage for better persistence
       saveStateToLocalStorage(result);
       
       return result;
@@ -546,14 +574,18 @@ export async function getResearchState(researchId: string, sessionId: string): P
     console.error(`[${new Date().toISOString()}] ❌ Error in getResearchState:`, error);
   }
   
+  // If we got here, try to get from localStorage
   return getStateFromLocalStorage(researchId, sessionId, user.user.id);
 }
 
+// Helper function to get state from localStorage
 function getStateFromLocalStorage(researchId: string, sessionId: string, userId: string): ResearchState | null {
   try {
+    // First try session-specific cache
     const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId);
     let cachedState = localStorage.getItem(sessionStateKey);
     
+    // If no session-specific cache, try the general cache
     if (!cachedState) {
       cachedState = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
     }
@@ -561,12 +593,14 @@ function getStateFromLocalStorage(researchId: string, sessionId: string, userId:
     const cachedResearchId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID);
     const cachedSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID);
     
+    // Check if the cached state matches the requested ids
     if (cachedState && 
         ((cachedResearchId === researchId && cachedSessionId === sessionId) || 
          JSON.parse(cachedState).research_id === researchId && JSON.parse(cachedState).session_id === sessionId)) {
       console.log(`[${new Date().toISOString()}] 🔄 Found research state in localStorage`);
       const localState = JSON.parse(cachedState);
       
+      // Ensure we have the right user_id
       const clientId = getClientId();
       return { 
         ...localState, 
@@ -575,6 +609,7 @@ function getStateFromLocalStorage(researchId: string, sessionId: string, userId:
       } as ResearchState;
     }
     
+    // Try to build a state from individual caches
     const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
     const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
     const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
@@ -585,6 +620,7 @@ function getStateFromLocalStorage(researchId: string, sessionId: string, userId:
     const cachedFindings = localStorage.getItem(sessionFindingsKey) || localStorage.getItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
     const cachedAnswer = localStorage.getItem(sessionAnswerKey) || localStorage.getItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE);
     
+    // If we have some cached components, build a state
     if (cachedSources || cachedPath || cachedFindings || cachedAnswer) {
       const clientId = getClientId();
       
@@ -600,7 +636,7 @@ function getStateFromLocalStorage(researchId: string, sessionId: string, userId:
         answer: answerData?.answer,
         sources: cachedSources ? JSON.parse(cachedSources) : [],
         reasoning_path: cachedPath ? JSON.parse(cachedPath) : [],
-        findings: cachedFindings ? JSON.parse(cachedFindings) as Finding[] : [],
+        findings: cachedFindings ? JSON.parse(cachedFindings) : [],
       };
       
       console.log(`[${new Date().toISOString()}] 🔄 Built synthetic state from cached components`);
@@ -614,6 +650,7 @@ function getStateFromLocalStorage(researchId: string, sessionId: string, userId:
   return null;
 }
 
+// Get all research states for a session
 export async function getSessionResearchStates(sessionId: string): Promise<ResearchState[]> {
   const { data: user } = await supabase.auth.getUser();
   
@@ -621,10 +658,12 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
     throw new Error("User not authenticated");
   }
   
+  // Include client_id in the match criteria for strict isolation
   const clientId = getClientId();
   
   console.log(`[${new Date().toISOString()}] 🔍 Fetching all research states for session:`, sessionId, "and client:", clientId);
   
+  // First try with client_id filter
   let { data, error } = await supabase
     .from('research_states')
     .select('*')
@@ -640,6 +679,8 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
     throw error;
   }
   
+  // If no data found with client_id, try without client_id filter
+  // This ensures we get results from all tabs/sessions
   if (!data || data.length === 0) {
     console.log(`[${new Date().toISOString()}] ℹ️ No states found with client_id filter, trying without client_id`);
     
@@ -660,32 +701,54 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
     data = allClientData;
   }
   
+  // Ensure all returned items have the correct status type
   const result = (data || []).map(item => {
-    return convertToResearchState(item as RawResearchStateData);
-  });
-  
-  result.forEach(state => {
+    const typedItem = item as ResearchState;
+    
+    // Convert human_interactions back from JSON string
+    if (typeof typedItem.human_interactions === 'string') {
+      try {
+        typedItem.human_interactions = JSON.parse(typedItem.human_interactions);
+      } catch (e) {
+        console.error("Error parsing human_interactions", e);
+        typedItem.human_interactions = [];
+      }
+    } else if (!typedItem.human_interactions) {
+      typedItem.human_interactions = [];
+    }
+    
+    // Fix up sources from local cache if possible
     try {
+      // For states that match the current session and research ID
       const cachedSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID);
       const cachedResearchId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID);
       
-      if (cachedSessionId === sessionId && cachedResearchId === state.research_id) {
+      if (cachedSessionId === sessionId && cachedResearchId === typedItem.research_id) {
         const cachedSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
         if (cachedSources) {
           const parsedSources = JSON.parse(cachedSources);
           if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-            state.sources = parsedSources;
+            typedItem.sources = parsedSources;
           }
         }
       }
     } catch (e) {
       console.error("Error fixing up sources from cache:", e);
     }
+    
+    if (typedItem.status !== 'in_progress' && 
+        typedItem.status !== 'completed' && 
+        typedItem.status !== 'error' && 
+        typedItem.status !== 'awaiting_human_input') {
+      typedItem.status = 'in_progress'; // Default to 'in_progress' if invalid status
+    }
+    return typedItem;
   });
   
   return result;
 }
 
+// Get the latest research state for a session
 export async function getLatestSessionState(sessionId: string): Promise<ResearchState | null> {
   try {
     const { data: user } = await supabase.auth.getUser();
@@ -694,13 +757,13 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
       throw new Error("User not authenticated");
     }
     
+    // Include client_id in the match criteria for strict isolation
     const clientId = getClientId();
     
     console.log(`[${new Date().toISOString()}] 🔍 Fetching latest session state for session:`, sessionId, 
       "user:", user.user.id.substring(0, 8), "client:", clientId.substring(0, 15));
     
-    // First query: try with the current client ID
-    const { data: clientData, error: clientError } = await supabase
+    const { data, error } = await supabase
       .from('research_states')
       .select('*')
       .match({ 
@@ -712,30 +775,10 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
       .limit(1)
       .maybeSingle();
       
-    if (clientData) {
-      console.log(`[${new Date().toISOString()}] ✅ Found session state with current client:`, clientData.id);
-      return convertToResearchState(clientData as RawResearchStateData);
-    }
-    
-    if (clientError) {
-      console.warn(`[${new Date().toISOString()}] ⚠️ Error fetching with client ID, trying without:`, clientError.message);
-    }
-    
-    // Second query: try without client ID restriction
-    const { data, error } = await supabase
-      .from('research_states')
-      .select('*')
-      .match({ 
-        session_id: sessionId, 
-        user_id: user.user.id
-      })
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-      
     if (error) {
       console.error(`[${new Date().toISOString()}] ❌ Error fetching latest session state:`, error);
       
+      // Try to get from localStorage as fallback
       const cachedSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID);
       if (cachedSessionId === sessionId) {
         const fallbackState = getStateFromLocalStorage("", sessionId, user.user.id);
@@ -748,7 +791,7 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
     }
     
     if (data) {
-      const result = convertToResearchState(data as RawResearchStateData);
+      const result = data as ResearchState;
       console.log(`[${new Date().toISOString()}] ✅ Found session state:`, {
         id: result.id,
         research_id: result.research_id,
@@ -756,7 +799,21 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
         clientId: result.client_id
       });
       
+      // Convert human_interactions back from JSON string
+      if (typeof result.human_interactions === 'string') {
+        try {
+          result.human_interactions = JSON.parse(result.human_interactions);
+        } catch (e) {
+          console.error("Error parsing human_interactions", e);
+          result.human_interactions = [];
+        }
+      } else if (!result.human_interactions) {
+        result.human_interactions = [];
+      }
+      
+      // Fix up sources from local cache
       try {
+        // First try session-specific cache
         const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
         const cachedSessionSources = localStorage.getItem(sessionSourcesKey);
         
@@ -766,6 +823,7 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
             result.sources = parsedSources;
           }
         } else {
+          // Fall back to general cache
           const cachedSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
           if (cachedSources) {
             const parsedSources = JSON.parse(cachedSources);
@@ -778,6 +836,7 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
         console.error("Error retrieving cached sources:", e);
       }
       
+      // Apply the same logic for findings and reasoning_path
       try {
         const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
         const cachedSessionPath = localStorage.getItem(sessionPathKey);
@@ -802,7 +861,7 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
           const parsedFindings = JSON.parse(cachedSessionFindings);
           if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
             if (!result.findings || parsedFindings.length > result.findings.length) {
-              result.findings = parsedFindings as Finding[];
+              result.findings = parsedFindings;
             }
           }
         }
@@ -812,10 +871,12 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
       
       if (result.status !== 'in_progress' && 
           result.status !== 'completed' && 
-          result.status !== 'error') {
-        result.status = 'in_progress';
+          result.status !== 'error' && 
+          result.status !== 'awaiting_human_input') {
+        result.status = 'in_progress'; // Default to 'in_progress' if invalid status
       }
       
+      // Save to localStorage for better persistence
       saveStateToLocalStorage(result);
       
       return result;
@@ -823,6 +884,7 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
     
     console.log(`[${new Date().toISOString()}] ℹ️ No session state found for session:`, sessionId);
     
+    // Try to get from localStorage as fallback
     return getStateFromLocalStorage("", sessionId, user.user.id);
   } catch (error) {
     console.error(`[${new Date().toISOString()}] 🔥 Error in getLatestSessionState:`, error);

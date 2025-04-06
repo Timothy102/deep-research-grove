@@ -79,16 +79,12 @@ export type Database = {
       }
       research_states: {
         Row: {
-          active_nodes: number | null
           answer: string | null
           client_id: string | null
-          completed_nodes: number | null
           created_at: string | null
           findings: Json | null
-          findings_count: number | null
           human_interactions: Json | null
           id: string
-          last_update: string | null
           query: string
           reasoning_path: string[] | null
           research_id: string
@@ -100,16 +96,12 @@ export type Database = {
           user_model: Json | null
         }
         Insert: {
-          active_nodes?: number | null
           answer?: string | null
           client_id?: string | null
-          completed_nodes?: number | null
           created_at?: string | null
           findings?: Json | null
-          findings_count?: number | null
           human_interactions?: Json | null
           id?: string
-          last_update?: string | null
           query: string
           reasoning_path?: string[] | null
           research_id: string
@@ -121,16 +113,12 @@ export type Database = {
           user_model?: Json | null
         }
         Update: {
-          active_nodes?: number | null
           answer?: string | null
           client_id?: string | null
-          completed_nodes?: number | null
           created_at?: string | null
           findings?: Json | null
-          findings_count?: number | null
           human_interactions?: Json | null
           id?: string
-          last_update?: string | null
           query?: string
           reasoning_path?: string[] | null
           research_id?: string
