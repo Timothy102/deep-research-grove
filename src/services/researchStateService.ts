@@ -3,6 +3,17 @@ import { supabase, getClientId } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
 
+export interface Finding {
+  source: string;
+  content?: string;
+  finding?: {
+    title?: string;
+    summary?: string;
+    confidence_score?: number;
+  };
+  node_id?: string;
+}
+
 export interface ResearchState {
   id?: string;
   research_id: string;
@@ -12,7 +23,7 @@ export interface ResearchState {
   query: string;
   answer?: string;
   sources?: string[];
-  findings?: Array<{ source: string; content?: string }>;
+  findings?: Finding[];
   reasoning_path?: string[];
   created_at?: string;
   updated_at?: string;
@@ -34,6 +45,89 @@ export interface ResearchState {
       timestamp: string;
     };
   }>;
+}
+
+// Type for the raw data returned from the database
+interface RawResearchStateData {
+  id: string;
+  research_id: string;
+  session_id: string;
+  user_id: string;
+  status: string;
+  query: string;
+  answer?: string;
+  sources?: string[];
+  findings?: Json;
+  reasoning_path?: string[];
+  created_at?: string;
+  updated_at?: string;
+  user_model?: Json;
+  active_tab?: string;
+  error?: string;
+  client_id?: string;
+  human_interaction_request?: string;
+  custom_data?: string;
+  human_interactions?: string;
+  active_nodes?: number;
+  completed_nodes?: number;
+  findings_count?: number;
+  last_update?: string;
+}
+
+// Helper function to convert raw data to ResearchState
+function convertToResearchState(raw: RawResearchStateData): ResearchState {
+  // Parse findings from Json to Finding[] if present
+  let findings: Finding[] | undefined;
+  if (raw.findings) {
+    try {
+      if (typeof raw.findings === 'string') {
+        findings = JSON.parse(raw.findings) as Finding[];
+      } else if (Array.isArray(raw.findings)) {
+        findings = raw.findings as unknown as Finding[];
+      } else {
+        console.warn('Unexpected findings format:', raw.findings);
+      }
+    } catch (e) {
+      console.error('Error parsing findings:', e);
+    }
+  }
+
+  // Parse human_interactions from string to object if needed
+  let humanInteractions;
+  if (raw.human_interactions) {
+    try {
+      if (typeof raw.human_interactions === 'string') {
+        humanInteractions = JSON.parse(raw.human_interactions);
+      } else {
+        humanInteractions = raw.human_interactions;
+      }
+    } catch (e) {
+      console.error('Error parsing human_interactions:', e);
+      humanInteractions = [];
+    }
+  }
+
+  return {
+    id: raw.id,
+    research_id: raw.research_id,
+    session_id: raw.session_id,
+    user_id: raw.user_id,
+    status: raw.status as 'in_progress' | 'completed' | 'error' | 'awaiting_human_input',
+    query: raw.query,
+    answer: raw.answer,
+    sources: raw.sources,
+    findings: findings,
+    reasoning_path: raw.reasoning_path,
+    created_at: raw.created_at,
+    updated_at: raw.updated_at,
+    user_model: raw.user_model,
+    active_tab: raw.active_tab,
+    error: raw.error,
+    client_id: raw.client_id,
+    human_interaction_request: raw.human_interaction_request,
+    custom_data: raw.custom_data,
+    human_interactions: humanInteractions
+  };
 }
 
 // Save initial research state
@@ -116,7 +210,7 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
         console.log(`[${new Date().toISOString()}] ✅ Successfully saved research state with active_tab`);
         
         if (dataWithTab && dataWithTab.length > 0) {
-          const result = dataWithTab[0] as ResearchState;
+          const result = convertToResearchState(dataWithTab[0] as RawResearchStateData);
           // Save to localStorage for persistence
           saveStateToLocalStorage(result);
           return result;
@@ -129,7 +223,7 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     console.log(`[${new Date().toISOString()}] ✅ Successfully saved research state`);
     
     if (data && data.length > 0) {
-      const result = data[0] as ResearchState;
+      const result = convertToResearchState(data[0] as RawResearchStateData);
       // Save to localStorage for persistence
       saveStateToLocalStorage(result);
       return result;
@@ -322,7 +416,7 @@ export async function updateResearchState(
       } else {
         // If no error, return the result
         if (data && data.length > 0) {
-          const result = data[0] as ResearchState;
+          const result = convertToResearchState(data[0] as RawResearchStateData);
           // Update localStorage
           saveStateToLocalStorage(result);
           return result;
@@ -371,7 +465,7 @@ export async function updateResearchState(
   }
   
   if (data && data.length > 0) {
-    const result = data[0] as ResearchState;
+    const result = convertToResearchState(data[0] as RawResearchStateData);
     // Update localStorage
     saveStateToLocalStorage(result);
     return result;
@@ -486,19 +580,7 @@ export async function getResearchState(researchId: string, sessionId: string): P
     
     // Ensure the returned data has the correct status type
     if (data) {
-      const result = data as ResearchState;
-      
-      // Convert human_interactions back from JSON string
-      if (typeof result.human_interactions === 'string') {
-        try {
-          result.human_interactions = JSON.parse(result.human_interactions);
-        } catch (e) {
-          console.error("Error parsing human_interactions", e);
-          result.human_interactions = [];
-        }
-      } else if (!result.human_interactions) {
-        result.human_interactions = [];
-      }
+      const result = convertToResearchState(data as RawResearchStateData);
       
       // Fix up sources from local cache if available
       try {
@@ -550,7 +632,7 @@ export async function getResearchState(researchId: string, sessionId: string): P
           const parsedFindings = JSON.parse(cachedSessionFindings);
           if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
             if (!result.findings || parsedFindings.length > result.findings.length) {
-              result.findings = parsedFindings;
+              result.findings = parsedFindings as Finding[];
             }
           }
         }
@@ -636,7 +718,7 @@ function getStateFromLocalStorage(researchId: string, sessionId: string, userId:
         answer: answerData?.answer,
         sources: cachedSources ? JSON.parse(cachedSources) : [],
         reasoning_path: cachedPath ? JSON.parse(cachedPath) : [],
-        findings: cachedFindings ? JSON.parse(cachedFindings) : [],
+        findings: cachedFindings ? JSON.parse(cachedFindings) as Finding[] : [],
       };
       
       console.log(`[${new Date().toISOString()}] 🔄 Built synthetic state from cached components`);
@@ -703,46 +785,28 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
   
   // Ensure all returned items have the correct status type
   const result = (data || []).map(item => {
-    const typedItem = item as ResearchState;
-    
-    // Convert human_interactions back from JSON string
-    if (typeof typedItem.human_interactions === 'string') {
-      try {
-        typedItem.human_interactions = JSON.parse(typedItem.human_interactions);
-      } catch (e) {
-        console.error("Error parsing human_interactions", e);
-        typedItem.human_interactions = [];
-      }
-    } else if (!typedItem.human_interactions) {
-      typedItem.human_interactions = [];
-    }
-    
-    // Fix up sources from local cache if possible
+    return convertToResearchState(item as RawResearchStateData);
+  });
+  
+  // Special handling for sources from local cache
+  result.forEach(state => {
     try {
       // For states that match the current session and research ID
       const cachedSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID);
       const cachedResearchId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID);
       
-      if (cachedSessionId === sessionId && cachedResearchId === typedItem.research_id) {
+      if (cachedSessionId === sessionId && cachedResearchId === state.research_id) {
         const cachedSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
         if (cachedSources) {
           const parsedSources = JSON.parse(cachedSources);
           if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-            typedItem.sources = parsedSources;
+            state.sources = parsedSources;
           }
         }
       }
     } catch (e) {
       console.error("Error fixing up sources from cache:", e);
     }
-    
-    if (typedItem.status !== 'in_progress' && 
-        typedItem.status !== 'completed' && 
-        typedItem.status !== 'error' && 
-        typedItem.status !== 'awaiting_human_input') {
-      typedItem.status = 'in_progress'; // Default to 'in_progress' if invalid status
-    }
-    return typedItem;
   });
   
   return result;
@@ -791,25 +855,13 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
     }
     
     if (data) {
-      const result = data as ResearchState;
+      const result = convertToResearchState(data as RawResearchStateData);
       console.log(`[${new Date().toISOString()}] ✅ Found session state:`, {
         id: result.id,
         research_id: result.research_id,
         status: result.status,
         clientId: result.client_id
       });
-      
-      // Convert human_interactions back from JSON string
-      if (typeof result.human_interactions === 'string') {
-        try {
-          result.human_interactions = JSON.parse(result.human_interactions);
-        } catch (e) {
-          console.error("Error parsing human_interactions", e);
-          result.human_interactions = [];
-        }
-      } else if (!result.human_interactions) {
-        result.human_interactions = [];
-      }
       
       // Fix up sources from local cache
       try {
@@ -861,7 +913,7 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
           const parsedFindings = JSON.parse(cachedSessionFindings);
           if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
             if (!result.findings || parsedFindings.length > result.findings.length) {
-              result.findings = parsedFindings;
+              result.findings = parsedFindings as Finding[];
             }
           }
         }
