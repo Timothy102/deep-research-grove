@@ -328,11 +328,15 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
           
           setCurrentSessionId(sessionId);
           
-          const processedFindings: Finding[] = (latestState.findings || []).map(finding => ({
-            source: finding.source,
-            content: finding.content || "",
-            ...(finding as any)
-          }));
+          const processedFindings: Finding[] = Array.isArray(latestState.findings) 
+            ? latestState.findings.map(finding => ({
+                source: finding.source,
+                content: finding.content || "",
+                finding: finding.finding,
+                node_id: finding.node_id,
+                ...(finding as any)
+              }))
+            : [];
 
           const processedSyntheses: Record<string, any> = 
             typeof latestState.user_model === 'object' && latestState.user_model !== null 
@@ -352,6 +356,24 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
           };
           
           setCurrentResult(completeAnswer);
+          
+          try {
+            localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, JSON.stringify(latestState));
+            localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(completeAnswer));
+            
+            if (sessionId) {
+              const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId);
+              localStorage.setItem(sessionStateKey, JSON.stringify(latestState));
+              
+              const sessionAnswerKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, sessionId);
+              localStorage.setItem(sessionAnswerKey, JSON.stringify(completeAnswer));
+              
+              const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
+              localStorage.setItem(sessionFindingsKey, JSON.stringify(processedFindings));
+            }
+          } catch (e) {
+            console.error("Error caching session data:", e);
+          }
         } else {
           console.log(`[${new Date().toISOString()}] ⚠️ No database state found, checking local storage for session:`, sessionId);
           
@@ -361,60 +383,71 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
           const cachedSessionAnswer = localStorage.getItem(sessionAnswerKey);
           
           if (cachedSessionAnswer) {
-            const parsedAnswer = JSON.parse(cachedSessionAnswer);
-            console.log(`[${new Date().toISOString()}] ✅ Found cached answer for session:`, sessionId);
-            
-            if (parsedAnswer.query === query) {
-              setCurrentResult(parsedAnswer);
-            } else {
-              console.warn(`[${new Date().toISOString()}] ⚠️ Query mismatch in cached answer: expected "${query}", found "${parsedAnswer.query}"`);
-              setCurrentResult({
-                ...parsedAnswer,
-                query: query
-              });
-            }
-          } else {
-            console.log(`[${new Date().toISOString()}] ℹ️ No cached answer found for session:`, sessionId);
-            
-            setCurrentResult({
-              query: query,
-              answer: "Loading research data...",
-              sources: [],
-              reasoning_path: [],
-              confidence: 0.5,
-              session_id: sessionId
-            });
-            
             try {
-              const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
-              const cachedSources = localStorage.getItem(sessionSourcesKey);
+              const parsedAnswer = JSON.parse(cachedSessionAnswer);
+              console.log(`[${new Date().toISOString()}] ✅ Found cached answer for session:`, sessionId);
               
-              const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
-              const cachedPath = localStorage.getItem(sessionPathKey);
-              
-              const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
-              const cachedFindings = localStorage.getItem(sessionFindingsKey);
-              
-              if (cachedSources || cachedPath || cachedFindings) {
-                console.log(`[${new Date().toISOString()}] 🔄 Building state from cached components`);
-                
-                setCurrentResult(prev => ({
-                  ...prev,
-                  sources: cachedSources ? JSON.parse(cachedSources) : [],
-                  reasoning_path: cachedPath ? JSON.parse(cachedPath) : [],
-                  findings: cachedFindings ? JSON.parse(cachedFindings) : []
-                }));
+              if (parsedAnswer.query === query) {
+                setCurrentResult(parsedAnswer);
+              } else {
+                console.warn(`[${new Date().toISOString()}] ⚠️ Query mismatch in cached answer: expected "${query}", found "${parsedAnswer.query}"`);
+                setCurrentResult({
+                  ...parsedAnswer,
+                  query: query
+                });
               }
             } catch (e) {
-              console.error("Error building state from components:", e);
+              console.error("Error parsing cached answer:", e);
+              createFallbackResult(sessionId, query);
             }
+          } else {
+            createFallbackResult(sessionId, query);
           }
         }
       } catch (error) {
         console.error("Error processing session selection:", error);
         toast.error("Failed to load session data. Try refreshing the page.");
+        createFallbackResult(sessionId, query);
       } finally {
         setIsLoading(false);
+      }
+    };
+    
+    const createFallbackResult = (sessionId: string, query: string) => {
+      console.log(`[${new Date().toISOString()}] ℹ️ Creating fallback result for session:`, sessionId);
+      
+      setCurrentResult({
+        query: query,
+        answer: "Failed to load complete research data. Some information may be missing.",
+        sources: [],
+        reasoning_path: [],
+        confidence: 0.5,
+        session_id: sessionId,
+        findings: []
+      });
+      
+      try {
+        const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
+        const cachedSources = localStorage.getItem(sessionSourcesKey) || localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
+        
+        const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
+        const cachedPath = localStorage.getItem(sessionPathKey) || localStorage.getItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE);
+        
+        const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
+        const cachedFindings = localStorage.getItem(sessionFindingsKey) || localStorage.getItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
+        
+        if (cachedSources || cachedPath || cachedFindings) {
+          console.log(`[${new Date().toISOString()}] 🔄 Building state from cached components`);
+          
+          setCurrentResult(prev => ({
+            ...prev,
+            sources: cachedSources ? JSON.parse(cachedSources) : [],
+            reasoning_path: cachedPath ? JSON.parse(cachedPath) : [],
+            findings: cachedFindings ? JSON.parse(cachedFindings) : []
+          }));
+        }
+      } catch (e) {
+        console.error("Error building state from components:", e);
       }
     };
     

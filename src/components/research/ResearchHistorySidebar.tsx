@@ -50,16 +50,25 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
       
       // Clear ALL previous state caches to prevent mixing states
       const allKeys = Object.keys(localStorage);
+      const keysToPreserve = [
+        getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId),
+        getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId),
+        getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId),
+        getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId),
+        getSessionStorageKey(LOCAL_STORAGE_KEYS.SYNTHESIS_CACHE, sessionId)
+      ];
+      
       allKeys.forEach(key => {
         if (
-          key.includes(LOCAL_STORAGE_KEYS.CURRENT_STATE) ||
+          (key.includes(LOCAL_STORAGE_KEYS.CURRENT_STATE) ||
           key.includes(LOCAL_STORAGE_KEYS.ANSWER_CACHE) ||
           key.includes(LOCAL_STORAGE_KEYS.SOURCES_CACHE) ||
           key.includes(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE) || 
-          key.includes(LOCAL_STORAGE_KEYS.FINDINGS_CACHE) ||
-          key !== getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId)
+          key.includes(LOCAL_STORAGE_KEYS.FINDINGS_CACHE)) && 
+          !keysToPreserve.includes(key)
         ) {
           localStorage.removeItem(key);
+          console.log(`[${new Date().toISOString()}] 🧹 Removed cached data:`, key);
         }
       });
       
@@ -72,12 +81,28 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
       if (latestState) {
         console.log(`[${new Date().toISOString()}] ✅ Retrieved complete state for session:`, sessionId);
         console.log("Query from state:", latestState.query);
-        console.log("Answer first 100 chars:", latestState.answer?.substring(0, 100));
+        console.log("Answer first 100 chars:", latestState.answer?.substring(0, 100) || "No answer found");
         
         // Validate that the state query matches the history item's query
         if (latestState.query !== item.query) {
           console.warn(`[${new Date().toISOString()}] ⚠️ Query mismatch between state (${latestState.query}) and history item (${item.query})`);
         }
+        
+        // Process findings to ensure they match the expected format
+        const processedFindings = Array.isArray(latestState.findings) 
+          ? latestState.findings.map(finding => ({
+              source: finding.source,
+              content: finding.content || "",
+              finding: finding.finding || undefined,
+              node_id: finding.node_id || undefined,
+              ...(finding as any)
+            }))
+          : [];
+          
+        // Process user_model to ensure it's in the correct format
+        const processedSyntheses = typeof latestState.user_model === 'object' && latestState.user_model !== null
+          ? latestState.user_model as Record<string, any>
+          : {};
         
         // Build a comprehensive answer object with all state data
         const completeAnswer = {
@@ -85,8 +110,8 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
           answer: latestState.answer || "",
           sources: latestState.sources || [],
           reasoning_path: latestState.reasoning_path || [],
-          findings: latestState.findings || [],
-          syntheses: latestState.user_model || {},
+          findings: processedFindings,
+          syntheses: processedSyntheses,
           confidence: latestState.completed_nodes ? (latestState.completed_nodes / 10) : 0.8,
           session_id: sessionId,
           research_id: latestState.research_id
@@ -116,9 +141,14 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         }
         
         if (latestState.findings && latestState.findings.length > 0) {
-          localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(latestState.findings));
+          localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(processedFindings));
           const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
-          localStorage.setItem(sessionFindingsKey, JSON.stringify(latestState.findings));
+          localStorage.setItem(sessionFindingsKey, JSON.stringify(processedFindings));
+        }
+        
+        if (processedSyntheses && Object.keys(processedSyntheses).length > 0) {
+          const sessionSynthesisKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SYNTHESIS_CACHE, sessionId);
+          localStorage.setItem(sessionSynthesisKey, JSON.stringify(processedSyntheses));
         }
       } else {
         console.warn(`[${new Date().toISOString()}] ⚠️ Could not find state for session:`, sessionId);

@@ -11,7 +11,7 @@ export interface ResearchState {
   query: string;
   answer?: string;
   sources?: string[];
-  findings?: Array<{ source: string; content?: string }>;
+  findings?: Array<{ source: string; content?: string; [key: string]: any }>;
   reasoning_path?: string[];
   created_at?: string;
   updated_at?: string;
@@ -711,14 +711,14 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
     const { data: user } = await supabase.auth.getUser();
     
     if (!user.user) {
+      console.error(`[${new Date().toISOString()}] ⚠️ User not authenticated when getting latest session state`);
       throw new Error("User not authenticated");
     }
-    
-    const clientId = getClientId();
     
     console.log(`[${new Date().toISOString()}] 🔍 Fetching latest session state for session:`, sessionId, 
       "user:", user.user.id.substring(0, 8));
     
+    // Let's try a simpler approach first - get the latest state regardless of client_id
     const { data: sessionData, error: sessionError } = await supabase
       .from('research_states')
       .select('*')
@@ -731,12 +731,11 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
     if (sessionError) {
       console.error(`[${new Date().toISOString()}] ❌ Error fetching latest session state:`, sessionError);
       
-      const cachedSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID);
-      if (cachedSessionId === sessionId) {
-        const fallbackState = getStateFromLocalStorage("", sessionId, user.user.id);
-        if (fallbackState) {
-          return fallbackState;
-        }
+      // Try to get from local storage regardless of error
+      const cachedState = getStateFromLocalStorage("", sessionId, user.user.id);
+      if (cachedState) {
+        console.log(`[${new Date().toISOString()}] ✅ Found cached state for session:`, sessionId);
+        return enhanceStateWithCachedData(cachedState, sessionId);
       }
       
       throw sessionError;
@@ -745,7 +744,7 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
     if (sessionData) {
       const result = sessionData as ResearchState;
       
-      console.log(`[${new Date().toISOString()}] ✅ Found session state:`, {
+      console.log(`[${new Date().toISOString()}] ✅ Found session state in database:`, {
         id: result.id,
         research_id: result.research_id,
         session_id: result.session_id,
@@ -753,95 +752,135 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
         status: result.status
       });
       
-      if (typeof result.human_interactions === 'string') {
-        try {
-          result.human_interactions = JSON.parse(result.human_interactions);
-        } catch (e) {
-          console.error("Error parsing human_interactions", e);
-          result.human_interactions = [];
-        }
-      } else if (!result.human_interactions) {
-        result.human_interactions = [];
+      // Enhanced state with any cached data we might have
+      return enhanceStateWithCachedData(result, sessionId);
+    } else {
+      console.log(`[${new Date().toISOString()}] ⚠️ No database state found for session:`, sessionId);
+      
+      // Try to build from localStorage
+      const cachedState = getStateFromLocalStorage("", sessionId, user.user.id);
+      if (cachedState) {
+        console.log(`[${new Date().toISOString()}] ✅ Found cached state for session:`, sessionId);
+        return enhanceStateWithCachedData(cachedState, sessionId);
       }
       
-      try {
-        const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
-        const cachedSessionSources = localStorage.getItem(sessionSourcesKey);
-        
-        if (cachedSessionSources) {
-          const parsedSources = JSON.parse(cachedSessionSources);
-          if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-            result.sources = parsedSources;
-          }
-        } else {
-          const cachedSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
-          if (cachedSources) {
-            const parsedSources = JSON.parse(cachedSources);
-            if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-              result.sources = parsedSources;
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Error retrieving cached sources:", e);
-      }
+      // Create a minimal fallback state
+      console.log(`[${new Date().toISOString()}] ⚠️ Creating minimal fallback state for session:`, sessionId);
+      return {
+        research_id: "",
+        session_id: sessionId,
+        user_id: user.user.id,
+        status: 'in_progress',
+        query: "Unknown query",
+        sources: [],
+        reasoning_path: [],
+        findings: []
+      };
+    }
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] 🔥 Critical error in getLatestSessionState:`, error);
+    
+    try {
+      // Last resort - try to build synthetic state from just sessionId
+      const sessionAnswerKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, sessionId);
+      const cachedAnswer = localStorage.getItem(sessionAnswerKey);
       
-      try {
-        const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
-        const cachedSessionFindings = localStorage.getItem(sessionFindingsKey);
-        
-        if (cachedSessionFindings) {
-          const parsedFindings = JSON.parse(cachedSessionFindings);
-          if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
-            result.findings = parsedFindings;
-          }
-        } else {
-          const cachedFindings = localStorage.getItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
-          if (cachedFindings) {
-            const parsedFindings = JSON.parse(cachedFindings);
-            if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
-              result.findings = parsedFindings;
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Error retrieving cached findings:", e);
+      if (cachedAnswer) {
+        const answerData = JSON.parse(cachedAnswer);
+        console.log(`[${new Date().toISOString()}] ✅ Created fallback state from answerCache:`, sessionId);
+        return {
+          research_id: answerData.research_id || "",
+          session_id: sessionId,
+          user_id: "unknown",
+          status: 'completed',
+          query: answerData.query || "Unknown query",
+          answer: answerData.answer || "",
+          sources: answerData.sources || [],
+          reasoning_path: answerData.reasoning_path || [],
+          findings: answerData.findings || []
+        };
       }
-      
-      try {
-        const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
-        const cachedSessionPath = localStorage.getItem(sessionPathKey);
-        
-        if (cachedSessionPath) {
-          const parsedPath = JSON.parse(cachedSessionPath);
-          if (Array.isArray(parsedPath) && parsedPath.length > 0) {
-            result.reasoning_path = parsedPath;
-          }
-        } else {
-          const cachedPath = localStorage.getItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE);
-          if (cachedPath) {
-            const parsedPath = JSON.parse(cachedPath);
-            if (Array.isArray(parsedPath) && parsedPath.length > 0) {
-              result.reasoning_path = parsedPath;
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Error retrieving cached reasoning path:", e);
-      }
-      
-      try {
-        saveStateToLocalStorage(result);
-      } catch (e) {
-        console.error("Error saving state to localStorage:", e);
-      }
-      
-      return result;
+    } catch (e) {
+      console.error(`[${new Date().toISOString()}] 💥 Failed to create fallback state:`, e);
     }
     
     return null;
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error in getLatestSessionState:`, error);
-    return null;
   }
+}
+
+function enhanceStateWithCachedData(state: ResearchState, sessionId: string): ResearchState {
+  const enhancedState = { ...state };
+  
+  try {
+    if (typeof enhancedState.human_interactions === 'string') {
+      enhancedState.human_interactions = JSON.parse(enhancedState.human_interactions as unknown as string);
+    } else if (!enhancedState.human_interactions) {
+      enhancedState.human_interactions = [];
+    }
+    
+    // Try to enhance with cached data if our state is missing information
+    if (!enhancedState.sources || enhancedState.sources.length === 0) {
+      const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
+      const cachedSessionSources = localStorage.getItem(sessionSourcesKey) || 
+                                  localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
+      
+      if (cachedSessionSources) {
+        const parsedSources = JSON.parse(cachedSessionSources);
+        if (Array.isArray(parsedSources) && parsedSources.length > 0) {
+          enhancedState.sources = parsedSources;
+          console.log(`[${new Date().toISOString()}] 📊 Enhanced state with ${parsedSources.length} cached sources`);
+        }
+      }
+    }
+    
+    if (!enhancedState.findings || enhancedState.findings.length === 0) {
+      const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
+      const cachedSessionFindings = localStorage.getItem(sessionFindingsKey) || 
+                                    localStorage.getItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE);
+      
+      if (cachedSessionFindings) {
+        const parsedFindings = JSON.parse(cachedSessionFindings);
+        if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
+          enhancedState.findings = parsedFindings;
+          console.log(`[${new Date().toISOString()}] 📊 Enhanced state with ${parsedFindings.length} cached findings`);
+        }
+      }
+    }
+    
+    if (!enhancedState.reasoning_path || enhancedState.reasoning_path.length === 0) {
+      const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
+      const cachedSessionPath = localStorage.getItem(sessionPathKey) ||
+                               localStorage.getItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE);
+      
+      if (cachedSessionPath) {
+        const parsedPath = JSON.parse(cachedSessionPath);
+        if (Array.isArray(parsedPath) && parsedPath.length > 0) {
+          enhancedState.reasoning_path = parsedPath;
+          console.log(`[${new Date().toISOString()}] 📊 Enhanced state with ${parsedPath.length} cached reasoning steps`);
+        }
+      }
+    }
+    
+    // Try to get user_model syntheses from other caches if not present
+    if (!enhancedState.user_model) {
+      const sessionSynthesisKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SYNTHESIS_CACHE, sessionId);
+      const cachedSynthesis = localStorage.getItem(sessionSynthesisKey);
+      
+      if (cachedSynthesis) {
+        enhancedState.user_model = JSON.parse(cachedSynthesis);
+        console.log(`[${new Date().toISOString()}] 📊 Enhanced state with cached synthesis data`);
+      }
+    }
+    
+    if (enhancedState.status !== 'in_progress' && 
+        enhancedState.status !== 'completed' && 
+        enhancedState.status !== 'error' && 
+        enhancedState.status !== 'awaiting_human_input') {
+      enhancedState.status = 'completed';
+    }
+  } catch (e) {
+    console.error(`[${new Date().toISOString()}] ⚠️ Error enhancing state with cached data:`, e);
+  }
+  
+  return enhancedState;
 }

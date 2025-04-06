@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import ReasoningStep from "./ReasoningStep";
@@ -68,7 +67,6 @@ const ReasoningPath = ({
   const [forcedUpdate, setForcedUpdate] = useState(0);
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
   
-  // Handle session change
   useEffect(() => {
     if (sessionId && sessionId !== lastSessionId) {
       console.log(`[${new Date().toISOString()}] 🔄 Session changed from ${lastSessionId} to ${sessionId}, resetting state`);
@@ -79,10 +77,34 @@ const ReasoningPath = ({
       setAnswersData({});
       setSessionLoaded(false);
       setLastSessionId(sessionId);
+      
+      const allKeys = Object.keys(localStorage);
+      const currentSessionKeys = [
+        getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId),
+        getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId),
+        getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId),
+        getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId)
+      ];
+      
+      allKeys.forEach(key => {
+        if (key.includes('SESSION_DATA_CACHE') || 
+            key.includes('SOURCES_CACHE') || 
+            key.includes('REASONING_PATH_CACHE') || 
+            key.includes('FINDINGS_CACHE')) {
+          if (!currentSessionKeys.includes(key) && !key.includes(sessionId)) {
+            console.log(`[${new Date().toISOString()}] 🧹 Clearing unrelated cache for session switch:`, key);
+            try {
+              // Don't remove but keep the warning to track what's happening
+              // localStorage.removeItem(key);
+            } catch (e) {
+              console.error("Error removing key:", e);
+            }
+          }
+        }
+      });
     }
   }, [sessionId, lastSessionId, reasoningPath, findings, sources]);
   
-  // Load initial data
   useEffect(() => {
     if (reasoningPath.length > 0) {
       setDisplayReasoningPath(reasoningPath);
@@ -97,14 +119,12 @@ const ReasoningPath = ({
     }
   }, [reasoningPath, findings, sources]);
   
-  // Realtime updates handler
   const handleRealtimeUpdate = useCallback((event: CustomEvent) => {
     if (!sessionId) return;
     
     const payload = event.detail?.payload;
     if (!payload) return;
     
-    // Process research state updates
     if (payload.table === 'research_states' && payload.new && payload.new.session_id === sessionId) {
       console.log(`[${new Date().toISOString()}] 🔄 Processing realtime update for session ${sessionId}`, payload);
       
@@ -175,7 +195,6 @@ const ReasoningPath = ({
       }
     }
     
-    // Process specific event types
     if (payload.event === 'finding' && payload.data) {
       const findingData = payload.data;
       if (findingData.node_id && findingData.finding && !displayFindings.some(f => 
@@ -188,7 +207,6 @@ const ReasoningPath = ({
         const newFindings = [...displayFindings, findingData];
         setDisplayFindings(newFindings);
         
-        // Also add to sources if not already there
         if (findingData.source && !displaySources.includes(findingData.source)) {
           const newSources = [...displaySources, findingData.source];
           setDisplaySources(newSources);
@@ -224,7 +242,6 @@ const ReasoningPath = ({
       }
     }
     
-    // Process synthesis events
     if (payload.event === 'synthesis' || payload.event_type === 'synthesis') {
       const synthesisData = payload.data as SynthesisData;
       if (synthesisData && synthesisData.node_id) {
@@ -254,7 +271,6 @@ const ReasoningPath = ({
       }
     }
     
-    // Process answer events
     if (payload.event === 'answer') {
       const answerData = payload.data;
       if (answerData && answerData.node_id) {
@@ -284,7 +300,6 @@ const ReasoningPath = ({
       }
     }
     
-    // Process source events 
     if (payload.event === 'source') {
       const sourceData = payload.data;
       if (sourceData && sourceData.source && !displaySources.includes(sourceData.source)) {
@@ -320,7 +335,6 @@ const ReasoningPath = ({
     }
   }, [isLoading]);
   
-  // Set up event listeners
   useEffect(() => {
     window.addEventListener('research_state_update', handleRealtimeUpdate as EventListener);
     window.addEventListener('research-new-event', handleResearchEvents as EventListener);
@@ -333,7 +347,6 @@ const ReasoningPath = ({
     };
   }, [handleRealtimeUpdate, handleResearchEvents, handleHeartbeat]);
   
-  // Load session data
   useEffect(() => {
     if (!sessionId) return;
     
@@ -378,7 +391,6 @@ const ReasoningPath = ({
         return;
       }
       
-      // Fallback to legacy storage format
       const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
       const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
       const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
@@ -439,7 +451,6 @@ const ReasoningPath = ({
     }
   }, [sessionId, reasoningPath, findings, sources]);
   
-  // Try loading from global cache if session data isn't available
   useEffect(() => {
     if (sessionLoaded) return;
     
@@ -478,7 +489,6 @@ const ReasoningPath = ({
     }
   }, [sessionLoaded, displayReasoningPath.length, displayFindings.length, reasoningPath.length, findings.length, sources.length]);
   
-  // Save data to cache whenever it changes
   useEffect(() => {
     if (reasoningPath.length > 0) {
       setDisplayReasoningPath(reasoningPath);
@@ -586,7 +596,6 @@ const ReasoningPath = ({
     );
   }
   
-  // Process findings to associate them with proper reasoning steps
   const findingsByNodeId: Record<string, Finding[]> = {};
   displayFindings.forEach(finding => {
     if (finding.node_id) {
@@ -597,7 +606,6 @@ const ReasoningPath = ({
     }
   });
   
-  // Create domain keywords mapping for findings without node_id
   const findingsByDomainKeyword: Record<string, Finding[]> = {};
   displayFindings.forEach(finding => {
     try {
@@ -633,7 +641,6 @@ const ReasoningPath = ({
       
       <div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pb-8 md:pb-20 reasoning-steps-container">
         {displayReasoningPath.map((step, index) => {
-          // Extract node ID using various patterns
           const nodeId = step.match(/node(?:_id|[\s_]id)?:?\s*['"]?([a-zA-Z0-9_-]+)['"]?/i)?.[1] || 
                       step.match(/node\s+(\d+)|#(\d+)/i)?.[1] || 
                       step.match(/step-(\d+)/i)?.[1] ||
@@ -641,7 +648,6 @@ const ReasoningPath = ({
                       
           const stepRawData = nodeId ? rawData[nodeId] : undefined;
           
-          // Extract answer data if available
           let answerData = answersData[nodeId] || null;
           if (!answerData && stepRawData) {
             try {
@@ -657,18 +663,14 @@ const ReasoningPath = ({
             }
           }
           
-          // Get synthesis data for this node
           const synthesisData = synthesesData[nodeId] || null;
           
-          // Get findings directly associated with this node ID
           const nodeFindings = findingsByNodeId[nodeId] || [];
           
-          // Attempt to match findings by keywords in the step
-          const stepLower = step.toLowerCase();
           const keywordFindings: Finding[] = [];
           
           Object.entries(findingsByDomainKeyword).forEach(([keyword, domainFindings]) => {
-            if (stepLower.includes(keyword)) {
+            if (step.toLowerCase().includes(keyword)) {
               domainFindings.forEach(finding => {
                 if (!nodeFindings.includes(finding) && !keywordFindings.includes(finding)) {
                   keywordFindings.push(finding);
@@ -677,25 +679,21 @@ const ReasoningPath = ({
             }
           });
           
-          // Find URL-based findings
           const urlFindings = displayFindings.filter(finding => {
             if (nodeFindings.includes(finding) || keywordFindings.includes(finding)) return false;
             try {
               const url = new URL(finding.source);
               const domain = url.hostname.replace('www.', '');
-              return stepLower.includes(domain.split('.')[0]);
+              return step.toLowerCase().includes(domain.split('.')[0]);
             } catch {
               return false;
             }
           });
           
-          // Combine all relevant findings
           const relevantFindings = [...nodeFindings, ...keywordFindings, ...urlFindings];
           
-          // Determine if this is a newly added step
           const isNewStep = index === displayReasoningPath.length - 1 && isLoading;
           
-          // Unique stable key that won't cause re-renders
           const stableKey = `step-${nodeId}-${index}-${forcedUpdate > 0 ? '1' : '0'}`;
           
           return (
