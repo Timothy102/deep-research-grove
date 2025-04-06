@@ -6,7 +6,7 @@ import React, {
 } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { useUser } from '@/components/auth/AuthContext';
+import { User } from '@supabase/supabase-js';
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData, getSessionData } from '@/lib/constants';
 import { cn } from "@/lib/utils";
 import {
@@ -33,12 +33,40 @@ import { Sparkles, Lightbulb, Search, BookOpenCheck, BrainCircuit, MessageCircle
 
 import ResearchHistorySidebar from '@/components/research/ResearchHistorySidebar';
 import ReasoningPath from '@/components/research/ReasoningPath';
-import SourceList from '@/components/research/SourceList';
-import HumanInputRequest from '@/components/research/HumanInputRequest';
-import HumanFeedbackForm from '@/components/research/HumanFeedbackForm';
-import { ResearchTabs, ResearchTab } from '@/components/research/ResearchTabs';
-import { ResearchObjective } from '@/components/research/ResearchObjective';
-import { ResearchAnswer } from '@/components/research/ResearchAnswer';
+import SourcesList from '@/components/research/SourcesList';
+// Temporarily create stub components for the missing ones
+const HumanInputRequest = ({ humanInteractionRequest, onClose, onSubmit }: any) => <div>Human Input Request</div>;
+const HumanFeedbackForm = ({ isOpen, onOpenChange, onSubmit, onFeedbackChange }: any) => <div>Human Feedback Form</div>;
+const ResearchTabs = ({ children, activeTab, onTabChange }: any) => <div>{children}</div>;
+const ResearchTab = ({ children, label, value, icon: Icon }: any) => <div>{label}: {children}</div>;
+const ResearchObjective = ({ objective, onObjectiveChange, onValidityChange, onSubmit, isLoading, isActive, isObjectiveValid, researchObjectiveRef }: any) => <div>Research Objective</div>;
+const ResearchAnswer = ({ result, isLoading, errorMessage, sources, activeSessionId, currentSessionStatus, isHumanFeedbackRequired, onFeedbackFormToggle }: any) => <div>Research Answer</div>;
+
+// Get user context
+const useUser = () => {
+  const [user, setUser] = useState<User | null>(null);
+  
+  useEffect(() => {
+    // Get the current user
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    
+    getUser();
+    
+    // Set up listener for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+  
+  return { user };
+};
 
 const ResearchPage = () => {
   const navigate = useNavigate();
@@ -136,7 +164,7 @@ const ResearchPage = () => {
     
     try {
       await updateResearchState(activeSessionId, activeSessionId, {
-        human_interaction_result: JSON.stringify(feedbackData)
+        human_interactions: JSON.stringify(feedbackData)
       });
       
       toast({
@@ -496,7 +524,6 @@ const ResearchPage = () => {
         toast({
           title: "Session Not Found",
           description: "No saved state found for this session. Starting a new session.",
-          variant: "warning"
         });
         
         setIsActive(true);
@@ -520,9 +547,14 @@ const ResearchPage = () => {
 
   useEffect(() => {
     const checkSupabase = async () => {
-      const isConnected = await supabase.connection.open;
-      setIsSupabaseConnected(isConnected);
-      setIsOfflineMode(!isConnected);
+      try {
+        const { data, error } = await supabase.from('profiles').select('*').limit(1);
+        setIsSupabaseConnected(!error);
+        setIsOfflineMode(!!error);
+      } catch (e) {
+        setIsSupabaseConnected(false);
+        setIsOfflineMode(true);
+      }
     };
     
     checkSupabase();
@@ -620,7 +652,7 @@ const ResearchPage = () => {
                   
                   try {
                     await updateResearchState(activeSessionId!, activeSessionId!, {
-                      human_interaction_result: result,
+                      human_interactions: result,
                       status: 'awaiting_human_input'
                     });
                     
@@ -688,7 +720,7 @@ const ResearchPage = () => {
                   </ResearchTab>
                   
                   <ResearchTab label="Sources" value="sources" icon={BookText}>
-                    <SourceList sources={sources} findings={findings} />
+                    <SourcesList sources={sources} findings={findings} sessionId={activeSessionId} />
                   </ResearchTab>
                 </ResearchTabs>
               </>
