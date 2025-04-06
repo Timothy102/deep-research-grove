@@ -1,4 +1,3 @@
-
 import { supabase, getClientId } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
@@ -790,22 +789,20 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
     const clientId = getClientId();
     
     console.log(`[${new Date().toISOString()}] 🔍 Fetching latest session state for session:`, sessionId, 
-      "user:", user.user.id.substring(0, 8), "client:", clientId.substring(0, 15));
+      "user:", user.user.id.substring(0, 8));
     
-    const { data, error } = await supabase
+    // First try explicitly with session_id filter ONLY to ensure we get the right data
+    const { data: sessionData, error: sessionError } = await supabase
       .from('research_states')
       .select('*')
-      .match({ 
-        session_id: sessionId, 
-        user_id: user.user.id,
-        client_id: clientId
-      })
+      .eq('session_id', sessionId)
+      .eq('user_id', user.user.id)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
       
-    if (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error fetching latest session state:`, error);
+    if (sessionError) {
+      console.error(`[${new Date().toISOString()}] ❌ Error fetching latest session state:`, sessionError);
       
       // Try to get from localStorage as fallback
       const cachedSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID);
@@ -816,16 +813,18 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
         }
       }
       
-      throw error;
+      throw sessionError;
     }
     
-    if (data) {
-      const result = data as ResearchState;
+    if (sessionData) {
+      const result = sessionData as ResearchState;
+      
       console.log(`[${new Date().toISOString()}] ✅ Found session state:`, {
         id: result.id,
         research_id: result.research_id,
-        status: result.status,
-        clientId: result.client_id
+        session_id: result.session_id,
+        query: result.query,
+        status: result.status
       });
       
       // Convert human_interactions back from JSON string
@@ -843,90 +842,4 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
       // Fix up sources from local cache
       try {
         // First try session-specific cache
-        const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
-        const cachedSessionSources = localStorage.getItem(sessionSourcesKey);
-        
-        if (cachedSessionSources) {
-          const parsedSources = JSON.parse(cachedSessionSources);
-          if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-            result.sources = parsedSources;
-          }
-        } else {
-          // Fall back to general cache
-          const cachedSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
-          if (cachedSources) {
-            const parsedSources = JSON.parse(cachedSources);
-            if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-              result.sources = parsedSources;
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Error retrieving cached sources:", e);
-      }
-      
-      // Apply the same logic for findings and reasoning_path
-      try {
-        const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
-        const cachedSessionPath = localStorage.getItem(sessionPathKey);
-        
-        if (cachedSessionPath) {
-          const parsedPath = JSON.parse(cachedSessionPath);
-          if (Array.isArray(parsedPath) && parsedPath.length > 0) {
-            if (!result.reasoning_path || parsedPath.length > result.reasoning_path.length) {
-              result.reasoning_path = parsedPath;
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Error retrieving cached reasoning path:", e);
-      }
-      
-      try {
-        const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
-        const cachedSessionFindings = localStorage.getItem(sessionFindingsKey);
-        
-        if (cachedSessionFindings) {
-          const parsedFindings = JSON.parse(cachedSessionFindings);
-          if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
-            if (!result.findings || parsedFindings.length > result.findings.length) {
-              result.findings = parsedFindings;
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Error retrieving cached findings:", e);
-      }
-      
-      if (result.status !== 'in_progress' && 
-          result.status !== 'completed' && 
-          result.status !== 'error' && 
-          result.status !== 'awaiting_human_input') {
-        result.status = 'in_progress'; // Default to 'in_progress' if invalid status
-      }
-      
-      // Save to localStorage for better persistence
-      saveStateToLocalStorage(result);
-      
-      return result;
-    }
-    
-    console.log(`[${new Date().toISOString()}] ℹ️ No session state found for session:`, sessionId);
-    
-    // Try to get from localStorage as fallback
-    return getStateFromLocalStorage("", sessionId, user.user.id);
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] 🔥 Error in getLatestSessionState:`, error);
-    
-    try {
-      const { data: user } = await supabase.auth.getUser();
-      if (user.user) {
-        return getStateFromLocalStorage("", sessionId, user.user.id);
-      }
-    } catch (e) {
-      console.error("Error getting user for localStorage fallback:", e);
-    }
-    
-    return null;
-  }
-}
+        const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_

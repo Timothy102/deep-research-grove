@@ -6,41 +6,72 @@ import { toast } from "sonner";
 import HumanApprovalDialog from './components/research/HumanApprovalDialog.tsx';
 import { submitFeedback } from './services/feedbackService.ts';
 import { supabase } from './integrations/supabase/client';
+import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from './lib/constants.ts';
+
+// Track the current active session ID
+let currentSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID) || '';
+
+// Listen for session changes
+window.addEventListener('session-selected', (event: Event) => {
+  const customEvent = event as CustomEvent;
+  if (customEvent.detail && customEvent.detail.sessionId) {
+    console.log(`[${new Date().toISOString()}] 🔄 Session changed to:`, customEvent.detail.sessionId);
+    currentSessionId = customEvent.detail.sessionId;
+    localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, currentSessionId);
+  }
+});
 
 // Enable realtime subscriptions with improved logging and recovery
 supabase.channel('research_states_changes')
   .on('postgres_changes', 
     { event: '*', schema: 'public', table: 'research_states' }, 
     (payload) => {
-      console.log(`[${new Date().toISOString()}] 📊 Realtime update received:`, payload);
-      
-      // Dispatch a custom event so components can react to it immediately
-      const eventDetail = { 
-        payload,
-        timestamp: new Date().toISOString()
-      };
-      
-      // Dispatch the event with full payload data
-      window.dispatchEvent(new CustomEvent('research_state_update', { 
-        detail: eventDetail,
-        bubbles: true, // Ensure event bubbles up through the DOM
-        composed: true  // Allow event to pass through shadow DOM boundaries
-      }));
-      
-      // Also dispatch a more urgent "new-event" notification that can be used 
-      // to trigger immediate UI updates regardless of the payload content
-      window.dispatchEvent(new CustomEvent('research-new-event', { 
-        detail: { 
-          type: 'realtime',
-          timestamp: new Date().toISOString(),
-          sessionId: payload.new && typeof payload.new === 'object' && 'session_id' in payload.new 
-            ? payload.new.session_id 
-            : undefined,
-          fullPayload: payload // Include the full payload for components to use
-        },
-        bubbles: true,
-        composed: true
-      }));
+      try {
+        console.log(`[${new Date().toISOString()}] 📊 Realtime update received:`, {
+          table: payload.table,
+          schema: payload.schema,
+          event_type: payload.eventType
+        });
+        
+        // Check if this update is for the current session
+        const payloadSessionId = payload.new && typeof payload.new === 'object' && 'session_id' in payload.new 
+          ? payload.new.session_id 
+          : undefined;
+          
+        // If we have a current active session and this update is for a different session, don't process it
+        if (currentSessionId && payloadSessionId && payloadSessionId !== currentSessionId) {
+          console.log(`[${new Date().toISOString()}] ℹ️ Ignoring update for different session (${payloadSessionId}), current is (${currentSessionId})`);
+          return;
+        }
+        
+        // Dispatch a custom event so components can react to it immediately
+        const eventDetail = { 
+          payload,
+          timestamp: new Date().toISOString()
+        };
+        
+        // Dispatch the event with full payload data
+        window.dispatchEvent(new CustomEvent('research_state_update', { 
+          detail: eventDetail,
+          bubbles: true, // Ensure event bubbles up through the DOM
+          composed: true  // Allow event to pass through shadow DOM boundaries
+        }));
+        
+        // Also dispatch a more urgent "new-event" notification that can be used 
+        // to trigger immediate UI updates regardless of the payload content
+        window.dispatchEvent(new CustomEvent('research-new-event', { 
+          detail: { 
+            type: 'realtime',
+            timestamp: new Date().toISOString(),
+            sessionId: payloadSessionId,
+            fullPayload: payload // Include the full payload for components to use
+          },
+          bubbles: true,
+          composed: true
+        }));
+      } catch (error) {
+        console.error(`[${new Date().toISOString()}] ❌ Error processing realtime update:`, error);
+      }
     }
   )
   .subscribe((status) => {

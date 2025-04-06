@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -37,7 +36,6 @@ export type ResearchResult = {
 const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Finding[] }) => {
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
   
-  // Group findings by source
   const findingsBySource = (findings || []).reduce((acc: Record<string, Finding[]>, finding) => {
     if (!finding.source) return acc;
     
@@ -45,7 +43,6 @@ const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Find
       acc[finding.source] = [];
     }
     
-    // Only add if not already present
     if (!acc[finding.source].some(f => 
       f.finding?.title === finding.finding?.title && 
       f.finding?.summary === finding.finding?.summary
@@ -72,7 +69,7 @@ const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Find
         ) : (
           sources.map((source, index) => {
             const sourceFindings = findingsBySource[source] || [];
-            const isExpanded = expandedSources[source] !== false; // Default to true
+            const isExpanded = expandedSources[source] !== false;
             
             return (
               <Collapsible 
@@ -156,7 +153,6 @@ const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Find
 const ReasoningPath = ({ path, syntheses }: { path: string[]; syntheses?: Record<string, any> }) => {
   const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
   
-  // Pre-defined colors for reasoning path steps to ensure persistence
   const stepTypes = [
     { pattern: "search", color: "bg-violet-100 dark:bg-violet-900/80 border-violet-300 dark:border-violet-700 text-violet-800 dark:text-violet-300" },
     { pattern: "reason", color: "bg-amber-100 dark:bg-amber-900/80 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-300" },
@@ -189,7 +185,6 @@ const ReasoningPath = ({ path, syntheses }: { path: string[]; syntheses?: Record
           <p className="text-sm text-muted-foreground">No reasoning path available</p>
         ) : (
           path.map((step, index) => {
-            // Extract node ID using various patterns
             const nodeId = step.match(/node(?:_id|[\s_]id)?:?\s*['"]?([a-zA-Z0-9_-]+)['"]?/i)?.[1] || 
                         step.match(/node\s+(\d+)|#(\d+)/i)?.[1] || 
                         step.match(/step-(\d+)/i)?.[1] ||
@@ -287,7 +282,70 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const navigate = useNavigate();
   const [currentResult, setCurrentResult] = useState<ResearchResult | null>(result);
   
-  // Handle real-time updates
+  useEffect(() => {
+    if (result && 
+        (!currentResult || 
+         result.session_id !== currentResult.session_id || 
+         result.query !== currentResult.query)) {
+      console.log(`[${new Date().toISOString()}] 🔄 Result props changed:`, {
+        newQuery: result.query,
+        newSessionId: result.session_id,
+        oldQuery: currentResult?.query,
+        oldSessionId: currentResult?.session_id
+      });
+      setCurrentResult(result);
+    }
+  }, [result, currentResult]);
+  
+  useEffect(() => {
+    const handleSessionSelected = (event: CustomEvent) => {
+      if (event.detail && event.detail.sessionId) {
+        const { sessionId, query } = event.detail;
+        console.log(`[${new Date().toISOString()}] 📢 Session selected:`, { sessionId, query });
+        
+        try {
+          const sessionAnswerKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, sessionId);
+          const cachedSessionAnswer = localStorage.getItem(sessionAnswerKey);
+          
+          if (cachedSessionAnswer) {
+            const parsedAnswer = JSON.parse(cachedSessionAnswer);
+            
+            if (parsedAnswer.query === query) {
+              console.log(`[${new Date().toISOString()}] ✅ Found matching cached answer for session:`, sessionId);
+              setCurrentResult(parsedAnswer);
+            } else {
+              console.warn(`[${new Date().toISOString()}] ⚠️ Query mismatch in cached answer: expected "${query}", found "${parsedAnswer.query}"`);
+              
+              setCurrentResult({
+                ...parsedAnswer,
+                query: query
+              });
+            }
+          } else {
+            console.log(`[${new Date().toISOString()}] ℹ️ No cached answer found for session:`, sessionId);
+            
+            setCurrentResult({
+              query: query,
+              answer: "Loading research data...",
+              sources: [],
+              reasoning_path: [],
+              confidence: 0.5,
+              session_id: sessionId
+            });
+          }
+        } catch (e) {
+          console.error("Error processing session selection:", e);
+        }
+      }
+    };
+    
+    window.addEventListener('session-selected', handleSessionSelected as EventListener);
+    
+    return () => {
+      window.removeEventListener('session-selected', handleSessionSelected as EventListener);
+    };
+  }, []);
+  
   const handleRealtimeUpdate = useCallback((event: CustomEvent) => {
     if (!currentResult?.session_id) return;
     
@@ -297,7 +355,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
     if (payload.new && payload.new.session_id === currentResult.session_id) {
       console.log(`[${new Date().toISOString()}] 🔄 Processing result update for session ${currentResult.session_id}`);
       
-      // Check if there are meaningful updates to apply
       let shouldUpdate = false;
       const updates: Partial<ResearchResult> = {};
       
@@ -332,7 +389,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       if (shouldUpdate) {
         console.log(`[${new Date().toISOString()}] ✏️ Updating result with real-time data:`, updates);
         
-        // Create a new result with the updates
         const updatedResult: ResearchResult = {
           ...currentResult,
           ...updates,
@@ -340,7 +396,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         
         setCurrentResult(updatedResult);
         
-        // Store updates in cache
         try {
           localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(updatedResult));
           if (currentResult.session_id) {
@@ -359,7 +414,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
           console.error("Error caching updated research result:", e);
         }
         
-        // Show a toast notification for the update
         if (updates.answer) {
           toast.info("Research answer has been updated", {
             className: "realtime-update-toast"
@@ -377,7 +431,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
     }
   }, [currentResult]);
   
-  // Register and unregister the realtime update listener
   useEffect(() => {
     window.addEventListener('research_state_update', handleRealtimeUpdate as EventListener);
     
@@ -386,22 +439,14 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
     };
   }, [handleRealtimeUpdate]);
   
-  // Initialize with the provided result
-  useEffect(() => {
-    if (result) {
-      setCurrentResult(result);
-    }
-  }, [result]);
-  
-  // Cache result in localStorage when it changes
   useEffect(() => {
     if (currentResult) {
       try {
-        // Store in both session-specific and general caches
+        console.log(`[${new Date().toISOString()}] 💾 Caching result for query:`, currentResult.query);
+        
         localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(currentResult));
         
         if (currentResult.session_id) {
-          // Use comprehensive session data storage
           saveSessionData(currentResult.session_id, {
             answer: currentResult,
             sources: currentResult.sources,
@@ -417,7 +462,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
             }
           });
           
-          // Also save individual cache components for backward compatibility
           const sessionCacheKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, currentResult.session_id);
           localStorage.setItem(sessionCacheKey, JSON.stringify(currentResult));
           
@@ -449,10 +493,8 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
 
   const handleSessionClick = () => {
     if (currentResult.session_id) {
-      // Save current session ID for proper restoration
       localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, currentResult.session_id);
       
-      // Trigger session-selected event for better coordination
       window.dispatchEvent(new CustomEvent('session-selected', { 
         detail: { 
           sessionId: currentResult.session_id,
