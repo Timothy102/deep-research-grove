@@ -12,6 +12,13 @@ import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData, getSessionDa
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
+import LandingPage from '@/pages/LandingPage';
+import AuthPage from '@/pages/AuthPage';
+import ResearchPage from '@/pages/ResearchPage';
+import ProfilePage from '@/pages/ProfilePage';
+import UserModelsPage from '@/pages/UserModelsPage';
+import NotFound from '@/pages/NotFound';
+
 const configureModalApiProxy = () => {
   console.log(`[${new Date().toISOString()}] 🔄 Setting up CORS proxy configuration for Modal API`);
 };
