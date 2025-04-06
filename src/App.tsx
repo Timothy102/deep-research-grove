@@ -1,4 +1,3 @@
-
 import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './components/auth/AuthContext';
@@ -9,22 +8,11 @@ import { Toaster } from '@/components/ui/toaster';
 import { useEffect, useState } from 'react';
 import { Plus, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData } from '@/lib/constants';
+import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData, getSessionData } from '@/lib/constants';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import ResearchPage from './pages/ResearchPage';
-import ProfilePage from './pages/ProfilePage';
-import LandingPage from './pages/LandingPage';
-import AuthPage from './pages/AuthPage';
-import UserModelsPage from './pages/UserModelsPage';
-import NotFound from './pages/NotFound';
-import './App.css';
-
-// Configure CORS proxy for Modal API
 const configureModalApiProxy = () => {
-  // This is just setting up a configuration, the actual proxy would need
-  // to be set up on the server where this app is hosted
   console.log(`[${new Date().toISOString()}] 🔄 Setting up CORS proxy configuration for Modal API`);
 };
 
@@ -54,7 +42,6 @@ function SidebarButtons() {
     const newState = !sidebarOpen;
     setSidebarOpen(newState);
     localStorage.setItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE, String(newState));
-    // Dispatch a custom event that ResearchPage can listen for
     window.dispatchEvent(new CustomEvent('sidebar-toggle', { detail: { open: newState } }));
   };
 
@@ -62,7 +49,6 @@ function SidebarButtons() {
     try {
       const newSessionId = crypto.randomUUID();
       
-      // Clear the current session state from localStorage
       Object.keys(LOCAL_STORAGE_KEYS).forEach(key => {
         const fullKey = LOCAL_STORAGE_KEYS[key as keyof typeof LOCAL_STORAGE_KEYS];
         if (fullKey !== LOCAL_STORAGE_KEYS.SESSION_HISTORY && fullKey !== LOCAL_STORAGE_KEYS.SIDEBAR_STATE) {
@@ -70,10 +56,8 @@ function SidebarButtons() {
         }
       });
       
-      // Set new session ID
       localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, newSessionId);
       
-      // Create an empty session data structure
       saveSessionData(newSessionId, {
         state: {
           session_id: newSessionId,
@@ -86,7 +70,6 @@ function SidebarButtons() {
         findings: []
       });
       
-      // Dispatch a custom event that the ResearchPage component can listen for
       window.dispatchEvent(new CustomEvent('new-chat-requested', { 
         detail: { 
           sessionId: newSessionId,
@@ -95,10 +78,8 @@ function SidebarButtons() {
         }
       }));
       
-      // Show a toast
       toast.success("Created new research session");
       
-      // Navigate to the new session
       navigate(`/research/${newSessionId}`);
     } catch (error) {
       console.error("Error creating new chat:", error);
@@ -106,7 +87,6 @@ function SidebarButtons() {
     }
   };
 
-  // Only show buttons on research page
   if (!location.pathname.includes('/research')) {
     return null;
   }
@@ -144,51 +124,60 @@ function AppRoutes() {
   const location = useLocation();
 
   useEffect(() => {
-    // Configure CORS proxy
     configureModalApiProxy();
     
-    // First check if the current path is a research path with a session ID
     const currentPath = window.location.pathname;
     const isResearchPathWithSession = currentPath.match(/^\/research\/[a-zA-Z0-9-]+$/);
     
     if (isResearchPathWithSession) {
-      // If we're already on a research path with a session ID, don't redirect
       console.log(`[${new Date().toISOString()}] 📍 Already on a research path with session:`, currentPath);
       setIsLoading(false);
       
-      // Extract the session ID from the path and set it as the active session
       const pathSessionId = currentPath.split('/').pop();
       if (pathSessionId) {
         localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, pathSessionId);
         console.log(`[${new Date().toISOString()}] 🔄 Setting current session from URL:`, pathSessionId);
+        
+        const sessionData = getSessionData(pathSessionId);
+        if (sessionData) {
+          console.log(`[${new Date().toISOString()}] 📂 Found cached session data for ${pathSessionId}`);
+          
+          if (sessionData.sourcesKey) {
+            localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(sessionData.sourcesKey));
+          }
+          
+          if (sessionData.reasoningPathKey) {
+            localStorage.setItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, JSON.stringify(sessionData.reasoningPathKey));
+          }
+          
+          if (sessionData.findingsKey) {
+            localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(sessionData.findingsKey));
+          }
+          
+          if (sessionData.stateKey) {
+            localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, JSON.stringify(sessionData.stateKey));
+          }
+        }
       }
       return;
     }
     
-    // For non-research paths, check if we're already on a specific path
     if (currentPath !== '/' && currentPath !== '/auth') {
       console.log(`[${new Date().toISOString()}] 📍 Already on a specific path:`, currentPath);
       setIsLoading(false);
       return;
     }
     
-    // Next check if there's a current session to restore
     const currentSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID);
     
     if (currentSessionId && currentPath === '/') {
-      // If we have an active session but we're on the root path,
-      // we should navigate to the research page with that session
       console.log(`[${new Date().toISOString()}] 🔄 Found active session:`, currentSessionId);
       setActiveSession(currentSessionId);
       setShouldRedirect(true);
     } else {
-      // If no current session or already on a specific path,
-      // fall back to the last path logic
       const savedPath = localStorage.getItem('lastPath');
       if (savedPath && currentPath === '/') {
         setLastPath(savedPath);
-        // Only redirect if explicitly coming from another page
-        // Don't redirect if the user is intentionally visiting the root
         const referrer = document.referrer;
         if (referrer && referrer.includes(window.location.host)) {
           setShouldRedirect(true);
@@ -198,10 +187,8 @@ function AppRoutes() {
     
     setIsLoading(false);
 
-    // Save current path to localStorage whenever it changes
     const saveCurrentPath = () => {
       const currentPath = window.location.pathname;
-      // Only save paths that aren't the root or auth page
       if (currentPath !== '/' && !currentPath.includes('/auth')) {
         console.log(`[${new Date().toISOString()}] 📍 Saving current path:`, currentPath);
         localStorage.setItem('lastPath', currentPath);
@@ -209,27 +196,22 @@ function AppRoutes() {
       }
     };
 
-    // Listen for route changes to save the path
     window.addEventListener('beforeunload', saveCurrentPath);
     
-    // Also save when routes change within the app
     const handleRouteChange = () => {
       saveCurrentPath();
     };
     
     window.addEventListener('popstate', handleRouteChange);
     
-    // Manually call once to save the initial path
     saveCurrentPath();
     
-    // Clean up event listeners
     return () => {
       window.removeEventListener('beforeunload', saveCurrentPath);
       window.removeEventListener('popstate', handleRouteChange);
     };
   }, []);
 
-  // Also save the path when the location changes
   useEffect(() => {
     const currentPath = location.pathname;
     if (currentPath !== '/' && !currentPath.includes('/auth')) {
@@ -237,29 +219,39 @@ function AppRoutes() {
       localStorage.setItem('lastPath', currentPath);
     }
     
-    // If this is a research path with a session ID, set it as the current session
     const isResearchPathWithSession = currentPath.match(/^\/research\/[a-zA-Z0-9-]+$/);
     if (isResearchPathWithSession) {
       const pathSessionId = currentPath.split('/').pop();
       if (pathSessionId) {
         localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, pathSessionId);
         console.log(`[${new Date().toISOString()}] 🔄 Setting current session from location change:`, pathSessionId);
+        
+        const sessionData = getSessionData(pathSessionId);
+        if (sessionData) {
+          console.log(`[${new Date().toISOString()}] 📂 Restoring session data on location change for ${pathSessionId}`);
+          
+          window.dispatchEvent(new CustomEvent('session-selected', { 
+            detail: { 
+              sessionId: pathSessionId,
+              isNew: false,
+              forceRestore: true,
+              state: sessionData.stateKey
+            }
+          }));
+        }
       }
     }
   }, [location]);
 
-  // Show nothing while we're determining the redirect
   if (isLoading) {
     return null;
   }
 
-  // Prioritize active session redirection
   if (activeSession && shouldRedirect && window.location.pathname === '/') {
     console.log(`[${new Date().toISOString()}] 🔄 Redirecting to active session:`, activeSession);
     return <Navigate to={`/research/${activeSession}`} replace />;
   }
   
-  // Fall back to last path logic
   if (shouldRedirect && lastPath && lastPath !== '/' && window.location.pathname === '/') {
     console.log(`[${new Date().toISOString()}] 🔄 Redirecting to last path:`, lastPath);
     return <Navigate to={lastPath} replace />;

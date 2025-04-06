@@ -10,7 +10,7 @@ import {
 import { Separator } from "@/components/ui/separator"
 import { CalendarDays, Clock, ChevronsLeft, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
+import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData, getSessionData } from "@/lib/constants";
 import { toast } from "sonner";
 import { supabase, syncSession } from "@/integrations/supabase/client";
 import { getLatestSessionState } from "@/services/researchStateService";
@@ -51,15 +51,73 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
       // Get the latest state for this session from Supabase
       const latestState = await getLatestSessionState(item.session_id);
       
-      if (latestState) {
-        console.log(`[${new Date().toISOString()}] ✅ Retrieved latest state for session:`, item.session_id);
+      // Also try to get any locally cached session data
+      const cachedSessionData = getSessionData(item.session_id);
+      
+      let mergedState = latestState;
+      
+      // If we have both remote and local data, merge them to get the most complete state
+      if (latestState && cachedSessionData) {
+        console.log(`[${new Date().toISOString()}] 🔄 Merging remote and local session data for ${item.session_id}`);
+        
+        // Merge the data, prioritizing items with more entries
+        mergedState = {
+          ...latestState,
+          // For arrays, take the one with more items
+          sources: (cachedSessionData.sourcesKey?.length > (latestState.sources?.length || 0)) 
+            ? cachedSessionData.sourcesKey : latestState.sources,
+          reasoning_path: (cachedSessionData.reasoningPathKey?.length > (latestState.reasoning_path?.length || 0)) 
+            ? cachedSessionData.reasoningPathKey : latestState.reasoning_path,
+          findings: (cachedSessionData.findingsKey?.length > (latestState.findings?.length || 0)) 
+            ? cachedSessionData.findingsKey : latestState.findings
+        };
+      }
+      
+      if (mergedState) {
+        console.log(`[${new Date().toISOString()}] ✅ Retrieved session state for ${item.session_id}`);
         
         // Store this state in localStorage for better persistence
-        localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, JSON.stringify(latestState));
+        localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, JSON.stringify(mergedState));
         
-        // Also save session-specific state
-        const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, item.session_id);
-        localStorage.setItem(sessionStateKey, JSON.stringify(latestState));
+        // Make sure we have all relevant session data fully cached
+        if (mergedState.sources) {
+          localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(mergedState.sources));
+        }
+        
+        if (mergedState.reasoning_path) {
+          localStorage.setItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, JSON.stringify(mergedState.reasoning_path));
+        }
+        
+        if (mergedState.findings) {
+          localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(mergedState.findings));
+        }
+        
+        // Save complete session data to ensure persistence
+        saveSessionData(item.session_id, {
+          state: mergedState,
+          sources: mergedState.sources,
+          reasoningPath: mergedState.reasoning_path,
+          findings: mergedState.findings
+        });
+      } else if (cachedSessionData) {
+        console.log(`[${new Date().toISOString()}] ⚠️ Using cached session data for ${item.session_id}`);
+        
+        // If we only have cached data, use that
+        if (cachedSessionData.stateKey) {
+          localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, JSON.stringify(cachedSessionData.stateKey));
+        }
+        
+        if (cachedSessionData.sourcesKey) {
+          localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(cachedSessionData.sourcesKey));
+        }
+        
+        if (cachedSessionData.reasoningPathKey) {
+          localStorage.setItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, JSON.stringify(cachedSessionData.reasoningPathKey));
+        }
+        
+        if (cachedSessionData.findingsKey) {
+          localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(cachedSessionData.findingsKey));
+        }
       } else {
         console.warn(`[${new Date().toISOString()}] ⚠️ Could not find state for session:`, item.session_id);
       }
@@ -71,7 +129,8 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
           query: item.query,
           isNew: false,
           historyItem: item,
-          state: latestState
+          state: mergedState || cachedSessionData,
+          forceRestore: true // Add this flag to force a complete restoration
         }
       }));
       
