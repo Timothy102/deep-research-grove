@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { ExternalLink, Search, FileText, Lightbulb } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -196,107 +195,107 @@ const SourcesList: React.FC<SourcesListProps> = ({
     }));
   };
 
-  if (displaySources.length === 0) {
-    return (
-      <div className={`flex flex-col items-center justify-center p-8 ${className}`}>
-        <Search className="h-12 w-12 text-muted-foreground/50 mb-4" />
-        <p className="text-muted-foreground">No sources yet</p>
-      </div>
-    );
-  }
-
   return (
-    <div className={className}>
-      <h3 className="font-medium mb-4 flex items-center justify-between">
-        <span>Sources ({displaySources.length})</span>
-          <Badge variant="outline" className="text-xs">
-            {displayFindings.length} finding{displayFindings.length !== 1 ? 's' : ''}
-          </Badge>
-      </h3>
-      <ScrollArea className="h-[calc(100vh-250px)]">
-        <div className="space-y-3">
-          {displaySources.map((source, index) => {
-            const sourceFindings = findingsBySource[source] || [];
-            const isExpanded = expandedSources[source] !== false;
-            
-            return (
+    <div className={`space-y-4 ${className || ''}`}>
+      <h3 className="text-lg font-semibold mb-2">Sources ({displaySources.length})</h3>
+      
+      {displaySources.length === 0 ? (
+        <div className="text-muted-foreground text-sm">
+          No sources available yet
+        </div>
+      ) : (
+        <ScrollArea className="h-[calc(100vh-220px)]">
+          <div className="space-y-4">
+            {displaySources.map((source, index) => (
               <Collapsible 
-                key={`${source}-${index}`} 
-                open={isExpanded}
-                onOpenChange={() => toggleSourceExpanded(source)}
-                className="border border-muted-foreground/10 rounded-md overflow-hidden"
+                key={`${source}-${index}`}
+                open={expandedSources[source]}
+                onOpenChange={(isOpen) => {
+                  setExpandedSources(prev => ({
+                    ...prev,
+                    [source]: isOpen
+                  }));
+                }}
+                className="border rounded-md"
               >
-                <div className="flex items-center justify-between p-3 bg-background hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center flex-1 min-w-0">
-                    <CollapsibleTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="p-0 h-5 w-5 mr-2 hover:bg-transparent"
-                      >
-                        {isExpanded ? 
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" /> : 
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        }
-                      </Button>
-                    </CollapsibleTrigger>
-                    <span className="text-sm truncate">{source}</span>
-                  </div>
-                  
-                  <div className="flex items-center ml-2 space-x-2">
-                    {sourceFindings.length > 0 && (
-                      <Badge variant="outline" className="text-xs bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300">
-                        {sourceFindings.length} 
-                      </Badge>
-                    )}
-                    <a 
-                      href={source} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-primary hover:text-primary/80 transition-colors" 
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <ExternalLink size={16} />
-                    </a>
-                  </div>
-                </div>
+                <CollapsibleTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    className="flex items-start justify-between w-full p-3 text-left hover:bg-muted"
+                  >
+                    <div className="flex items-start space-x-2">
+                      <div className="mt-1">
+                        {expandedSources[source] ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="font-medium text-sm break-all">
+                          {source}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {findingsBySource[source]?.length 
+                            ? `${findingsBySource[source]?.length} findings` 
+                            : "No findings"}
+                        </div>
+                      </div>
+                    </div>
+                  </Button>
+                </CollapsibleTrigger>
                 
                 <CollapsibleContent>
-                  {sourceFindings.length > 0 ? (
-                    <div className="p-3 pt-0 space-y-3 bg-slate-50/50 dark:bg-slate-900/50">
-                      {sourceFindings.map((finding, i) => (
-                        <div key={`finding-${i}`} className="mt-3 p-3 rounded-md border border-muted bg-background/90">
-                          {finding.finding?.title && (
-                            <h4 className="text-sm font-medium mb-1">{finding.finding.title}</h4>
-                          )}
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                            {finding.finding?.summary || finding.content || "No content available"}
-                          </p>
-                          {finding.finding?.confidence_score && (
-                            <Badge variant="outline" className="mt-2 text-xs bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
-                              Confidence: {Math.round(finding.finding.confidence_score * 100)}%
-                            </Badge>
-                          )}
-                          {finding.node_id && (
-                            <div className="mt-2 flex items-center">
-                              <Lightbulb className="h-3 w-3 text-amber-500 mr-1" />
-                              <span className="text-xs text-muted-foreground">Step {finding.node_id}</span>
+                  <div className="px-4 py-3 border-t space-y-3">
+                    <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                      <FileText className="h-3 w-3" />
+                      <span>Source: {source}</span>
+                    </div>
+                    
+                    {findingsBySource[source]?.length > 0 ? (
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-medium flex items-center space-x-1">
+                          <Lightbulb className="h-3 w-3" />
+                          <span>Findings</span>
+                        </h4>
+                        
+                        <div className="space-y-2">
+                          {findingsBySource[source]?.map((finding, i) => (
+                            <div key={i} className="text-sm border-l-2 border-blue-500 pl-3 py-1">
+                              {finding.finding?.title && (
+                                <div className="font-medium mb-1">{finding.finding.title}</div>
+                              )}
+                              <div className="text-sm text-muted-foreground">
+                                {finding.content || finding.finding?.summary || "No content available"}
+                              </div>
                             </div>
-                          )}
+                          ))}
                         </div>
-                      ))}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-muted-foreground italic">
+                        No findings extracted from this source
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-end mt-2">
+                      <a 
+                        href={source} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center space-x-1 text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        <span>View source</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
                     </div>
-                  ) : (
-                    <div className="p-3 pt-0 bg-slate-50/50 dark:bg-slate-900/50">
-                      <p className="text-xs text-muted-foreground italic">No findings yet for this source</p>
-                    </div>
-                  )}
+                  </div>
                 </CollapsibleContent>
               </Collapsible>
-            );
-          })}
-        </div>
-      </ScrollArea>
+            ))}
+          </div>
+        </ScrollArea>
+      )}
     </div>
   );
 };

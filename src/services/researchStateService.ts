@@ -1,4 +1,3 @@
-
 import { supabase, getClientId } from "@/integrations/supabase/client";
 import { Json } from "@/integrations/supabase/types";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
@@ -12,7 +11,7 @@ export interface ResearchState {
   query: string;
   answer?: string;
   sources?: string[];
-  findings?: Array<{ source: string; content?: string }>;
+  findings?: Array<{ source: string; content?: string; node_id?: string; query?: string; finding?: any }>;
   reasoning_path?: string[];
   created_at?: string;
   updated_at?: string;
@@ -34,6 +33,10 @@ export interface ResearchState {
       timestamp: string;
     };
   }>;
+  active_nodes?: number;
+  completed_nodes?: number;
+  findings_count?: number;
+  last_update?: string;
 }
 
 // Save initial research state
@@ -116,7 +119,13 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
         console.log(`[${new Date().toISOString()}] ✅ Successfully saved research state with active_tab`);
         
         if (dataWithTab && dataWithTab.length > 0) {
-          const result = dataWithTab[0] as ResearchState;
+          const rawResult = dataWithTab[0] as any;
+          const result: ResearchState = {
+            ...rawResult,
+            findings: Array.isArray(rawResult.findings) 
+              ? rawResult.findings 
+              : (typeof rawResult.findings === 'object' ? [] : [])
+          };
           // Save to localStorage for persistence
           saveStateToLocalStorage(result);
           return result;
@@ -129,7 +138,15 @@ export async function saveResearchState(state: Omit<ResearchState, 'user_id'>): 
     console.log(`[${new Date().toISOString()}] ✅ Successfully saved research state`);
     
     if (data && data.length > 0) {
-      const result = data[0] as ResearchState;
+      // Type conversion to handle Json type from Supabase
+      const rawResult = data[0] as any;
+      const result: ResearchState = {
+        ...rawResult,
+        findings: Array.isArray(rawResult.findings) 
+          ? rawResult.findings 
+          : (typeof rawResult.findings === 'object' ? [] : [])
+      };
+      
       // Save to localStorage for persistence
       saveStateToLocalStorage(result);
       return result;
@@ -322,7 +339,13 @@ export async function updateResearchState(
       } else {
         // If no error, return the result
         if (data && data.length > 0) {
-          const result = data[0] as ResearchState;
+          const rawResult = data[0] as any;
+          const result: ResearchState = {
+            ...rawResult,
+            findings: Array.isArray(rawResult.findings) 
+              ? rawResult.findings 
+              : (typeof rawResult.findings === 'object' ? [] : [])
+          };
           // Update localStorage
           saveStateToLocalStorage(result);
           return result;
@@ -371,7 +394,15 @@ export async function updateResearchState(
   }
   
   if (data && data.length > 0) {
-    const result = data[0] as ResearchState;
+    // Type conversion to handle Json type from Supabase
+    const rawResult = data[0] as any;
+    const result: ResearchState = {
+      ...rawResult,
+      findings: Array.isArray(rawResult.findings) 
+        ? rawResult.findings 
+        : (typeof rawResult.findings === 'object' ? [] : [])
+    };
+    
     // Update localStorage
     saveStateToLocalStorage(result);
     return result;
@@ -486,7 +517,16 @@ export async function getResearchState(researchId: string, sessionId: string): P
     
     // Ensure the returned data has the correct status type
     if (data) {
-      const result = data as ResearchState;
+      // Type conversion to handle Json type from Supabase
+      const rawData = data as any;
+      const result: ResearchState = {
+        ...rawData,
+        findings: Array.isArray(rawData.findings) 
+          ? rawData.findings 
+          : (typeof rawData.findings === 'string' 
+              ? JSON.parse(rawData.findings) 
+              : [])
+      };
       
       // Convert human_interactions back from JSON string
       if (typeof result.human_interactions === 'string') {
@@ -703,7 +743,16 @@ export async function getSessionResearchStates(sessionId: string): Promise<Resea
   
   // Ensure all returned items have the correct status type
   const result = (data || []).map(item => {
-    const typedItem = item as ResearchState;
+    // Type conversion to handle Json type from Supabase
+    const rawItem = item as any;
+    const typedItem: ResearchState = {
+      ...rawItem,
+      findings: Array.isArray(rawItem.findings) 
+        ? rawItem.findings 
+        : (typeof rawItem.findings === 'string' 
+            ? JSON.parse(rawItem.findings) 
+            : [])
+    };
     
     // Convert human_interactions back from JSON string
     if (typeof typedItem.human_interactions === 'string') {
@@ -791,113 +840,10 @@ export async function getLatestSessionState(sessionId: string): Promise<Research
     }
     
     if (data) {
-      const result = data as ResearchState;
-      console.log(`[${new Date().toISOString()}] ✅ Found session state:`, {
-        id: result.id,
-        research_id: result.research_id,
-        status: result.status,
-        clientId: result.client_id
-      });
-      
-      // Convert human_interactions back from JSON string
-      if (typeof result.human_interactions === 'string') {
-        try {
-          result.human_interactions = JSON.parse(result.human_interactions);
-        } catch (e) {
-          console.error("Error parsing human_interactions", e);
-          result.human_interactions = [];
-        }
-      } else if (!result.human_interactions) {
-        result.human_interactions = [];
-      }
-      
-      // Fix up sources from local cache
-      try {
-        // First try session-specific cache
-        const sessionSourcesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId);
-        const cachedSessionSources = localStorage.getItem(sessionSourcesKey);
-        
-        if (cachedSessionSources) {
-          const parsedSources = JSON.parse(cachedSessionSources);
-          if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-            result.sources = parsedSources;
-          }
-        } else {
-          // Fall back to general cache
-          const cachedSources = localStorage.getItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE);
-          if (cachedSources) {
-            const parsedSources = JSON.parse(cachedSources);
-            if (Array.isArray(parsedSources) && parsedSources.length > 0) {
-              result.sources = parsedSources;
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Error retrieving cached sources:", e);
-      }
-      
-      // Apply the same logic for findings and reasoning_path
-      try {
-        const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
-        const cachedSessionPath = localStorage.getItem(sessionPathKey);
-        
-        if (cachedSessionPath) {
-          const parsedPath = JSON.parse(cachedSessionPath);
-          if (Array.isArray(parsedPath) && parsedPath.length > 0) {
-            if (!result.reasoning_path || parsedPath.length > result.reasoning_path.length) {
-              result.reasoning_path = parsedPath;
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Error retrieving cached reasoning path:", e);
-      }
-      
-      try {
-        const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
-        const cachedSessionFindings = localStorage.getItem(sessionFindingsKey);
-        
-        if (cachedSessionFindings) {
-          const parsedFindings = JSON.parse(cachedSessionFindings);
-          if (Array.isArray(parsedFindings) && parsedFindings.length > 0) {
-            if (!result.findings || parsedFindings.length > result.findings.length) {
-              result.findings = parsedFindings;
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Error retrieving cached findings:", e);
-      }
-      
-      if (result.status !== 'in_progress' && 
-          result.status !== 'completed' && 
-          result.status !== 'error' && 
-          result.status !== 'awaiting_human_input') {
-        result.status = 'in_progress'; // Default to 'in_progress' if invalid status
-      }
-      
-      // Save to localStorage for better persistence
-      saveStateToLocalStorage(result);
-      
-      return result;
-    }
-    
-    console.log(`[${new Date().toISOString()}] ℹ️ No session state found for session:`, sessionId);
-    
-    // Try to get from localStorage as fallback
-    return getStateFromLocalStorage("", sessionId, user.user.id);
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] 🔥 Error in getLatestSessionState:`, error);
-    
-    try {
-      const { data: user } = await supabase.auth.getUser();
-      if (user.user) {
-        return getStateFromLocalStorage("", sessionId, user.user.id);
-      }
-    } catch (e) {
-      console.error("Error getting user for localStorage fallback:", e);
-    }
-    
-    return null;
-  }
-}
+      const rawData = data as any;
+      const result: ResearchState = {
+        ...rawData,
+        findings: Array.isArray(rawData.findings) 
+          ? rawData.findings 
+          : (typeof rawData.findings === 'string' 
+              ? JSON.parse(rawData.findings)
