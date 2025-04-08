@@ -1,3 +1,4 @@
+
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
@@ -8,7 +9,7 @@ import { supabase } from './integrations/supabase/client';
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from './lib/constants.ts';
 import { initPostHog } from './integrations/posthog/client';
 
-// Initialize PostHog
+// Initialize PostHog if not already initialized by the inline script
 initPostHog();
 
 // Track the current active session ID

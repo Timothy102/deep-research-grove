@@ -10,12 +10,13 @@ export const initPostHog = () => {
   if (initialized) return;
   
   if (typeof window !== 'undefined' && POSTHOG_KEY) {
+    // Using the recommended initialization pattern
     posthog.init(POSTHOG_KEY, {
       api_host: POSTHOG_HOST,
-      capture_pageview: false, // We'll handle pageviews manually
-      autocapture: false, // We'll set up our own events
+      autocapture: true, // Enable autocapture by default
+      capture_pageview: true, // Enable automatic pageview tracking
       loaded: (posthog) => {
-        console.log(`[${new Date().toISOString()}] 📊 PostHog initialized`);
+        console.log(`[${new Date().toISOString()}] 📊 PostHog initialized with autocapture enabled`);
       }
     });
     initialized = true;
@@ -69,19 +70,20 @@ export const resetUser = () => {
   }
 };
 
+// Simplified function to enable autocapture if it wasn't enabled initially
 export const enableAutocapture = () => {
-  if (!initialized) initPostHog();
+  if (!initialized) {
+    // If not initialized, initialize with autocapture enabled
+    initPostHog();
+    return;
+  }
   
   try {
-    // Instead of calling config as a function, use the correct method
-    // to enable autocapture in posthog-js
-    posthog.init(POSTHOG_KEY, {
-      api_host: POSTHOG_HOST,
-      autocapture: true
-    });
-    console.log(`[${new Date().toISOString()}] 📊 Enabled autocapture`);
+    // For already initialized instances, we can't enable autocapture after the fact
+    // Just log a message to inform that it would need a reinstantiation
+    console.log(`[${new Date().toISOString()}] 📊 Note: PostHog is already initialized. Autocapture can only be enabled at initialization.`);
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error enabling autocapture:`, error);
+    console.error(`[${new Date().toISOString()}] ❌ Error with PostHog autocapture:`, error);
   }
 };
 

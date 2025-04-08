@@ -1,4 +1,3 @@
-
 import { Routes, Route, BrowserRouter, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './components/auth/AuthContext';
@@ -12,7 +11,6 @@ import { Button } from '@/components/ui/button';
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData } from '@/lib/constants';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
-import { enableAutocapture } from './integrations/posthog/client';
 
 import ResearchPage from './pages/ResearchPage';
 import ProfilePage from './pages/ProfilePage';
