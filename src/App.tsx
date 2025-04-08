@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData } from '@/lib/constants';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
+import { enableAutocapture } from './integrations/posthog/client';
 
 import ResearchPage from './pages/ResearchPage';
 import ProfilePage from './pages/ProfilePage';
@@ -19,6 +20,7 @@ import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
 import UserModelsPage from './pages/UserModelsPage';
 import NotFound from './pages/NotFound';
+import AnalyticsDebugger from './components/analytics/AnalyticsDebugger';
 import './App.css';
 
 // Configure CORS proxy for Modal API
@@ -140,10 +142,14 @@ function AppRoutes() {
   const [isLoading, setIsLoading] = useState(true);
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const [lastPath, setLastPath] = useState<string | null>(null);
+  const location = useLocation();
 
   useEffect(() => {
     // Configure CORS proxy
     configureModalApiProxy();
+    
+    // Enable PostHog autocapture for all interactions and clicks
+    enableAutocapture();
     
     // Get the last path from local storage on initial load
     const savedPath = localStorage.getItem('lastPath');
@@ -233,6 +239,7 @@ function App() {
                   className: "z-[100]"
                 }}
               />
+              <AnalyticsDebugger />
             </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +8,7 @@ import { FileText, Copy, Download, CheckCircle2 } from "lucide-react";
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { captureEvent } from '@/integrations/posthog/client';
 
 export interface ResearchOutputProps {
   output: string;
@@ -106,40 +106,53 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
       setIsCopied(true);
       toast.success("Output copied to clipboard");
       setTimeout(() => setIsCopied(false), 2000);
+      
+      captureEvent('research_output_copied', { 
+        output_length: output.length 
+      });
     } catch (err) {
       console.error("Failed to copy text:", err);
       toast.error("Failed to copy text");
+      
+      captureEvent('research_output_copy_error', {
+        error: err instanceof Error ? err.message : String(err)
+      });
     }
   };
 
   const exportToPdf = async () => {
     try {
-      // We'll use a simple approach with html-to-pdf conversion
       const { jsPDF } = await import('jspdf');
       
       const doc = new jsPDF();
       
-      // Set title
       doc.setFontSize(16);
       doc.text("Research Results", 20, 20);
       
-      // Add content with word wrapping
       doc.setFontSize(12);
       const splitText = doc.splitTextToSize(output, 170);
       doc.text(splitText, 20, 30);
       
-      // Save the PDF
       doc.save("research-output.pdf");
       toast.success("PDF downloaded successfully");
+      
+      captureEvent('research_output_exported', { 
+        format: 'pdf',
+        output_length: output.length
+      });
     } catch (err) {
       console.error("Failed to export as PDF:", err);
       toast.error("Failed to export as PDF");
+      
+      captureEvent('research_output_export_error', {
+        format: 'pdf',
+        error: err instanceof Error ? err.message : String(err)
+      });
     }
   };
 
   const exportToDocx = async () => {
     try {
-      // Create document
       const doc = new Document({
         sections: [{
           properties: {},
@@ -156,19 +169,27 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
         }],
       });
       
-      // Generate blob and save
       const blob = await Packer.toBlob(doc);
       saveAs(blob, "research-output.docx");
       toast.success("DOCX downloaded successfully");
+      
+      captureEvent('research_output_exported', { 
+        format: 'docx',
+        output_length: output.length
+      });
     } catch (err) {
       console.error("Failed to export as DOCX:", err);
       toast.error("Failed to export as DOCX");
+      
+      captureEvent('research_output_export_error', {
+        format: 'docx',
+        error: err instanceof Error ? err.message : String(err)
+      });
     }
   };
 
   return (
     <div className="prose prose-sm max-w-none dark:prose-invert">
-      {/* Export Options */}
       <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
         <Button 
           variant="outline" 

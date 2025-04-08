@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -35,6 +34,8 @@ import { getClientId } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
 import { ProgressIndicator } from "@/components/research/ProgressIndicator";
+import { useAnalytics } from "@/hooks/use-analytics";
+import { captureEvent } from "@/integrations/posthog/client";
 
 interface ResearchHistory {
   id: string;
@@ -123,6 +124,7 @@ const ResearchPage = () => {
   const initialEventReceivedRef = useRef<boolean>(false);
   const { toast: uiToast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const { trackEvent } = useAnalytics();
 
   useEffect(() => {
     if (!user) {
@@ -215,6 +217,14 @@ const ResearchPage = () => {
         setDomain(model.domain);
         setExpertiseLevel(model.expertise_level);
         setSelectedCognitiveStyle(model.cognitive_style);
+        
+        trackEvent('user_model_selected', {
+          model_id: modelId,
+          model_name: model.name,
+          domain: model.domain,
+          expertise_level: model.expertise_level,
+          cognitive_style: model.cognitive_style
+        });
         
         toast.success(`Selected user model: ${model.name}`);
       }
@@ -779,6 +789,14 @@ const ResearchPage = () => {
         }
         
         setActiveTab("output");
+        
+        trackEvent('research_completed', {
+          research_id: researchId,
+          session_id: currentSessionIdRef.current,
+          sources_count: finalSources.length,
+          findings_count: finalFindings.length,
+          answer_length: finalAnswer.length
+        });
         break;
       case "error":
         uiToast({

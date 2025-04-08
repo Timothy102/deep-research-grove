@@ -1,4 +1,3 @@
-
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
@@ -7,6 +6,10 @@ import HumanApprovalDialog from './components/research/HumanApprovalDialog.tsx';
 import { submitFeedback } from './services/feedbackService.ts';
 import { supabase } from './integrations/supabase/client';
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from './lib/constants.ts';
+import { initPostHog } from './integrations/posthog/client';
+
+// Initialize PostHog
+initPostHog();
 
 // Track the current active session ID
 let currentSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID) || '';
