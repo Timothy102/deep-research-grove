@@ -9,10 +9,14 @@ import {
   identifyUser, 
   resetUser 
 } from '@/integrations/posthog/client';
+import { useTrackInteractions } from './use-track-interactions';
 
 export const useAnalytics = () => {
   const location = useLocation();
   const { user } = useAuth();
+  
+  // Enable interaction tracking (buttons, links, forms)
+  useTrackInteractions();
   
   // Initialize PostHog
   useEffect(() => {
@@ -25,7 +29,8 @@ export const useAnalytics = () => {
     capturePageView(url, {
       pathname: location.pathname,
       search_params: location.search,
-      referrer: document.referrer
+      referrer: document.referrer,
+      title: document.title
     });
   }, [location.pathname, location.search]);
   

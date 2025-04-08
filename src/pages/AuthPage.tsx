@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -7,12 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Loader2, MessageSquarePlus } from "lucide-react";
+import { useAnalytics } from "@/hooks/use-analytics";
+import { captureEvent } from "@/integrations/posthog/client";
 
 const AuthPage = () => {
   const [authTab, setAuthTab] = useState("signin");
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading, signInWithGoogle } = useAuth();
+  
+  useAnalytics();
 
   useEffect(() => {
     const hashParams = new URLSearchParams(location.hash.substring(1));
@@ -27,14 +30,33 @@ const AuthPage = () => {
 
   const handleGoogleSignIn = async () => {
     try {
+      captureEvent('google_signin_attempt');
+      
       await signInWithGoogle();
+      
+      captureEvent('google_signin_success');
     } catch (error) {
       console.error("Google sign in error:", error);
+      
+      captureEvent('google_signin_error', {
+        error_message: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   };
 
   const handleNewChat = () => {
+    captureEvent('new_chat_clicked', { 
+      origin: 'auth_page'
+    });
     navigate("/research");
+  };
+
+  const handleTabChange = (value: string) => {
+    captureEvent('auth_tab_changed', { 
+      from: authTab,
+      to: value
+    });
+    setAuthTab(value);
   };
 
   return (
@@ -77,7 +99,7 @@ const AuthPage = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              <Tabs defaultValue="signin" value={authTab} onValueChange={setAuthTab} className="w-full">
+              <Tabs defaultValue="signin" value={authTab} onValueChange={handleTabChange} className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-8">
                   <TabsTrigger value="signin">Sign In</TabsTrigger>
                   <TabsTrigger value="signup">Create Account</TabsTrigger>
