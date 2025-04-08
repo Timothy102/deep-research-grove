@@ -73,7 +73,12 @@ export const enableAutocapture = () => {
   if (!initialized) initPostHog();
   
   try {
-    posthog.config({ autocapture: true });
+    // Instead of calling config as a function, use the correct method
+    // to enable autocapture in posthog-js
+    posthog.init(POSTHOG_KEY, {
+      api_host: POSTHOG_HOST,
+      autocapture: true
+    });
     console.log(`[${new Date().toISOString()}] 📊 Enabled autocapture`);
   } catch (error) {
     console.error(`[${new Date().toISOString()}] ❌ Error enabling autocapture:`, error);
