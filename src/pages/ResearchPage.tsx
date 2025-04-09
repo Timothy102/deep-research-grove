@@ -1173,7 +1173,22 @@ const ResearchPage = () => {
                   </TabsContent>
                   
                   <TabsContent value="output" className="mt-0">
-                    <ResearchOutput output={researchOutput} isLoading={isLoading} />
+                    <ResearchOutput 
+                      loading={isLoading}
+                      completed={!isLoading && researchOutput !== ""}
+                      paused={false}
+                      result={{
+                        answer: researchOutput,
+                        confidence: 0,
+                        query: researchObjective
+                      }}
+                      error={null}
+                      reasoningPath={reasoningPath}
+                      sources={sources}
+                      findings={findings}
+                      rawData={rawData}
+                      sessionId={currentSessionIdRef.current}
+                    />
                   </TabsContent>
                   
                   <TabsContent value="sources" className="mt-0">
@@ -1187,7 +1202,16 @@ const ResearchPage = () => {
               <div className="max-w-4xl w-full">
                 <div className="mb-8">
                   <ResearchOutput 
-                    output="" 
+                    loading={isLoading}
+                    completed={false}
+                    paused={false}
+                    result={null}
+                    error={null}
+                    reasoningPath={[]}
+                    sources={[]}
+                    findings={[]}
+                    rawData={{}}
+                    sessionId={currentSessionIdRef.current}
                     userName={displayName || user?.email?.split('@')[0] || "researcher"}
                     userModels={userModels}
                     onSelectModel={selectUserModel}

@@ -19,6 +19,9 @@ interface ResearchOutputProps {
   findings: any[];
   rawData: Record<string, string>;
   sessionId?: string;
+  userName?: string;
+  userModels?: any[];
+  onSelectModel?: (modelId: string) => Promise<void>;
 }
 
 const ResearchOutput = ({
@@ -32,6 +35,9 @@ const ResearchOutput = ({
   findings,
   rawData,
   sessionId,
+  userName,
+  userModels,
+  onSelectModel
 }: ResearchOutputProps) => {
   const [reportData, setReportData] = useState<any>(null);
   
@@ -83,7 +89,7 @@ const ResearchOutput = ({
   return (
     <div className="relative">
       {paused && (
-        <Alert variant="warning" className="my-4">
+        <Alert className="my-4 border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
           <Pause className="h-4 w-4" />
           <AlertTitle>Research Paused</AlertTitle>
           <AlertDescription>
@@ -129,6 +135,9 @@ const ResearchOutput = ({
           <ResearchResults 
             result={result} 
             reportData={reportData}
+            userName={userName}
+            userModels={userModels}
+            onSelectModel={onSelectModel}
           />
         </div>
       </div>
