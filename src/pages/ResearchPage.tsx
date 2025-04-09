@@ -16,15 +16,12 @@ import {
   getLatestSessionState 
 } from "@/services/researchStateService";
 import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted, getUserModels } from "@/services/userModelService";
-import { submitHumanFeedback } from "@/services/humanInteractionService";
-import { submitFeedback } from '@/services/feedbackService';
 import { useToast } from "@/hooks/use-toast";
 import { ResearchForm } from "@/components/research/ResearchForm";
 import ReasoningPath from "@/components/research/ReasoningPath";
 import SourcesList from "@/components/research/SourcesList";
 import ResearchOutput from "@/components/research/ResearchOutput";
 import ResearchHistorySidebar from "@/components/research/ResearchHistorySidebar";
-import HumanApprovalDialog from "@/components/research/HumanApprovalDialog";
 import UserModelOnboarding from "@/components/onboarding/UserModelOnboarding";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { v4 as uuidv4 } from 'uuid';
@@ -45,48 +42,6 @@ interface ResearchHistory {
   created_at: string;
 }
 
-interface HumanApprovalRequest {
-  call_id: string;
-  node_id: string;
-  query: string;
-  content: string;
-  approval_type: string;
-  interaction_type?: "planning" | "searching" | "synthesizing";
-}
-
-interface Finding {
-  source: string;
-  content?: string;
-  node_id?: string;
-  query?: string;
-  finding?: any;
-}
-
-interface HumanInteraction {
-  call_id: string;
-  node_id: string;
-  query: string;
-  content: string;
-  interaction_type: string;
-  status: "completed" | "pending";
-  response?: {
-    approved: boolean;
-    comment?: string;
-    timestamp: string;
-  };
-  type?: string;
-  timestamp?: string;
-}
-
-interface HumanInteractionRequest {
-  call_id: string;
-  node_id: string;
-  query: string;
-  content: string;
-  interaction_type: "planning" | "searching" | "synthesizing";
-  approval_type?: string;
-}
-
 const ResearchPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
@@ -104,8 +59,6 @@ const ResearchPage = () => {
     return savedState !== null ? savedState === 'true' : false;
   });
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
-  const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
   const [researchObjective, setResearchObjective] = useState("");
   const [userContext, setUserContext] = useState("");
   const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("");
@@ -326,53 +279,17 @@ const ResearchPage = () => {
           setReasoningPath(sessionState.reasoning_path);
         }
         
-        if (sessionState.status === 'awaiting_human_input' && sessionState.human_interactions) {
-          let interactions: HumanInteraction[] = [];
-          
-          if (typeof sessionState.human_interactions === 'string') {
-            try {
-              interactions = JSON.parse(sessionState.human_interactions);
-            } catch (e) {
-              console.error("Error parsing human interactions:", e);
-              interactions = [];
-            }
-          } else if (Array.isArray(sessionState.human_interactions)) {
-            interactions = sessionState.human_interactions as HumanInteraction[];
-          }
-                
-          const lastInteraction = interactions
-            .filter(interaction => interaction.type === 'interaction_request')
-            .pop();
-            
-          if (lastInteraction) {
-            const approvalRequest: HumanApprovalRequest = {
-              call_id: lastInteraction.call_id,
-              node_id: lastInteraction.node_id,
-              query: lastInteraction.query || sessionState.query,
-              content: lastInteraction.content,
-              approval_type: lastInteraction.interaction_type
-            };
-            
-            setHumanApprovalRequest(approvalRequest);
-            setShowApprovalDialog(true);
-            
-            console.log(`[${new Date().toISOString()}] 🔄 Restored pending human interaction:`, approvalRequest);
-          }
-        }
-        
         if (sessionState.active_tab) {
           setActiveTab(sessionState.active_tab);
         } else {
-          if (sessionState.status === 'awaiting_human_input') {
-            setActiveTab('reasoning');
-          } else if (sessionState.status === 'in_progress') {
+          if (sessionState.status === 'in_progress') {
             setActiveTab('reasoning');
           } else {
             setActiveTab('output');
           }
         }
         
-        if (sessionState.status === 'in_progress' || sessionState.status === 'awaiting_human_input') {
+        if (sessionState.status === 'in_progress') {
           setIsLoading(true);
           pollResearchState(sessionState.research_id);
         }
@@ -728,17 +645,6 @@ const ResearchPage = () => {
           });
         }
         
-        if (step.toLowerCase().includes("synthesizing") && reasoningPath.length > 0 && reasoningPath.length % 5 === 0) {
-          const syntheticRequest = {
-            call_id: `synthetic-${researchId}-${reasoningPath.length}`,
-            node_id: `${reasoningPath.length}`,
-            query: researchObjective,
-            content: `This is a synthetic approval request at step ${reasoningPath.length}. This would normally contain synthesized content based on the research so far.`,
-            approval_type: "synthesis"
-          };
-          setHumanApprovalRequest(syntheticRequest);
-        }
-        
         setReasoningPath(prev => [...prev, step]);
         
         if (isLoading) {
@@ -798,86 +704,6 @@ const ResearchPage = () => {
           }).catch(err => console.error("Error updating error state:", err));
         }
         break;
-      case "human_interaction_request":
-        console.log(`[${new Date().toISOString()}] 🧠 Human interaction requested:`, data.data);
-        
-        const interactionRequest: HumanInteractionRequest = {
-          call_id: data.data.call_id,
-          node_id: data.data.node_id,
-          query: data.data.query || researchObjective,
-          content: data.data.content,
-          interaction_type: data.data.interaction_type
-        };
-        
-        const approvalRequest: HumanApprovalRequest = {
-          ...interactionRequest,
-          approval_type: interactionRequest.interaction_type
-        };
-        
-        setHumanApprovalRequest(approvalRequest);
-        setShowApprovalDialog(true);
-        
-        window.postMessage(
-          { 
-            type: "human_interaction_request", 
-            data: interactionRequest
-          }, 
-          window.location.origin
-        );
-        
-        if (currentSessionIdRef.current) {
-          const humanInteractions: HumanInteraction[] = [
-            ...findings.map(f => ({ 
-              type: 'finding', 
-              call_id: f.node_id || '', 
-              node_id: f.node_id || '',
-              content: f.content || '',
-              query: f.query || '',
-              interaction_type: 'finding',
-              status: 'completed' as const
-            })),
-            { 
-              type: 'interaction_request', 
-              call_id: interactionRequest.call_id,
-              node_id: interactionRequest.node_id,
-              query: interactionRequest.query,
-              content: interactionRequest.content,
-              interaction_type: interactionRequest.interaction_type,
-              status: 'pending' as const,
-              timestamp: new Date().toISOString()
-            }
-          ];
-          
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            status: 'awaiting_human_input',
-            human_interactions: humanInteractions
-          }).catch(err => console.error("Error updating human interaction state:", err));
-        }
-        break;
-      case "human_interaction_result":
-        console.log(`[${new Date().toISOString()}] 🧠 Human interaction result received:`, data.data);
-        
-        if (humanApprovalRequest?.call_id === data.data.call_id) {
-          setHumanApprovalRequest(null);
-          setShowApprovalDialog(false);
-        }
-        
-        toast.dismiss(`interaction-${data.data.call_id}`);
-        
-        if (currentSessionIdRef.current) {
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            status: 'in_progress',
-            custom_data: JSON.stringify({
-              ...data.data,
-              timestamp: new Date().toISOString(),
-              type: 'interaction_result'
-            })
-          }).catch(err => console.error("Error updating human interaction result:", err));
-        }
-        
-        const humanFeedbackStep = `Human feedback received for ${data.data.interaction_type}: ${data.data.approved ? 'Approved' : 'Rejected'}${data.data.comment ? ` - Comment: ${data.data.comment}` : ''}`;
-        setReasoningPath(prev => [...prev, humanFeedbackStep]);
-        break;
     }
   };
 
@@ -922,39 +748,6 @@ const ResearchPage = () => {
         if (data.status === 'completed') {
           setIsLoading(false);
           setActiveTab('output');
-        } else if (data.status === 'awaiting_human_input' && data.human_interactions) {
-          setIsLoading(false);
-          
-          try {
-            let interactions: HumanInteraction[] = [];
-            
-            if (typeof data.human_interactions === 'string') {
-              interactions = JSON.parse(data.human_interactions);
-            } else if (Array.isArray(data.human_interactions)) {
-              interactions = data.human_interactions;
-            }
-            
-            const pendingInteraction = interactions
-              .filter(interaction => interaction.status === 'pending')
-              .pop();
-              
-            if (pendingInteraction) {
-              const approvalRequest: HumanApprovalRequest = {
-                call_id: pendingInteraction.call_id,
-                node_id: pendingInteraction.node_id,
-                query: pendingInteraction.query || data.query || '',
-                content: pendingInteraction.content,
-                approval_type: pendingInteraction.interaction_type
-              };
-              
-              setHumanApprovalRequest(approvalRequest);
-              setShowApprovalDialog(true);
-              
-              console.log(`[${new Date().toISOString()}] 🧠 Found pending human interaction while polling:`, approvalRequest);
-            }
-          } catch (e) {
-            console.error("Error processing human interactions from polling:", e);
-          }
         } else if (data.status === 'error') {
           setIsLoading(false);
           uiToast({
