@@ -11,7 +11,7 @@ export interface UserModel {
   user_id?: string;
   name: string;
   domain: string;
-  expertise_level: string;
+  research_depth: string;  // Changed from expertise_level to research_depth
   cognitive_style: string;
   included_sources?: string[];
   source_priorities?: UserModelSourcePriority[];

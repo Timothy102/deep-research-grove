@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import {
   Sheet,
@@ -17,23 +16,23 @@ import { getLatestSessionState, subscribeToResearchState } from "@/services/rese
 
 interface ResearchHistorySidebarProps {
   isOpen: boolean;
-  history: any[];
-  onHistoryItemClick: (item: any) => void;
-  onSelectItem: (item: any) => void;
   onToggle: () => void;
+  history: any[];
+  onHistoryItemClick?: (item: any) => void;
+  onSelectItem?: (item: any) => void;
+  currentSessionId?: string;
 }
 
 const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({ 
   isOpen, 
-  history, 
+  onToggle,
+  history,
   onHistoryItemClick,
   onSelectItem,
-  onToggle
+  currentSessionId
 }) => {
-  // Add a verification of session when sidebar opens
   useEffect(() => {
     if (isOpen) {
-      // Ensure session is valid when sidebar opens
       syncSession().catch(err => {
         console.error("Error syncing session when opening sidebar:", err);
       });
@@ -42,13 +41,11 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
 
   const handleSessionSelect = async (item: any) => {
     try {
-      // First, ensure session is synced
       await syncSession();
       
       const sessionId = item.session_id;
       console.log(`[${new Date().toISOString()}] 🔍 Selecting history session:`, sessionId, "with query:", item.query);
       
-      // Clear ALL previous state caches to prevent mixing states
       const allKeys = Object.keys(localStorage);
       const keysToPreserve = [
         getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId),
@@ -72,10 +69,8 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         }
       });
       
-      // Set the current session ID
       localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, sessionId);
       
-      // Get the complete latest state for this session from Supabase
       const latestState = await getLatestSessionState(sessionId);
       
       if (latestState) {
@@ -84,12 +79,10 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         console.log("Answer first 100 chars:", latestState.answer?.substring(0, 100) || "No answer found");
         console.log("Findings count:", latestState.findings?.length || 0);
         
-        // Validate that the state query matches the history item's query
         if (latestState.query !== item.query) {
           console.warn(`[${new Date().toISOString()}] ⚠️ Query mismatch between state (${latestState.query}) and history item (${item.query})`);
         }
         
-        // Process findings to ensure they match the expected format
         const processedFindings = Array.isArray(latestState.findings) 
           ? latestState.findings.map(finding => ({
               source: finding.source || "Unknown source",
@@ -100,12 +93,10 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
             }))
           : [];
           
-        // Process user_model to ensure it's in the correct format
         const processedSyntheses = typeof latestState.user_model === 'object' && latestState.user_model !== null
           ? latestState.user_model as Record<string, any>
           : {};
         
-        // Store findings in cache
         if (processedFindings.length > 0) {
           const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
           localStorage.setItem(sessionFindingsKey, JSON.stringify(processedFindings));
@@ -113,7 +104,6 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
           console.log(`[${new Date().toISOString()}] 💾 Cached ${processedFindings.length} findings for session:`, sessionId);
         }
         
-        // Build a comprehensive answer object with all state data
         const completeAnswer = {
           query: latestState.query || item.query,
           answer: latestState.answer || "",
@@ -126,11 +116,9 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
           research_id: latestState.research_id
         };
         
-        // Store all state information in local storage
         localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, JSON.stringify(latestState));
         localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(completeAnswer));
         
-        // Also store session-specific caches
         const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId);
         localStorage.setItem(sessionStateKey, JSON.stringify(latestState));
         
@@ -154,7 +142,6 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
           localStorage.setItem(sessionSynthesisKey, JSON.stringify(processedSyntheses));
         }
         
-        // Set up realtime subscription to state updates
         try {
           const clientId = getClientId();
           const channel = subscribeToResearchState(
@@ -162,7 +149,6 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
             sessionId,
             (payload) => {
               console.log(`[${new Date().toISOString()}] 🔄 Realtime update received:`, payload.eventType);
-              // Reload the state cache
               getLatestSessionState(sessionId).then(updatedState => {
                 if (updatedState) {
                   const sessionStateKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId);
@@ -174,7 +160,6 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
                     localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(updatedState.findings));
                   }
                   
-                  // Notify other components about the state update
                   window.dispatchEvent(new CustomEvent('research_state_update', {
                     detail: {
                       sessionId,
@@ -196,7 +181,6 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
       } else {
         console.warn(`[${new Date().toISOString()}] ⚠️ Could not find state for session:`, sessionId);
         
-        // Fallback to minimal data from history item
         const fallbackAnswer = {
           query: item.query,
           answer: "Loading research data...",
@@ -215,7 +199,6 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         toast.error("Could not load complete session data. Trying with partial data.");
       }
       
-      // Dispatch a session-selected event for components to handle
       window.dispatchEvent(new CustomEvent('session-selected', { 
         detail: { 
           sessionId: sessionId,
@@ -226,11 +209,9 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         }
       }));
       
-      // Handle the click through passed callbacks
-      onHistoryItemClick(item);
-      onSelectItem(item);
+      onHistoryItemClick?.(item);
+      onSelectItem?.(item);
       
-      // Close the sidebar
       onToggle();
       
       toast.success(`Loading "${item.query.substring(0, 30)}${item.query.length > 30 ? '...' : ''}"`);
@@ -241,7 +222,6 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
   };
 
   const handleRefreshHistory = () => {
-    // Dispatch an event to refresh history
     window.dispatchEvent(new CustomEvent('refresh-history-requested'));
     toast.success("Refreshing research history...");
   };

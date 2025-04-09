@@ -108,7 +108,7 @@ const ResearchPage = () => {
   const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
   const [researchObjective, setResearchObjective] = useState("");
   const [domain, setDomain] = useState("");
-  const [expertiseLevel, setExpertiseLevel] = useState("");
+  const [researchDepth, setResearchDepth] = useState("");
   const [userContext, setUserContext] = useState("");
   const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("");
   const [selectedLLM, setSelectedLLM] = useState("auto");
@@ -215,14 +215,14 @@ const ResearchPage = () => {
       const model = await getUserModelById(modelId);
       if (model) {
         setDomain(model.domain);
-        setExpertiseLevel(model.expertise_level);
+        setResearchDepth(model.research_depth);
         setSelectedCognitiveStyle(model.cognitive_style);
         
         trackEvent('user_model_selected', {
           model_id: modelId,
           model_name: model.name,
           domain: model.domain,
-          expertise_level: model.expertise_level,
+          research_depth: model.research_depth,
           cognitive_style: model.cognitive_style
         });
         
@@ -253,9 +253,9 @@ const ResearchPage = () => {
     setFindings([]);
     setReasoningPath([]);
     setActiveTab("reasoning");
-    setResearchObjective("");  // Clear the research objective
+    setResearchObjective("");
     setDomain("");
-    setExpertiseLevel("");
+    setResearchDepth("");
     setUserContext("");
     setSelectedCognitiveStyle("");
     researchIdRef.current = null;
@@ -419,7 +419,7 @@ const ResearchPage = () => {
               user_id: user?.id || "anonymous",
               name: user?.email || "anonymous",
               domain: model.domain,
-              expertise_level: model.expertise_level,
+              research_depth: model.research_depth,
               cognitiveStyle: model.cognitive_style,
               included_sources: model.included_sources || [],
               source_priorities: model.source_priorities || [],
@@ -437,7 +437,7 @@ const ResearchPage = () => {
             userModel: userModelText,
             useCase: useCase,
             domain: domain,
-            expertise_level: expertiseLevel,
+            research_depth: researchDepth,
             cognitiveStyle: selectedCognitiveStyle,
             session_id: currentSessionIdRef.current,
             model_id: "claude-3.5-sonnet",
@@ -452,7 +452,7 @@ const ResearchPage = () => {
           userModel: userModelText,
           useCase: useCase,
           domain: domain,
-          expertise_level: expertiseLevel,
+          research_depth: researchDepth,
           cognitiveStyle: selectedCognitiveStyle,
           session_id: currentSessionIdRef.current,
           model_id: "claude-3.5-sonnet",
@@ -1019,7 +1019,7 @@ const ResearchPage = () => {
     try {
       const userModelData = JSON.parse(item.user_model || "{}");
       if (userModelData.domain) setDomain(userModelData.domain);
-      if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
+      if (userModelData.research_depth) setResearchDepth(userModelData.research_depth);
       if (userModelData.userContext) setUserContext(userModelData.userContext);
       
       if (userModelData.cognitiveStyle) {
@@ -1134,7 +1134,7 @@ const ResearchPage = () => {
                   isLoading={isLoading}
                   initialValue={researchObjective}
                   initialDomain={domain}
-                  initialExpertiseLevel={expertiseLevel}
+                  initialResearchDepth={researchDepth}
                   initialUserContext={userContext}
                   initialCognitiveStyle={selectedCognitiveStyle}
                   initialLLM={selectedLLM}
@@ -1207,7 +1207,7 @@ const ResearchPage = () => {
                   isLoading={isLoading}
                   initialValue={researchObjective}
                   initialDomain={domain}
-                  initialExpertiseLevel={expertiseLevel}
+                  initialResearchDepth={researchDepth}
                   initialUserContext={userContext}
                   initialCognitiveStyle={selectedCognitiveStyle}
                   initialLLM={selectedLLM}
@@ -1243,7 +1243,7 @@ const ResearchPage = () => {
             setShowOnboarding(false);
             markOnboardingCompleted();
             setDomain(model.domain);
-            setExpertiseLevel(model.expertise_level);
+            setResearchDepth(model.research_depth);
             setSelectedCognitiveStyle(model.cognitive_style);
             loadUserModels();
           }}

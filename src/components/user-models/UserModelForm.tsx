@@ -17,8 +17,8 @@ import {
 import { Loader2, Plus, X, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Define your expertise levels and cognitive styles
-const expertiseLevels = ["beginner", "intermediate", "advanced", "expert"];
+// Define your research depths and cognitive styles
+const researchDepths = ["shallow", "moderate", "deep"]; // Changed from expertise_levels to researchDepths
 const cognitiveStyles = [
   { id: "systematic", label: "systematic" },
   { id: "general", label: "general" },
@@ -37,7 +37,7 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
   const { toast } = useToast();
   const [name, setName] = useState(initialData?.name || "");
   const [domain, setDomain] = useState(initialData?.domain || "");
-  const [expertiseLevel, setExpertiseLevel] = useState(initialData?.expertise_level || "intermediate");
+  const [researchDepth, setResearchDepth] = useState(initialData?.research_depth || "moderate"); // Changed from expertiseLevel to researchDepth
   const [cognitiveStyle, setCognitiveStyle] = useState(initialData?.cognitive_style || "general");
   const [includedSources, setIncludedSources] = useState<string[]>(initialData?.included_sources || []);
   const [currentSource, setCurrentSource] = useState("");
@@ -161,7 +161,7 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
         ...initialData,
         name,
         domain,
-        expertise_level: expertiseLevel,
+        research_depth: researchDepth, // Changed from expertise_level to research_depth
         cognitive_style: cognitiveStyle,
         included_sources: includedSources,
         source_priorities: sourcePriorities
@@ -202,21 +202,21 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
         </div>
 
         <div className="space-y-2">
-          <Label>Expertise Level</Label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {expertiseLevels.map((level) => (
-              <div key={level} className="flex items-center space-x-2">
+          <Label>Research Depth</Label> {/* Changed from Expertise Level to Research Depth */}
+          <div className="grid grid-cols-3 gap-2">
+            {researchDepths.map((depth) => ( /* Changed from expertiseLevels to researchDepths */
+              <div key={depth} className="flex items-center space-x-2">
                 <input
                   type="radio"
-                  id={`level-${level}`}
-                  name="expertise-level"
+                  id={`depth-${depth}`} /* Changed from level to depth */
+                  name="research-depth" /* Changed from expertise-level to research-depth */
                   className="radio"
-                  value={level}
-                  checked={expertiseLevel === level}
-                  onChange={() => setExpertiseLevel(level)}
+                  value={depth}
+                  checked={researchDepth === depth} /* Changed from expertiseLevel to researchDepth */
+                  onChange={() => setResearchDepth(depth)} /* Changed from setExpertiseLevel to setResearchDepth */
                 />
-                <Label htmlFor={`level-${level}`} className="cursor-pointer">
-                  {level}
+                <Label htmlFor={`depth-${depth}`} className="cursor-pointer"> {/* Changed from level to depth */}
+                  {depth}
                 </Label>
               </div>
             ))}

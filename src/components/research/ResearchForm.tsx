@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +18,7 @@ interface ResearchFormProps {
   setSelectedLLM?: React.Dispatch<React.SetStateAction<string>>;
   initialValue?: string;
   initialDomain?: string;
-  initialExpertiseLevel?: string;
+  initialResearchDepth?: string;
   initialUserContext?: string;
   initialCognitiveStyle?: string;
   initialLLM?: string;
@@ -35,7 +34,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   setSelectedLLM,
   initialValue,
   initialDomain = '',
-  initialExpertiseLevel = 'intermediate',
+  initialResearchDepth = 'moderate',
   initialUserContext = '',
   initialCognitiveStyle = 'general',
   initialLLM,
@@ -49,7 +48,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   const [currentUnderstanding, setCurrentUnderstanding] = useState("");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [domain, setDomain] = useState(initialDomain || '');
-  const [expertiseLevel, setExpertiseLevel] = useState(initialExpertiseLevel || 'intermediate');
+  const [researchDepth, setResearchDepth] = useState(initialResearchDepth || 'moderate');
   const [userContext, setUserContext] = useState(initialUserContext || '');
   const [cognitiveStyle, setCognitiveStyle] = useState(initialCognitiveStyle || 'general');
 
@@ -82,14 +81,12 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Close advanced options when starting research
     setIsAdvancedOpen(false);
     
     if (setResearchObjective) {
       setResearchObjective(query);
     }
     
-    // Make sure to send all parameters to the backend
     await onSubmit(
       query, 
       userModelText, 
@@ -99,7 +96,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
     );
   };
 
-  // Choose the right function for LLM selection
   const handleLLMChange = (value: string) => {
     if (onLLMChange) {
       onLLMChange(value);
@@ -108,7 +104,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
     }
   };
 
-  // Map model IDs to display names
   const getModelDisplayName = (modelId: string) => {
     const modelMap: Record<string, string> = {
       'auto': 'Auto',
@@ -178,7 +173,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-4 pt-2">
-          {/* Grid layout for 2 columns */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="domain">Domain / Field</Label>
@@ -191,16 +185,15 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="expertise-level">Expertise Level</Label>
-              <Select value={expertiseLevel} onValueChange={setExpertiseLevel}>
-                <SelectTrigger id="expertise-level">
-                  <SelectValue placeholder="Select expertise level" />
+              <Label htmlFor="research-depth">Research Depth</Label>
+              <Select value={researchDepth} onValueChange={setResearchDepth}>
+                <SelectTrigger id="research-depth">
+                  <SelectValue placeholder="Select research depth" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
-                  <SelectItem value="expert">Expert</SelectItem>
+                  <SelectItem value="shallow">Shallow</SelectItem>
+                  <SelectItem value="moderate">Moderate</SelectItem>
+                  <SelectItem value="deep">Deep</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -242,7 +235,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
             </div>
           </div>
           
-          {/* Full width for Current Understanding */}
           <div className="space-y-2 col-span-full">
             <Label htmlFor="current-understanding">Current Understanding (Optional)</Label>
             <Textarea
