@@ -94,44 +94,74 @@ supabase.channel('research_states_changes')
   });
 
 // Listen for streaming events from the research process
-// Fix: Wrap in try/catch and handle more gracefully to avoid MIME type errors
-try {
-  const eventSource = new EventSource('/api/research/events');
+// Improved: Better error handling for EventSource
+let eventSource: EventSource | null = null;
 
-  eventSource.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      console.log(`[${new Date().toISOString()}] 📡 Received SSE event:`, data);
+const setupEventSource = () => {
+  try {
+    // Close existing connection if any
+    if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+      eventSource.close();
+    }
+
+    // Create a new connection with better error handling
+    eventSource = new EventSource('/api/research/events');
+
+    eventSource.onopen = () => {
+      console.log(`[${new Date().toISOString()}] ✅ EventSource connection established`);
+    };
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log(`[${new Date().toISOString()}] 📡 Received SSE event:`, data);
+        
+        // Dispatch a custom event with the same format as realtime updates
+        window.dispatchEvent(new CustomEvent('research-new-event', { 
+          detail: { 
+            payload: data,
+            timestamp: new Date().toISOString()
+          },
+          bubbles: true,
+          composed: true
+        }));
+      } catch (error) {
+        console.error(`[${new Date().toISOString()}] ❌ Error handling SSE event:`, error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error(`[${new Date().toISOString()}] ❌ EventSource error:`, error);
       
-      // Dispatch a custom event with the same format as realtime updates
-      window.dispatchEvent(new CustomEvent('research-new-event', { 
-        detail: { 
-          payload: data,
-          timestamp: new Date().toISOString()
-        },
-        bubbles: true,
-        composed: true
-      }));
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error handling SSE event:`, error);
-    }
-  };
+      // Only attempt to reconnect if the connection isn't already closed
+      if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+        // Close the connection and attempt to reconnect after a delay
+        eventSource.close();
+        console.log(`[${new Date().toISOString()}] 🔄 Will attempt to reconnect EventSource in 5 seconds`);
+        
+        setTimeout(() => {
+          console.log(`[${new Date().toISOString()}] 🔄 Attempting to reconnect EventSource`);
+          setupEventSource();
+        }, 5000);
+      }
+    };
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] 🚫 Failed to initialize EventSource:`, error);
+    console.log(`[${new Date().toISOString()}] ℹ️ EventSource connection unavailable, application will function without real-time updates`);
+  }
+};
 
-  eventSource.onerror = (error) => {
-    console.error(`[${new Date().toISOString()}] ❌ EventSource error:`, error);
-    // Attempt to reconnect after a delay, but only if not already closing
-    if (eventSource.readyState !== EventSource.CLOSED && eventSource.readyState !== EventSource.CONNECTING) {
-      setTimeout(() => {
-        console.log(`[${new Date().toISOString()}] 🔄 Attempting to reconnect EventSource`);
-        eventSource.close(); // Close the current connection
-        // The browser will automatically attempt to reconnect
-      }, 5000);
-    }
-  };
-} catch (error) {
-  console.error(`[${new Date().toISOString()}] 🚫 Failed to initialize EventSource:`, error);
-  // Continue without EventSource, so the app can still function without this feature
-}
+// Initial setup
+setupEventSource();
+
+// Reconnect if page becomes visible after being hidden
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && 
+      (!eventSource || eventSource.readyState === EventSource.CLOSED)) {
+    console.log(`[${new Date().toISOString()}] 🔄 Page visible, checking EventSource connection`);
+    setupEventSource();
+  }
+});
 
 // Global event handler for human interaction requests 
 window.addEventListener('message', (event) => {
