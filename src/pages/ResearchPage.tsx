@@ -937,7 +937,6 @@ const ResearchPage = () => {
       }
     } catch (error) {
       console.error(`[${new Date().toISOString()}] ❌ Error polling research state:`, error);
-      
       setIsLoading(false);
     }
   };
@@ -947,8 +946,8 @@ const ResearchPage = () => {
       <ResearchHistorySidebar 
         isOpen={sidebarOpen}
         onToggle={toggleSidebar}
-        history={groupedHistory}
-        loadHistory={loadHistory}
+        history={history}
+        onLoadHistory={loadHistory}
       />
       
       <div className={cn("flex-1 flex flex-col h-full overflow-hidden", 
@@ -975,7 +974,7 @@ const ResearchPage = () => {
           <ResearchForm 
             onSubmit={handleResearch}
             isLoading={isLoading}
-            objective={researchObjective}
+            researchObjective={researchObjective}
             userModels={userModels}
             onUserModelSelect={selectUserModel}
           />
@@ -1018,7 +1017,7 @@ const ResearchPage = () => {
                 
                 <TabsContent value="output" className="mt-4">
                   <ResearchOutput 
-                    researchOutput={researchOutput}
+                    answer={researchOutput}
                     sources={sources}
                     findings={findings}
                   />
@@ -1057,7 +1056,7 @@ const ResearchPage = () => {
           callId={humanApprovalRequest.call_id}
           nodeId={humanApprovalRequest.node_id}
           approvalType={humanApprovalRequest.approval_type}
-          onApprove={async (callId, nodeId) => {
+          onApprove={async (callId) => {
             try {
               await submitFeedback(callId, true);
               setShowApprovalDialog(false);
@@ -1068,7 +1067,7 @@ const ResearchPage = () => {
               throw error;
             }
           }}
-          onReject={async (callId, nodeId, reason) => {
+          onReject={async (callId, _, reason) => {
             try {
               await submitFeedback(callId, false, reason);
               setShowApprovalDialog(false);
