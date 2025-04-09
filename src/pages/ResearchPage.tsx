@@ -894,4 +894,96 @@ const ResearchPage = () => {
         clientId: clientIdRef.current.substring(0, 15)
       });
       
-      const data = await getResearchState(researchId, currentSessionIdRef
+      const data = await getResearchState(researchId, currentSessionIdRef.current);
+      
+      if (data) {
+        console.log(`[${new Date().toISOString()}] ✅ Received research state update from polling:`, {
+          research_id: data.research_id,
+          status: data.status,
+          hasFindings: Array.isArray(data.findings) ? data.findings.length : 0
+        });
+        
+        if (data.answer) {
+          setResearchOutput(data.answer);
+        }
+        
+        if (data.sources && Array.isArray(data.sources)) {
+          setSources(data.sources);
+        }
+        
+        if (data.findings && Array.isArray(data.findings)) {
+          setFindings(data.findings);
+        }
+        
+        if (data.reasoning_path && Array.isArray(data.reasoning_path)) {
+          setReasoningPath(data.reasoning_path);
+        }
+        
+        if (data.status === 'completed') {
+          setIsLoading(false);
+          setActiveTab('output');
+        } else if (data.status === 'awaiting_human_input' && data.human_interactions) {
+          setIsLoading(false);
+          
+          try {
+            let interactions: HumanInteraction[] = [];
+            
+            if (typeof data.human_interactions === 'string') {
+              interactions = JSON.parse(data.human_interactions);
+            } else if (Array.isArray(data.human_interactions)) {
+              interactions = data.human_interactions;
+            }
+            
+            const pendingInteraction = interactions
+              .filter(interaction => interaction.status === 'pending')
+              .pop();
+              
+            if (pendingInteraction) {
+              const approvalRequest: HumanApprovalRequest = {
+                call_id: pendingInteraction.call_id,
+                node_id: pendingInteraction.node_id,
+                query: pendingInteraction.query || data.query || '',
+                content: pendingInteraction.content,
+                approval_type: pendingInteraction.interaction_type
+              };
+              
+              setHumanApprovalRequest(approvalRequest);
+              setShowApprovalDialog(true);
+              
+              console.log(`[${new Date().toISOString()}] 🧠 Found pending human interaction while polling:`, approvalRequest);
+            }
+          } catch (e) {
+            console.error("Error processing human interactions from polling:", e);
+          }
+        } else if (data.status === 'error') {
+          setIsLoading(false);
+          uiToast({
+            title: "research error",
+            description: "the research process encountered an error",
+            variant: "destructive",
+          });
+        } else if (data.status === 'in_progress') {
+          setTimeout(() => {
+            if (currentSessionIdRef.current === data.session_id) {
+              pollResearchState(researchId);
+            }
+          }, 5000);
+        }
+      } else {
+        console.log(`[${new Date().toISOString()}] ⚠️ No research state available from polling`);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] ❌ Error polling research state:`, error);
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      {/* Component content */}
+    </div>
+  );
+};
+
+export default ResearchPage;
