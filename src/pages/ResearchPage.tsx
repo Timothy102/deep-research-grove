@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -40,6 +41,19 @@ interface ResearchHistory {
   user_model: string;
   use_case: string;
   created_at: string;
+}
+
+// Define the Finding interface to resolve type errors
+export interface Finding {
+  source: string;
+  content?: string;
+  node_id?: string;
+  query?: string;
+  finding?: {
+    title?: string;
+    summary?: string;
+    confidence_score?: number;
+  };
 }
 
 const ResearchPage = () => {
