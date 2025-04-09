@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -34,6 +33,8 @@ import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
 import { ProgressIndicator } from "@/components/research/ProgressIndicator";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { captureEvent } from "@/integrations/posthog/client";
+import ResearchChat from "@/components/research/ResearchChat";
+import { processUserMessage } from "@/services/chatService";
 
 interface ResearchHistory {
   id: string;
@@ -82,6 +83,7 @@ const ResearchPage = () => {
   const [displayName, setDisplayName] = useState<string>("");
   const [progressEvents, setProgressEvents] = useState<string[]>([]);
   const [currentStage, setCurrentStage] = useState("Initializing research");
+  const [showChat, setShowChat] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
@@ -311,6 +313,38 @@ const ResearchPage = () => {
     } catch (error) {
       console.error(`[${new Date().toISOString()}] ❌ Error loading session data:`, error);
     }
+  };
+
+  const handleChatMessage = async (message: string): Promise<string> => {
+    try {
+      if (!currentSessionIdRef.current) {
+        return "Error: No active session. Please reload the page.";
+      }
+      
+      // Get the current research context to enhance the AI's understanding
+      const context = {
+        researchObjective: researchObjective,
+        findings: findings.length,
+        sources: sources.length,
+      };
+      
+      // Process the message and get a response
+      const response = await processUserMessage(
+        message, 
+        currentSessionIdRef.current, 
+        researchIdRef.current || undefined,
+        JSON.stringify(context)
+      );
+      
+      return response;
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] ❌ Error processing chat message:`, error);
+      return "Sorry, I encountered an error. Please try again.";
+    }
+  };
+
+  const toggleChat = () => {
+    setShowChat(prev => !prev);
   };
 
   const handleResearch = async (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => {
@@ -787,8 +821,132 @@ const ResearchPage = () => {
   };
 
   return (
-    <div>
-      {/* Component content */}
+    <div className="flex h-screen bg-background">
+      <ResearchHistorySidebar 
+        open={sidebarOpen} 
+        onToggle={toggleSidebar}
+        groupedHistory={groupedHistory}
+        currentSessionId={sessionId || ""}
+      />
+      
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <header className="border-b bg-background p-4 flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            <Button variant="outline" size="sm" onClick={toggleSidebar}>
+              <Search className="h-4 w-4 mr-2" />
+              History
+            </Button>
+            
+            <h1 className="text-xl font-medium">Deep Research</h1>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={toggleChat}
+              className={cn(showChat && "bg-muted")}
+            >
+              <MessageSquarePlus className="h-4 w-4" />
+            </Button>
+            
+            <div className="flex items-center space-x-2">
+              <div className="rounded-full bg-primary/10 p-1">
+                <User className="h-4 w-4" />
+              </div>
+              <span className="text-sm hidden md:inline-block">{displayName}</span>
+            </div>
+            
+            <Button variant="ghost" size="icon" onClick={() => signOut()}>
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        </header>
+        
+        <div className="flex-1 overflow-hidden flex">
+          <div className="flex-1 overflow-y-auto p-6">
+            <ResearchForm
+              onSubmit={handleResearch}
+              isLoading={isLoading}
+              objective={researchObjective}
+              userModels={userModels}
+              selectedCognitiveStyle={selectedCognitiveStyle}
+              onUserModelSelect={selectUserModel}
+            />
+            
+            {isLoading && (
+              <div className="mb-4">
+                <ProgressIndicator 
+                  events={progressEvents}
+                  currentStage={currentStage}
+                />
+              </div>
+            )}
+            
+            {(reasoningPath.length > 0 || sources.length > 0 || researchOutput) && (
+              <Tabs 
+                value={activeTab} 
+                onValueChange={setActiveTab}
+                className="mt-8"
+              >
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="reasoning">
+                    Reasoning Path
+                  </TabsTrigger>
+                  <TabsTrigger value="sources">
+                    Sources {sources.length > 0 && `(${sources.length})`}
+                  </TabsTrigger>
+                  <TabsTrigger value="output">
+                    Answer
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="reasoning" className="mt-4">
+                  <ReasoningPath
+                    steps={reasoningPath}
+                    className="mt-4"
+                  />
+                </TabsContent>
+                
+                <TabsContent value="sources" className="mt-4">
+                  <SourcesList 
+                    sources={sources}
+                    findings={findings}
+                    sessionId={sessionId}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="output" className="mt-4">
+                  <ResearchOutput 
+                    output={researchOutput} 
+                    isLoading={isLoading && activeTab === 'output'}
+                  />
+                </TabsContent>
+              </Tabs>
+            )}
+          </div>
+          
+          {showChat && (
+            <div className="w-96 border-l overflow-hidden flex flex-col">
+              <ResearchChat 
+                sessionId={sessionId || ''}
+                researchId={researchIdRef.current || undefined}
+                onSendMessage={handleChatMessage}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {showOnboarding && (
+        <UserModelOnboarding
+          open={showOnboarding}
+          onComplete={() => {
+            setShowOnboarding(false);
+            markOnboardingCompleted().catch(console.error);
+          }}
+        />
+      )}
     </div>
   );
 };
