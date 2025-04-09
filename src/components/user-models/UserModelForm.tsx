@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { UserModel, UserModelSourcePriority } from "@/services/userModelService";
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,8 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
       if (!initialData.source_priorities || initialData.source_priorities.length === 0) {
         const priorities = initialData.included_sources.map((source, index) => ({
           url: source,
-          priority: index + 1
+          priority: index + 1,
+          source_type: "web" // Add default source_type
         }));
         setSourcePriorities(priorities);
       }
@@ -80,7 +82,8 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
       // Add to priorities at the end
       const newPriority: UserModelSourcePriority = {
         url: currentSource,
-        priority: sourcePriorities.length + 1
+        priority: sourcePriorities.length + 1,
+        source_type: "web" // Add default source_type
       };
       setSourcePriorities([...sourcePriorities, newPriority]);
       

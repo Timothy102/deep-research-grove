@@ -5,9 +5,9 @@ import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface UserModelSourcePriority {
-  source_type: string;
   url: string;
   priority: number;
+  source_type?: string; // Made optional with ?
 }
 
 export interface UserModel {
