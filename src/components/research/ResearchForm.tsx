@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
-interface ResearchFormProps {
+export interface ResearchFormProps {
   onSubmit: (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => Promise<void>;
   isLoading: boolean;
   initialObjective?: string;
@@ -22,6 +21,9 @@ interface ResearchFormProps {
   initialResearchDepth?: string;
   initialLLM?: string;
   onLLMChange?: React.Dispatch<React.SetStateAction<string>>;
+  userModels?: any[];
+  selectedCognitiveStyle?: string;
+  onUserModelSelect?: (modelId: string) => Promise<void>;
 }
 
 export const ResearchForm: React.FC<ResearchFormProps> = ({ 
@@ -35,12 +37,14 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   initialCognitiveStyle = 'general',
   initialResearchDepth = 'moderate',
   initialLLM,
-  onLLMChange
+  onLLMChange,
+  userModels = [],
+  selectedCognitiveStyle = 'general',
+  onUserModelSelect
 }) => {
   const [query, setQuery] = useState(initialObjective || initialValue || '');
   const [userModelText, setUserModelText] = useState("");
   const [useCase, setUseCase] = useState("");
-  const [userModels, setUserModels] = useState([]);
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
   const [currentUnderstanding, setCurrentUnderstanding] = useState("");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);

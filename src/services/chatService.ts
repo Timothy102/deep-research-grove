@@ -1,5 +1,4 @@
 
-import { supabase } from "@/integrations/supabase/client";
 import { v4 as uuidv4 } from 'uuid';
 
 export interface ChatMessage {
@@ -27,15 +26,21 @@ export async function processUserMessage(
     researchId
   });
   
-  // Store the user message (this is disabled since we're using localStorage for now)
-  // await storeChatMessage({
-  //   id: uuidv4(),
-  //   session_id: sessionId,
-  //   research_id: researchId,
-  //   content: message,
-  //   sender: 'user',
-  //   created_at: new Date().toISOString()
-  // });
+  // Store the user message in localStorage
+  const userMessage: ChatMessage = {
+    id: uuidv4(),
+    session_id: sessionId,
+    research_id: researchId,
+    content: message,
+    sender: 'user',
+    created_at: new Date().toISOString()
+  };
+  
+  // Save message to local storage
+  const chatKey = `chat_messages_${sessionId}`;
+  const existingMessages = JSON.parse(localStorage.getItem(chatKey) || '[]');
+  existingMessages.push(userMessage);
+  localStorage.setItem(chatKey, JSON.stringify(existingMessages));
   
   // Basic response generation logic - this would be replaced with a real AI API call
   let response = '';
@@ -58,53 +63,30 @@ export async function processUserMessage(
   // Add a short delay to simulate processing
   await new Promise(resolve => setTimeout(resolve, 1000));
   
-  // Store the AI response (this is disabled since we're using localStorage for now)
-  // await storeChatMessage({
-  //   id: uuidv4(),
-  //   session_id: sessionId,
-  //   research_id: researchId,
-  //   content: response,
-  //   sender: 'ai',
-  //   created_at: new Date().toISOString()
-  // });
+  // Store the AI response in localStorage
+  const aiMessage: ChatMessage = {
+    id: uuidv4(),
+    session_id: sessionId,
+    research_id: researchId,
+    content: response,
+    sender: 'ai',
+    created_at: new Date().toISOString()
+  };
+  
+  existingMessages.push(aiMessage);
+  localStorage.setItem(chatKey, JSON.stringify(existingMessages));
   
   return response;
 }
 
 /**
- * Store a chat message in the database (this function is not used yet)
- */
-export async function storeChatMessage(message: ChatMessage): Promise<void> {
-  try {
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .insert(message);
-      
-    if (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error storing chat message:`, error);
-    }
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error in storeChatMessage:`, error);
-  }
-}
-
-/**
- * Get chat messages for a session
+ * Get chat messages for a session from localStorage
  */
 export async function getChatMessagesForSession(sessionId: string): Promise<ChatMessage[]> {
   try {
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('session_id', sessionId)
-      .order('created_at', { ascending: true });
-      
-    if (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error getting chat messages:`, error);
-      return [];
-    }
-    
-    return data || [];
+    const chatKey = `chat_messages_${sessionId}`;
+    const messages = localStorage.getItem(chatKey);
+    return messages ? JSON.parse(messages) : [];
   } catch (error) {
     console.error(`[${new Date().toISOString()}] ❌ Error in getChatMessagesForSession:`, error);
     return [];

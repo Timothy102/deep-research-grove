@@ -823,10 +823,13 @@ const ResearchPage = () => {
   return (
     <div className="flex h-screen bg-background">
       <ResearchHistorySidebar 
-        open={sidebarOpen} 
+        isOpen={sidebarOpen} 
         onToggle={toggleSidebar}
         groupedHistory={groupedHistory}
         currentSessionId={sessionId || ""}
+        history={history}
+        onHistoryItemClick={() => {}}
+        onSelectItem={() => {}}
       />
       
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
@@ -868,7 +871,7 @@ const ResearchPage = () => {
             <ResearchForm
               onSubmit={handleResearch}
               isLoading={isLoading}
-              objective={researchObjective}
+              initialObjective={researchObjective}
               userModels={userModels}
               selectedCognitiveStyle={selectedCognitiveStyle}
               onUserModelSelect={selectUserModel}
@@ -879,6 +882,7 @@ const ResearchPage = () => {
                 <ProgressIndicator 
                   events={progressEvents}
                   currentStage={currentStage}
+                  isLoading={isLoading}
                 />
               </div>
             )}
@@ -903,7 +907,7 @@ const ResearchPage = () => {
                 
                 <TabsContent value="reasoning" className="mt-4">
                   <ReasoningPath
-                    steps={reasoningPath}
+                    reasoningPath={reasoningPath}
                     className="mt-4"
                   />
                 </TabsContent>
@@ -941,9 +945,9 @@ const ResearchPage = () => {
       {showOnboarding && (
         <UserModelOnboarding
           open={showOnboarding}
-          onComplete={() => {
+          onComplete={async () => {
             setShowOnboarding(false);
-            markOnboardingCompleted().catch(console.error);
+            await markOnboardingCompleted();
           }}
         />
       )}

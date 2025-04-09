@@ -12,15 +12,18 @@ import { CalendarDays, Clock, ChevronsLeft, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
 import { toast } from "sonner";
-import { supabase, syncSession, getClientId } from "@/integrations/supabase/client";
+import { syncSession, getClientId } from "@/integrations/supabase/client";
 import { getLatestSessionState, subscribeToResearchState } from "@/services/researchStateService";
+import { ResearchHistoryEntry } from "@/services/researchService";
 
-interface ResearchHistorySidebarProps {
+export interface ResearchHistorySidebarProps {
   isOpen: boolean;
-  history: any[];
+  history: ResearchHistoryEntry[];
   onHistoryItemClick: (item: any) => void;
   onSelectItem: (item: any) => void;
   onToggle: () => void;
+  groupedHistory: any[];
+  currentSessionId: string;
 }
 
 const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({ 
@@ -28,7 +31,9 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
   history, 
   onHistoryItemClick,
   onSelectItem,
-  onToggle
+  onToggle,
+  groupedHistory,
+  currentSessionId
 }) => {
   // Add a verification of session when sidebar opens
   useEffect(() => {
@@ -274,7 +279,7 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
               No research history available. Start a new search to see results here.
             </div>
           ) : (
-            history.map((group, index) => (
+            groupedHistory.map((group, index) => (
               <div key={index} className="mb-4">
                 <h3 className="px-6 py-2 text-sm font-medium">{group.date === 'Today' ? 'Today' : group.date}</h3>
                 <ul>

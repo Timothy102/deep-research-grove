@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { ArrowRight } from "lucide-react";
 
-type ProgressIndicatorProps = {
+export type ProgressIndicatorProps = {
   isLoading: boolean;
   currentStage?: string;
   events?: string[];
