@@ -107,7 +107,6 @@ const ResearchPage = () => {
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
   const [researchObjective, setResearchObjective] = useState("");
-  const [domain, setDomain] = useState("");
   const [researchDepth, setResearchDepth] = useState("");
   const [userContext, setUserContext] = useState("");
   const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("");
@@ -214,14 +213,12 @@ const ResearchPage = () => {
     try {
       const model = await getUserModelById(modelId);
       if (model) {
-        setDomain(model.domain);
         setResearchDepth(model.research_depth);
         setSelectedCognitiveStyle(model.cognitive_style);
         
         trackEvent('user_model_selected', {
           model_id: modelId,
           model_name: model.name,
-          domain: model.domain,
           research_depth: model.research_depth,
           cognitive_style: model.cognitive_style
         });
@@ -254,7 +251,6 @@ const ResearchPage = () => {
     setReasoningPath([]);
     setActiveTab("reasoning");
     setResearchObjective("");
-    setDomain("");
     setResearchDepth("");
     setUserContext("");
     setSelectedCognitiveStyle("");
@@ -418,7 +414,6 @@ const ResearchPage = () => {
             userModelPayload = {
               user_id: user?.id || "anonymous",
               name: user?.email || "anonymous",
-              domain: model.domain,
               research_depth: model.research_depth,
               cognitiveStyle: model.cognitive_style,
               included_sources: model.included_sources || [],
@@ -436,7 +431,6 @@ const ResearchPage = () => {
             name: user?.email || "anonymous",
             userModel: userModelText,
             useCase: useCase,
-            domain: domain,
             research_depth: researchDepth,
             cognitiveStyle: selectedCognitiveStyle,
             session_id: currentSessionIdRef.current,
@@ -451,7 +445,6 @@ const ResearchPage = () => {
           name: user?.email || "anonymous",
           userModel: userModelText,
           useCase: useCase,
-          domain: domain,
           research_depth: researchDepth,
           cognitiveStyle: selectedCognitiveStyle,
           session_id: currentSessionIdRef.current,
@@ -1018,7 +1011,6 @@ const ResearchPage = () => {
     
     try {
       const userModelData = JSON.parse(item.user_model || "{}");
-      if (userModelData.domain) setDomain(userModelData.domain);
       if (userModelData.research_depth) setResearchDepth(userModelData.research_depth);
       if (userModelData.userContext) setUserContext(userModelData.userContext);
       
