@@ -2,19 +2,10 @@
 import { useEffect, useState } from "react";
 import { Separator } from "@/components/ui/separator";
 import ReasoningPath from "./ReasoningPath";
-import ResearchResults from "./ResearchResults";
+import ResearchResults, { ResearchResult } from "./ResearchResults";
 import { AlertTriangle, Check, Pause, Clock } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
-
-// Update the ResearchResult interface to include all required properties
-export interface ResearchResult {
-  answer: string;
-  confidence?: number;
-  query: string;
-  sources?: string[];
-  reasoning_path?: string[];
-}
 
 interface ResearchOutputProps {
   loading: boolean;

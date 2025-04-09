@@ -417,7 +417,21 @@ const ResearchAnswer = ({ answer }: { answer: string }) => {
   );
 };
 
-const ResearchResults = ({ result, reportData }: { result: ResearchResult | null; reportData?: any }) => {
+interface ResearchResultsProps {
+  result: ResearchResult | null;
+  reportData?: any;
+  userName?: string;
+  userModels?: any[];
+  onSelectModel?: (modelId: string) => Promise<void>;
+}
+
+const ResearchResults = ({ 
+  result, 
+  reportData, 
+  userName, 
+  userModels, 
+  onSelectModel 
+}: ResearchResultsProps) => {
   const resultRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [currentResult, setCurrentResult] = useState<ResearchResult | null>(result);
