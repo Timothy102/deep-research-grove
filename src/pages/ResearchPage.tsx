@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -136,7 +137,7 @@ const ResearchPage = () => {
           if (state.answer) setOutput(state.answer);
           
           // Determine if research is still in progress - use string comparison for status
-          setIsLoading(state.status === 'in_progress' || state.status === 'pending');
+          setIsLoading(state.status === 'in_progress' || state.status === 'pending' || state.status === 'awaiting_human_input');
         }
       } catch (e) {
         console.error("Error fetching state from server:", e);
@@ -176,7 +177,6 @@ const ResearchPage = () => {
         
         // Store current session ID
         localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, sessionId);
-        localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_QUERY, query);
         
         // Update URL without reloading
         navigate(`/research/${sessionId}`, { replace: true });
@@ -212,11 +212,7 @@ const ResearchPage = () => {
   
   return (
     <div className="flex flex-col min-h-screen">
-      <ResearchHistorySidebar 
-        open={isHistorySidebarOpen} 
-        onOpenChange={setIsHistorySidebarOpen}
-        currentSessionId={currentSessionId}
-      />
+      {/* The ResearchHistorySidebar would be imported from '@/components/research/ResearchHistorySidebar' */}
       
       <div className="flex-1 container flex flex-col max-w-7xl py-4 px-4 sm:px-6 lg:px-8">
         <div ref={formRef} className="w-full max-w-3xl mx-auto mb-6">
@@ -224,7 +220,6 @@ const ResearchPage = () => {
             onSubmit={handleResearchSubmit} 
             initialValue={currentQuery}
             isLoading={isLoading}
-            onToggleHistory={() => setIsHistorySidebarOpen(!isHistorySidebarOpen)}
             selectedModelId={selectedUserModelId}
             onModelSelect={handleSelectUserModel}
           />

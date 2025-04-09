@@ -3,13 +3,11 @@ import { Button } from "@/components/ui/button";
 import { FileText, Copy, Download, CheckCircle2, BookOpen } from "lucide-react";
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
-import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, BorderStyle } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, BorderStyle } from 'docx';
 import { captureEvent } from '@/integrations/posthog/client';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from '@/lib/constants';
-
-import { HeadingLevel } from 'docx';
 
 export interface Finding {
   source: string;
@@ -232,6 +230,51 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
         }
       }
       
+      if ((payload.event_type === 'final_report' || payload.event === 'final_report') && payload.data) {
+        console.log(`[${new Date().toISOString()}] 🏁 Received final report:`, payload.data);
+        
+        const finalReportData = payload.data;
+        
+        if (finalReportData.sources && Array.isArray(finalReportData.sources)) {
+          setSources(finalReportData.sources);
+        }
+        
+        if (finalReportData.findings && Array.isArray(finalReportData.findings)) {
+          setFindings(finalReportData.findings);
+        }
+        
+        if (finalReportData.synthesis) {
+          setSyntheses(prev => {
+            const rootIndex = prev.findIndex(s => s.is_root || s.node_id === "0");
+            
+            if (rootIndex >= 0) {
+              const updated = [...prev];
+              updated[rootIndex] = {
+                ...updated[rootIndex],
+                synthesis: finalReportData.synthesis,
+                confidence: finalReportData.confidence || updated[rootIndex].confidence,
+                timestamp: finalReportData.timestamp,
+                is_root: true
+              };
+              return updated;
+            } else {
+              return [...prev, {
+                node_id: "0",
+                query: finalReportData.query || initialQuery,
+                synthesis: finalReportData.synthesis,
+                confidence: finalReportData.confidence || 1.0,
+                timestamp: finalReportData.timestamp,
+                is_root: true
+              }];
+            }
+          });
+        }
+        
+        toast.success("Research completed!", {
+          description: "Final report is ready for review"
+        });
+      }
+      
       if (payload.table === 'research_states' && payload.new && payload.new.session_id === sessionId) {
         if (payload.new.sources && Array.isArray(payload.new.sources)) {
           setSources(payload.new.sources);
@@ -250,7 +293,7 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
       window.removeEventListener('research_state_update', handleRealtimeUpdate as EventListener);
       window.removeEventListener('research-new-event', handleRealtimeUpdate as EventListener);
     };
-  }, [sessionId]);
+  }, [sessionId, initialQuery]);
   
   useEffect(() => {
     if (!sessionId) return;
@@ -378,7 +421,12 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
                 paragraphs.push(
                   new Paragraph({
                     text: headingText,
-                    heading: headingLevel as number,
+                    heading: headingLevel === 1 ? HeadingLevel.HEADING_1 :
+                             headingLevel === 2 ? HeadingLevel.HEADING_2 :
+                             headingLevel === 3 ? HeadingLevel.HEADING_3 :
+                             headingLevel === 4 ? HeadingLevel.HEADING_4 :
+                             headingLevel === 5 ? HeadingLevel.HEADING_5 :
+                             HeadingLevel.HEADING_6
                   })
                 );
               }
