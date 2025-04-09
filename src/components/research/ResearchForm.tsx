@@ -11,7 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface ResearchFormProps {
-  onSubmit: (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => Promise<void>;
+  onSubmit: (query: string, userModelText?: string, useCase?: string, selectedModelId?: string, currentUnderstanding?: string) => Promise<void>;
   isLoading: boolean;
   initialObjective?: string;
   setResearchObjective?: React.Dispatch<React.SetStateAction<string>>;
@@ -23,7 +23,7 @@ interface ResearchFormProps {
   initialUserContext?: string;
   initialCognitiveStyle?: string;
   initialLLM?: string;
-  onLLMChange?: React.Dispatch<React.SetStateAction<string>>;
+  onLLMChange?: (value: string) => void;
 }
 
 export const ResearchForm: React.FC<ResearchFormProps> = ({ 
@@ -258,3 +258,5 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
     </div>
   );
 };
+
+export default ResearchForm;

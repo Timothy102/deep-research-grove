@@ -52,4 +52,5 @@ export const ProgressIndicator = ({
   );
 };
 
+// Add default export to fix the import issue
 export default ProgressIndicator;

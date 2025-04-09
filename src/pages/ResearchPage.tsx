@@ -137,7 +137,10 @@ const ResearchPage = () => {
           if (state.answer) setOutput(state.answer);
           
           // Determine if research is still in progress - use string comparison for status
-          setIsLoading(state.status === 'in_progress' || state.status === 'pending' || state.status === 'awaiting_human_input');
+          // Fixed the status comparison to check for all possible "in progress" values
+          setIsLoading(state.status === 'in_progress' || 
+                       state.status === 'pending' || 
+                       state.status === 'awaiting_human_input');
         }
       } catch (e) {
         console.error("Error fetching state from server:", e);
@@ -220,8 +223,8 @@ const ResearchPage = () => {
             onSubmit={handleResearchSubmit} 
             initialValue={currentQuery}
             isLoading={isLoading}
-            selectedModelId={selectedUserModelId}
-            onModelSelect={handleSelectUserModel}
+            selectedLLM={selectedUserModelId || undefined}
+            onLLMChange={handleSelectUserModel}
           />
           
           {isLoading && (
