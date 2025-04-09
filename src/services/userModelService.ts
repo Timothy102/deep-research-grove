@@ -53,6 +53,8 @@ export async function createUserModel(model: Omit<UserModel, 'user_id'>): Promis
     throw new Error("User not authenticated");
   }
   
+  // Here we need to make sure we're using the correct field names
+  // The database expects research_depth instead of expertise_level
   const { data, error } = await supabase
     .from('user_models')
     .insert({

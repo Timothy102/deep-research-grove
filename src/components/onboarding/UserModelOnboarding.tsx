@@ -23,7 +23,7 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
   onComplete
 }) => {
   const [domain, setDomain] = useState("");
-  const [expertiseLevel, setExpertiseLevel] = useState("");
+  const [researchDepth, setResearchDepth] = useState(""); // Changed from expertiseLevel to researchDepth
   const [cognitiveStyle, setCognitiveStyle] = useState("");
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +33,7 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
     setIsLoading(true);
 
     try {
-      if (!domain || !expertiseLevel || !cognitiveStyle) {
+      if (!domain || !researchDepth || !cognitiveStyle) { // Changed variable name
         toast({
           title: "missing fields",
           description: "please fill out all fields",
@@ -46,7 +46,7 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
       const modelData = {
         name: `${domain} model`, 
         domain,
-        expertise_level: expertiseLevel,
+        research_depth: researchDepth, // Changed from expertise_level to research_depth
         cognitive_style: cognitiveStyle,
       };
 
@@ -100,12 +100,12 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="expertise">expertise level</Label>
+            <Label htmlFor="researchDepth">research depth</Label> {/* Changed from expertise to researchDepth */}
             <Input
-              id="expertise"
+              id="researchDepth"
               placeholder="e.g. beginner"
-              value={expertiseLevel}
-              onChange={(e) => setExpertiseLevel(e.target.value)}
+              value={researchDepth}
+              onChange={(e) => setResearchDepth(e.target.value)}
             />
           </div>
           <div className="grid gap-2">
