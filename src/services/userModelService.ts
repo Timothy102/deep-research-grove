@@ -10,8 +10,6 @@ export interface UserModel {
   id?: string;
   user_id?: string;
   name: string;
-  domain: string;  // Making domain required to match Supabase's requirements
-  expertise_level: string;
   research_depth: string; // shallow, moderate, deep
   cognitive_style: string;
   included_sources?: string[];
@@ -52,11 +50,6 @@ export async function createUserModel(model: Omit<UserModel, 'user_id'>): Promis
   
   if (!user.user) {
     throw new Error("User not authenticated");
-  }
-  
-  // Ensure all required fields are present
-  if (!model.domain) {
-    throw new Error("Domain is required");
   }
   
   const { data, error } = await supabase

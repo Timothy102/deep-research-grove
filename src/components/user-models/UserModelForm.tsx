@@ -4,7 +4,6 @@ import { UserModel, UserModelSourcePriority } from "@/services/userModelService"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   Card, 
@@ -18,8 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Plus, X, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Define your expertise levels and cognitive styles
-const expertiseLevels = ["beginner", "intermediate", "advanced", "expert"];
+// Define cognitive styles and research depth levels
 const cognitiveStyles = [
   { id: "systematic", label: "systematic" },
   { id: "general", label: "general" },
@@ -42,8 +40,6 @@ interface UserModelFormProps {
 const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormProps) => {
   const { toast } = useToast();
   const [name, setName] = useState(initialData?.name || "");
-  const [domain, setDomain] = useState(initialData?.domain || "");
-  const [expertiseLevel, setExpertiseLevel] = useState(initialData?.expertise_level || "intermediate");
   const [cognitiveStyle, setCognitiveStyle] = useState(initialData?.cognitive_style || "general");
   const [researchDepth, setResearchDepth] = useState(initialData?.research_depth || "moderate");
   const [includedSources, setIncludedSources] = useState<string[]>(initialData?.included_sources || []);
@@ -154,7 +150,7 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !domain.trim()) {
+    if (!name.trim()) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -167,8 +163,6 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
       await onSubmit({
         ...initialData,
         name,
-        domain,
-        expertise_level: expertiseLevel,
         cognitive_style: cognitiveStyle,
         research_depth: researchDepth,
         included_sources: includedSources,
@@ -196,39 +190,6 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
             placeholder="e.g. My Research Model"
             required
           />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="domain">Your Domain/Field</Label>
-          <Input
-            id="domain"
-            value={domain}
-            onChange={(e) => setDomain(e.target.value)}
-            placeholder="e.g. Computer Science, Medicine, Finance..."
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Expertise Level</Label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {expertiseLevels.map((level) => (
-              <div key={level} className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id={`level-${level}`}
-                  name="expertise-level"
-                  className="radio"
-                  value={level}
-                  checked={expertiseLevel === level}
-                  onChange={() => setExpertiseLevel(level)}
-                />
-                <Label htmlFor={`level-${level}`} className="cursor-pointer">
-                  {level}
-                </Label>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div className="space-y-2">

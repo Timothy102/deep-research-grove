@@ -18,9 +18,6 @@ interface ResearchFormProps {
   selectedLLM?: string;
   setSelectedLLM?: React.Dispatch<React.SetStateAction<string>>;
   initialValue?: string;
-  initialDomain?: string;
-  initialExpertiseLevel?: string;
-  initialUserContext?: string;
   initialCognitiveStyle?: string;
   initialResearchDepth?: string;
   initialLLM?: string;
@@ -35,9 +32,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   selectedLLM = 'auto',
   setSelectedLLM,
   initialValue,
-  initialDomain = '',
-  initialExpertiseLevel = 'intermediate',
-  initialUserContext = '',
   initialCognitiveStyle = 'general',
   initialResearchDepth = 'moderate',
   initialLLM,
@@ -50,9 +44,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
   const [currentUnderstanding, setCurrentUnderstanding] = useState("");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-  const [domain, setDomain] = useState(initialDomain || '');
-  const [expertiseLevel, setExpertiseLevel] = useState(initialExpertiseLevel || 'intermediate');
-  const [userContext, setUserContext] = useState(initialUserContext || '');
   const [cognitiveStyle, setCognitiveStyle] = useState(initialCognitiveStyle || 'general');
   const [researchDepth, setResearchDepth] = useState(initialResearchDepth || 'moderate');
 
@@ -183,31 +174,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
         <CollapsibleContent className="space-y-4 pt-2">
           {/* Grid layout for columns */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="domain">Domain / Field</Label>
-              <Input
-                id="domain"
-                placeholder="e.g. Computer Science, Medicine, Finance..."
-                value={domain}
-                onChange={(e) => setDomain(e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="expertise-level">Expertise Level</Label>
-              <Select value={expertiseLevel} onValueChange={setExpertiseLevel}>
-                <SelectTrigger id="expertise-level">
-                  <SelectValue placeholder="Select expertise level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
-                  <SelectItem value="expert">Expert</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
             <div className="space-y-2">
               <Label htmlFor="cognitive-style">Cognitive Style</Label>
               <Select value={cognitiveStyle} onValueChange={setCognitiveStyle}>
