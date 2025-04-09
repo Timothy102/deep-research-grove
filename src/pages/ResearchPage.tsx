@@ -1,21 +1,42 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ResearchForm } from "@/components/research/ResearchForm";
 import ReasoningPath from "@/components/research/ReasoningPath";
-import ResearchOutput from "@/components/research/ResearchOutput";
-import ResearchHistorySidebar from "@/components/research/ResearchHistorySidebar";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
-import ProgressIndicator from "@/components/research/ProgressIndicator";
-import { startResearch } from "@/services/researchService";
+import { ProgressIndicator } from "@/components/research/ProgressIndicator";
 import { toast } from "sonner";
 import { getLatestSessionState } from "@/services/researchStateService";
 import { getUserModels } from "@/services/userModelService";
 import { captureEvent } from "@/integrations/posthog/client";
 import ResearchReport from "@/components/research/ResearchReport";
+
+// Let's add the missing startResearch function
+const startResearch = async (query: string, userModelId?: string) => {
+  try {
+    const response = await fetch('/api/research/start', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        user_model_id: userModelId
+      }),
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to start research');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error starting research:', error);
+    throw error;
+  }
+};
 
 const ResearchPage = () => {
   const { user } = useAuth();
@@ -114,7 +135,7 @@ const ResearchPage = () => {
           if (state.findings) setFindings(state.findings);
           if (state.answer) setOutput(state.answer);
           
-          // Determine if research is still in progress
+          // Determine if research is still in progress - use string comparison for status
           setIsLoading(state.status === 'in_progress' || state.status === 'pending');
         }
       } catch (e) {
@@ -210,7 +231,7 @@ const ResearchPage = () => {
           
           {isLoading && (
             <div className="mt-4">
-              <ProgressIndicator />
+              <ProgressIndicator isLoading={true} />
             </div>
           )}
         </div>

@@ -1,14 +1,15 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
 import { FileText, Copy, Download, CheckCircle2, BookOpen } from "lucide-react";
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, BorderStyle } from 'docx';
+import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, BorderStyle } from 'docx';
 import { captureEvent } from '@/integrations/posthog/client';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from '@/lib/constants';
+
+import { HeadingLevel } from 'docx';
 
 export interface Finding {
   source: string;
@@ -66,11 +67,9 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
   const [findings, setFindings] = useState<Finding[]>(initialFindings);
   const [syntheses, setSyntheses] = useState<SynthesisData[]>([]);
   
-  // Generate report sections based on syntheses
   useEffect(() => {
     if (syntheses.length === 0) return;
     
-    // Sort syntheses by depth (if available) or node_id
     const sortedSyntheses = [...syntheses].sort((a, b) => {
       if (a.is_root) return -1;
       if (b.is_root) return 1;
@@ -78,10 +77,8 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
       return a.node_id.localeCompare(b.node_id);
     });
     
-    // Extract title from the root synthesis if available
     const rootSynthesis = sortedSyntheses.find(s => s.is_root || s.node_id === "0");
     if (rootSynthesis && !title) {
-      // Try to extract a title from the synthesis text
       const lines = rootSynthesis.synthesis.split('\n');
       if (lines.length > 0) {
         const potentialTitle = lines[0].trim();
@@ -93,33 +90,26 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
       }
     }
     
-    // Build the full report text
     let reportText = '';
     
-    // Add title
     if (title) {
       reportText += `# ${title}\n\n`;
     } else if (initialQuery) {
       reportText += `# Research on: ${initialQuery}\n\n`;
     }
     
-    // Add each synthesis as a section
     sortedSyntheses.forEach((synthesis, index) => {
       if (synthesis.is_root) {
-        // Skip the title section which we already included
         const contentLines = synthesis.synthesis.split('\n');
         if (contentLines.length > 1) {
-          // Skip the first line (title) and include the rest
           reportText += contentLines.slice(1).join('\n').trim() + '\n\n';
         }
       } else {
-        // For non-root syntheses, include a section heading
         const headingLevel = (synthesis.depth && synthesis.depth > 1) ? '#'.repeat(Math.min(synthesis.depth + 1, 6)) : '##';
         reportText += `${headingLevel} ${synthesis.query}\n\n${synthesis.synthesis}\n\n`;
       }
     });
     
-    // Add sources section if available
     if (sources.length > 0) {
       reportText += '## Sources\n\n';
       sources.forEach((source, index) => {
@@ -128,11 +118,9 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
       reportText += '\n';
     }
     
-    // Add findings section if available
     if (findings.length > 0) {
       reportText += '## Key Findings\n\n';
       
-      // Group findings by source
       const findingsBySource = findings.reduce((acc, finding) => {
         if (!finding.source) return acc;
         
@@ -150,7 +138,6 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
         return acc;
       }, {} as Record<string, Finding[]>);
       
-      // Add findings grouped by source
       Object.entries(findingsBySource).forEach(([source, sourceFindings]) => {
         reportText += `### From ${source}\n\n`;
         
@@ -171,7 +158,6 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
     setReport(reportText);
   }, [syntheses, sources, findings, title, initialQuery]);
   
-  // Listen for realtime synthesis updates
   useEffect(() => {
     if (!sessionId) return;
     
@@ -179,18 +165,14 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
       const payload = event.detail?.payload;
       if (!payload) return;
       
-      // Handle report_update events
       if (payload.event_type === 'report_update' && payload.data) {
         const reportData = payload.data as ReportUpdateData;
         console.log(`[${new Date().toISOString()}] 📝 Received report update:`, reportData);
         
-        // Update syntheses with the new data
         setSyntheses(prev => {
-          // Check if we already have this node_id
           const existingIndex = prev.findIndex(s => s.node_id === reportData.node_id);
           
           if (existingIndex >= 0) {
-            // Update existing synthesis
             const updated = [...prev];
             updated[existingIndex] = {
               ...updated[existingIndex],
@@ -200,7 +182,6 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
             };
             return updated;
           } else {
-            // Add new synthesis
             return [...prev, {
               node_id: reportData.node_id,
               query: reportData.query,
@@ -213,17 +194,14 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
         });
       }
       
-      // Handle synthesis events
       if ((payload.event_type === 'synthesis' || payload.event === 'synthesis') && payload.data) {
         const synthesisData = payload.data as SynthesisData;
         console.log(`[${new Date().toISOString()}] 🧠 Received synthesis:`, synthesisData);
         
         setSyntheses(prev => {
-          // Check if we already have this node_id
           const existingIndex = prev.findIndex(s => s.node_id === synthesisData.node_id);
           
           if (existingIndex >= 0) {
-            // Update existing synthesis
             const updated = [...prev];
             updated[existingIndex] = {
               ...updated[existingIndex],
@@ -231,12 +209,10 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
             };
             return updated;
           } else {
-            // Add new synthesis
             return [...prev, synthesisData];
           }
         });
         
-        // Update findings if included in synthesis data
         if (synthesisData.findings && Array.isArray(synthesisData.findings)) {
           setFindings(prev => {
             const newFindings = [...prev];
@@ -256,7 +232,6 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
         }
       }
       
-      // Handle any changes to the sources in research_states
       if (payload.table === 'research_states' && payload.new && payload.new.session_id === sessionId) {
         if (payload.new.sources && Array.isArray(payload.new.sources)) {
           setSources(payload.new.sources);
@@ -277,19 +252,16 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
     };
   }, [sessionId]);
   
-  // Load existing data from storage if available
   useEffect(() => {
     if (!sessionId) return;
     
     try {
-      // Try to load syntheses from session storage
       const sessionSynthesesKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SYNTHESIS_CACHE, sessionId);
       const synthesesCache = localStorage.getItem(sessionSynthesesKey);
       
       if (synthesesCache) {
         const parsedSyntheses = JSON.parse(synthesesCache);
         if (typeof parsedSyntheses === 'object') {
-          // Convert from object to array format if needed
           if (!Array.isArray(parsedSyntheses)) {
             const synthesesArray = Object.entries(parsedSyntheses).map(([nodeId, data]) => ({
               node_id: nodeId,
@@ -302,7 +274,6 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
         }
       }
       
-      // Load findings and sources from session storage
       const sessionFindingsKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId);
       const findingsCache = localStorage.getItem(sessionFindingsKey);
       
@@ -355,12 +326,9 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
       
       const doc = new jsPDF();
       
-      // Add title
       doc.setFontSize(18);
       doc.text(title || `Research Report: ${initialQuery}`, 20, 20);
       
-      // Add content
-      doc.setFontSize(12);
       const splitText = doc.splitTextToSize(report, 170);
       doc.text(splitText, 20, 30);
       
@@ -386,11 +354,9 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
 
   const exportToDocx = async () => {
     try {
-      // Create sections from markdown-like content
       const sections = report.split(/#{1,6}\s+/);
       const headings = report.match(/#{1,6}\s+[^\n]+/g) || [];
       
-      // Create document with sections
       const doc = new Document({
         sections: [{
           properties: {},
@@ -412,21 +378,19 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
                 paragraphs.push(
                   new Paragraph({
                     text: headingText,
-                    heading: headingLevel as HeadingLevel,
+                    heading: headingLevel as number,
                   })
                 );
               }
               
               section.split('\n').forEach(line => {
                 if (line.trim()) {
-                  // Handle lists, bolding, etc. here if needed
                   paragraphs.push(
                     new Paragraph({
                       children: [new TextRun({ text: line })],
                     })
                   );
                 } else {
-                  // Add empty paragraph for line breaks
                   paragraphs.push(new Paragraph({}));
                 }
               });
@@ -529,7 +493,6 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
       <div className="bg-card rounded-lg border p-4 shadow-sm">
         <div className="whitespace-pre-wrap report-content">
           {report.split("\n").map((line, i) => {
-            // Handle headings
             if (line.startsWith("# ")) {
               return <h1 key={i} className="mt-2 mb-4 text-2xl font-bold">{line.substring(2)}</h1>;
             }
@@ -540,7 +503,6 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
               return <h3 key={i} className="mt-4 mb-2 text-lg font-bold">{line.substring(4)}</h3>;
             }
             
-            // Handle bold text
             if (line.includes("**")) {
               const parts = line.split(/(\*\*[^*]+\*\*)/g);
               return (
@@ -555,12 +517,10 @@ const ResearchReport: React.FC<ResearchReportProps> = ({
               );
             }
             
-            // Handle empty lines as spacing
             if (line.trim() === "") {
               return <div key={i} className="h-2"></div>;
             }
             
-            // Default paragraph rendering
             return <p key={i} className="mb-3">{line}</p>;
           })}
         </div>

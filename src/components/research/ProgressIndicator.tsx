@@ -51,3 +51,5 @@ export const ProgressIndicator = ({
     </div>
   );
 };
+
+export default ProgressIndicator;
