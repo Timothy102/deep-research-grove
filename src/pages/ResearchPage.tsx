@@ -107,8 +107,6 @@ const ResearchPage = () => {
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
   const [researchObjective, setResearchObjective] = useState("");
-  const [domain, setDomain] = useState("");
-  const [expertiseLevel, setExpertiseLevel] = useState("");
   const [userContext, setUserContext] = useState("");
   const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("");
   const [selectedLLM, setSelectedLLM] = useState("auto");
@@ -214,16 +212,13 @@ const ResearchPage = () => {
     try {
       const model = await getUserModelById(modelId);
       if (model) {
-        setDomain(model.domain);
-        setExpertiseLevel(model.expertise_level);
         setSelectedCognitiveStyle(model.cognitive_style);
         
         trackEvent('user_model_selected', {
           model_id: modelId,
           model_name: model.name,
-          domain: model.domain,
-          expertise_level: model.expertise_level,
-          cognitive_style: model.cognitive_style
+          cognitive_style: model.cognitive_style,
+          research_depth: model.research_depth
         });
         
         toast.success(`Selected user model: ${model.name}`);
@@ -254,10 +249,6 @@ const ResearchPage = () => {
     setReasoningPath([]);
     setActiveTab("reasoning");
     setResearchObjective("");  // Clear the research objective
-    setDomain("");
-    setExpertiseLevel("");
-    setUserContext("");
-    setSelectedCognitiveStyle("");
     researchIdRef.current = null;
     initialEventReceivedRef.current = false;
     setProgressEvents([]);
@@ -418,9 +409,8 @@ const ResearchPage = () => {
             userModelPayload = {
               user_id: user?.id || "anonymous",
               name: user?.email || "anonymous",
-              domain: model.domain,
-              expertise_level: model.expertise_level,
               cognitiveStyle: model.cognitive_style,
+              research_depth: model.research_depth,
               included_sources: model.included_sources || [],
               source_priorities: model.source_priorities || [],
               session_id: currentSessionIdRef.current,
@@ -436,8 +426,6 @@ const ResearchPage = () => {
             name: user?.email || "anonymous",
             userModel: userModelText,
             useCase: useCase,
-            domain: domain,
-            expertise_level: expertiseLevel,
             cognitiveStyle: selectedCognitiveStyle,
             session_id: currentSessionIdRef.current,
             model_id: "claude-3.5-sonnet",
@@ -451,8 +439,6 @@ const ResearchPage = () => {
           name: user?.email || "anonymous",
           userModel: userModelText,
           useCase: useCase,
-          domain: domain,
-          expertise_level: expertiseLevel,
           cognitiveStyle: selectedCognitiveStyle,
           session_id: currentSessionIdRef.current,
           model_id: "claude-3.5-sonnet",
@@ -908,349 +894,4 @@ const ResearchPage = () => {
         clientId: clientIdRef.current.substring(0, 15)
       });
       
-      const data = await getResearchState(researchId, currentSessionIdRef.current);
-      
-      if (!data) {
-        console.log(`[${new Date().toISOString()}] ℹ️ No research state found, will retry...`);
-        setTimeout(() => pollResearchState(researchId), 3000);
-        return;
-      }
-      
-      console.log(`[${new Date().toISOString()}] ✅ Polled research state:`, { 
-        id: data.id,
-        status: data.status,
-        clientId: data.client_id?.substring(0, 15) || 'none'
-      });
-      
-      if (data.client_id && data.client_id !== clientIdRef.current) {
-        console.warn(`[${new Date().toISOString()}] 🚫 Rejected polling response for different client:`, {
-          stateClientId: data.client_id.substring(0, 15), 
-          currentClientId: clientIdRef.current.substring(0, 15)
-        });
-        return;
-      }
-      
-      if ((data?.session_id && data.session_id !== currentSessionIdRef.current) ||
-          (data?.research_id && data.research_id !== researchId)) {
-        console.warn(`[${new Date().toISOString()}] 🚫 Rejected polling response for different session/research`, {
-          stateSessionId: data.session_id,
-          currentSessionId: currentSessionIdRef.current,
-          stateResearchId: data.research_id,
-          currentResearchId: researchId
-        });
-        return;
-      }
-      
-      if (data.status === "completed") {
-        setResearchOutput(data.answer || "");
-        setSources(data.sources || []);
-        
-        if (data.findings) {
-          const parsedFindings = Array.isArray(data.findings) 
-            ? data.findings 
-            : (typeof data.findings === 'string' ? JSON.parse(data.findings) : []);
-          setFindings(parsedFindings);
-        }
-        
-        setReasoningPath(data.reasoning_path || []);
-        setIsLoading(false);
-        
-        if (data.active_tab) {
-          setActiveTab(data.active_tab);
-        } else if (activeTab === "reasoning") {
-          setActiveTab("output");
-        }
-      } else if (data.status === "in_progress") {
-        if (data.answer) setResearchOutput(data.answer);
-        if (data.sources) setSources(data.sources);
-        
-        if (data.findings) {
-          const parsedFindings = Array.isArray(data.findings) 
-            ? data.findings 
-            : (typeof data.findings === 'string' ? JSON.parse(data.findings) : []);
-          setFindings(parsedFindings);
-        }
-        
-        if (data.reasoning_path) setReasoningPath(data.reasoning_path);
-        
-        setTimeout(() => pollResearchState(researchId), 3000);
-      } else if (data.status === "error") {
-        uiToast({
-          title: "research error",
-          description: data.error || "An error occurred during research",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-      } else if (data.status === 'awaiting_human_input') {
-        console.log(`[${new Date().toISOString()}] ⏳ Awaiting human input, will retry...`);
-        setTimeout(() => pollResearchState(researchId), 3000);
-      }
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Polling error:`, error);
-      uiToast({
-        title: "Error",
-        description: "Failed to retrieve research results",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut();
-      navigate("/");
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  };
-
-  const handleNewChat = () => {
-    const newSessionId = uuidv4();
-    
-    localStorage.setItem('newChatRequested', 'true');
-    
-    navigate(`/research/${newSessionId}`);
-  };
-
-  const loadHistoryItem = (item: ResearchHistoryEntry) => {
-    setResearchObjective(item.query);
-    
-    try {
-      const userModelData = JSON.parse(item.user_model || "{}");
-      if (userModelData.domain) setDomain(userModelData.domain);
-      if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
-      if (userModelData.userContext) setUserContext(userModelData.userContext);
-      
-      if (userModelData.cognitiveStyle) {
-        setSelectedCognitiveStyle(userModelData.cognitiveStyle);
-      }
-      
-      if (userModelData.session_id && userModelData.session_id !== currentSessionIdRef.current) {
-        navigate(`/research/${userModelData.session_id}`);
-        return;
-      }
-    } catch (e) {
-      console.error("Error parsing user model from history:", e);
-    }
-  };
-
-  const handleApproveRequest = async (callId: string, nodeId: string) => {
-    try {
-      console.log(`[${new Date().toISOString()}] 👍 Sending approval for call ID:`, callId, "node ID:", nodeId);
-      
-      await submitFeedback(callId, true, '');
-      
-      toast.success("Feedback submitted successfully");
-      setShowApprovalDialog(false);
-      setHumanApprovalRequest(null);
-      
-      return Promise.resolve();
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error submitting approval:`, error);
-      toast.error("Failed to submit feedback");
-      throw error;
-    }
-  };
-
-  const handleRejectRequest = async (callId: string, nodeId: string, reason: string) => {
-    try {
-      console.log(`[${new Date().toISOString()}] 👎 Sending rejection for call ID:`, callId, "node ID:", nodeId, "reason:", reason);
-      
-      await submitFeedback(callId, false, reason);
-      
-      toast.success("Feedback submitted successfully");
-      setShowApprovalDialog(false);
-      setHumanApprovalRequest(null);
-      
-      return Promise.resolve();
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error submitting rejection:`, error);
-      toast.error("Failed to submit feedback");
-      throw error;
-    }
-  };
-
-  return (
-    <div className="flex flex-col min-h-screen max-h-screen">
-      <header className="border-b">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center space-x-2">
-            <img src="/arcadia.png" alt="Nexus Logo" className="h-6 w-6" />
-            <h1 className="text-lg font-semibold">nexus</h1>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => navigate("/models")}
-              className="flex items-center gap-1"
-            >
-              <User className="h-4 w-4" />
-              <span>user models</span>
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={handleNewChat}
-            >
-              <MessageSquarePlus className="h-4 w-4" />
-            </Button>
-            
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={handleLogout}
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex flex-1 overflow-hidden relative">
-        <ResearchHistorySidebar 
-          isOpen={sidebarOpen}
-          history={groupedHistory}
-          onHistoryItemClick={(item) => loadHistoryItem(item)}
-          onSelectItem={(item) => loadHistoryItem(item)}
-          onToggle={toggleSidebar}
-        />
-
-        <main className={cn(
-          "flex-1 flex flex-col overflow-hidden transition-all duration-200 ease-in-out",
-          sidebarOpen && "lg:ml-72",
-          !sidebarOpen && "ml-0"
-        )}>
-          {initialEventReceivedRef.current || researchObjective ? (
-            <>
-              <div className={cn(
-                "p-4 border-b transition-opacity duration-300",
-                isLoading && initialEventReceivedRef.current ? "opacity-50" : "opacity-100"
-              )}>
-                <ResearchForm 
-                  isLoading={isLoading}
-                  initialValue={researchObjective}
-                  initialDomain={domain}
-                  initialExpertiseLevel={expertiseLevel}
-                  initialUserContext={userContext}
-                  initialCognitiveStyle={selectedCognitiveStyle}
-                  initialLLM={selectedLLM}
-                  onLLMChange={setSelectedLLM}
-                  onSubmit={handleResearch}
-                  setResearchObjective={setResearchObjective}
-                />
-              </div>
-              
-              <div className="flex-1 overflow-auto p-4">
-                {isLoading && (
-                  <div className="mb-4">
-                    <ProgressIndicator 
-                      isLoading={isLoading} 
-                      currentStage={currentStage}
-                      events={progressEvents}
-                    />
-                  </div>
-                )}
-                
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="mb-4">
-                    <TabsTrigger value="reasoning" className="flex items-center space-x-1">
-                      <span>process ({reasoningPath.length})</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="output" className="flex items-center space-x-1">
-                      <span>output</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="sources" className="flex items-center space-x-1">
-                      <Search className="h-4 w-4" />
-                      <span>sources ({sources.length})</span>
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="reasoning" className="mt-0">
-                    <ReasoningPath 
-                      reasoningPath={reasoningPath} 
-                      sources={sources}
-                      findings={findings}
-                      isActive={activeTab === "reasoning"}
-                      isLoading={isLoading}
-                      rawData={rawData}
-                      sessionId={currentSessionIdRef.current || ""}
-                    />
-                  </TabsContent>
-                  
-                  <TabsContent value="output" className="mt-0">
-                    <ResearchOutput output={researchOutput} isLoading={isLoading} />
-                  </TabsContent>
-                  
-                  <TabsContent value="sources" className="mt-0">
-                    <SourcesList sources={sources} />
-                  </TabsContent>
-                </Tabs>
-              </div>
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center p-4">
-              <div className="max-w-4xl w-full">
-                <div className="mb-8">
-                  <ResearchOutput 
-                    output="" 
-                    userName={displayName || user?.email?.split('@')[0] || "researcher"}
-                    userModels={userModels}
-                    onSelectModel={selectUserModel}
-                  />
-                </div>
-                
-                <ResearchForm 
-                  isLoading={isLoading}
-                  initialValue={researchObjective}
-                  initialDomain={domain}
-                  initialExpertiseLevel={expertiseLevel}
-                  initialUserContext={userContext}
-                  initialCognitiveStyle={selectedCognitiveStyle}
-                  initialLLM={selectedLLM}
-                  onLLMChange={setSelectedLLM}
-                  onSubmit={handleResearch}
-                  setResearchObjective={setResearchObjective}
-                />
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
-      
-      {showApprovalDialog && humanApprovalRequest && (
-        <HumanApprovalDialog
-          isOpen={showApprovalDialog}
-          callId={humanApprovalRequest.call_id}
-          nodeId={humanApprovalRequest.node_id}
-          query={humanApprovalRequest.query}
-          content={humanApprovalRequest.content}
-          approvalType={humanApprovalRequest.approval_type}
-          onApprove={(callId, nodeId) => handleApproveRequest(callId, nodeId)}
-          onReject={(callId, nodeId, reason) => handleRejectRequest(callId, nodeId, reason)}
-          onClose={() => setShowApprovalDialog(false)}
-        />
-      )}
-      
-      {showOnboarding && (
-        <UserModelOnboarding
-          isOpen={true}
-          onClose={() => setShowOnboarding(false)}
-          onCompleted={(model: any) => {
-            setShowOnboarding(false);
-            markOnboardingCompleted();
-            setDomain(model.domain);
-            setExpertiseLevel(model.expertise_level);
-            setSelectedCognitiveStyle(model.cognitive_style);
-            loadUserModels();
-          }}
-        />
-      )}
-    </div>
-  );
-};
-
-export default ResearchPage;
+      const data = await getResearchState(researchId, currentSessionIdRef
