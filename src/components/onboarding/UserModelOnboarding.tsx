@@ -25,6 +25,7 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
   const [domain, setDomain] = useState("");
   const [expertiseLevel, setExpertiseLevel] = useState("");
   const [cognitiveStyle, setCognitiveStyle] = useState("");
+  const [researchDepth, setResearchDepth] = useState("moderate"); // Default to moderate
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -48,6 +49,7 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
         domain,
         expertise_level: expertiseLevel,
         cognitive_style: cognitiveStyle,
+        research_depth: researchDepth, // Add the research_depth field
       };
 
       const createdModel = await createUserModel(modelData);
