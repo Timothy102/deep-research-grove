@@ -1177,11 +1177,13 @@ const ResearchPage = () => {
                       loading={isLoading}
                       completed={!isLoading && researchOutput !== ""}
                       paused={false}
-                      result={{
+                      result={researchOutput ? {
                         answer: researchOutput,
                         confidence: 0,
-                        query: researchObjective
-                      }}
+                        query: researchObjective,
+                        sources: sources,
+                        reasoning_path: reasoningPath
+                      } : null}
                       error={null}
                       reasoningPath={reasoningPath}
                       sources={sources}
