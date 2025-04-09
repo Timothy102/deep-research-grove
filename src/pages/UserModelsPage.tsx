@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -286,7 +287,7 @@ const UserModelsPage = () => {
                           </Badge>
                         )}
                       </CardTitle>
-                      <CardDescription>{model.name}</CardDescription>
+                      <CardDescription>{model.domain}</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
@@ -294,8 +295,8 @@ const UserModelsPage = () => {
                   <div className="space-y-4">
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium">Research Depth</span>
-                        <span className="text-sm">{model.research_depth}</span>
+                        <span className="text-sm font-medium">Expertise Level</span>
+                        <span className="text-sm">{model.expertise_level}</span>
                       </div>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium">Cognitive Style</span>

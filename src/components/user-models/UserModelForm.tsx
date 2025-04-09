@@ -4,6 +4,7 @@ import { UserModel, UserModelSourcePriority } from "@/services/userModelService"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { 
   Card, 
@@ -13,22 +14,17 @@ import {
   CardTitle, 
   CardDescription 
 } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Plus, X, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Define cognitive styles and research depth levels
+// Define your expertise levels and cognitive styles
+const expertiseLevels = ["beginner", "intermediate", "advanced", "expert"];
 const cognitiveStyles = [
   { id: "systematic", label: "systematic" },
   { id: "general", label: "general" },
   { id: "first-principles", label: "first-principles" },
   { id: "creative", label: "creative" },
   { id: "practical", label: "practical applier" },
-];
-const researchDepthLevels = [
-  { id: "shallow", label: "Shallow" },
-  { id: "moderate", label: "Moderate" },
-  { id: "deep", label: "Deep" },
 ];
 
 interface UserModelFormProps {
@@ -40,8 +36,9 @@ interface UserModelFormProps {
 const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormProps) => {
   const { toast } = useToast();
   const [name, setName] = useState(initialData?.name || "");
+  const [domain, setDomain] = useState(initialData?.domain || "");
+  const [expertiseLevel, setExpertiseLevel] = useState(initialData?.expertise_level || "intermediate");
   const [cognitiveStyle, setCognitiveStyle] = useState(initialData?.cognitive_style || "general");
-  const [researchDepth, setResearchDepth] = useState(initialData?.research_depth || "moderate");
   const [includedSources, setIncludedSources] = useState<string[]>(initialData?.included_sources || []);
   const [currentSource, setCurrentSource] = useState("");
   const [sourcePriorities, setSourcePriorities] = useState<UserModelSourcePriority[]>(
@@ -150,7 +147,7 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim()) {
+    if (!name.trim() || !domain.trim()) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -163,8 +160,9 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
       await onSubmit({
         ...initialData,
         name,
+        domain,
+        expertise_level: expertiseLevel,
         cognitive_style: cognitiveStyle,
-        research_depth: researchDepth,
         included_sources: includedSources,
         source_priorities: sourcePriorities
       });
@@ -193,21 +191,36 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
         </div>
 
         <div className="space-y-2">
-          <Label>Research Depth</Label>
-          <RadioGroup 
-            value={researchDepth} 
-            onValueChange={setResearchDepth}
-            className="grid grid-cols-3 gap-2"
-          >
-            {researchDepthLevels.map((depth) => (
-              <div key={depth.id} className="flex items-center space-x-2">
-                <RadioGroupItem value={depth.id} id={`depth-${depth.id}`} />
-                <Label htmlFor={`depth-${depth.id}`} className="cursor-pointer">
-                  {depth.label}
+          <Label htmlFor="domain">Your Domain/Field</Label>
+          <Input
+            id="domain"
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+            placeholder="e.g. Computer Science, Medicine, Finance..."
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Expertise Level</Label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {expertiseLevels.map((level) => (
+              <div key={level} className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id={`level-${level}`}
+                  name="expertise-level"
+                  className="radio"
+                  value={level}
+                  checked={expertiseLevel === level}
+                  onChange={() => setExpertiseLevel(level)}
+                />
+                <Label htmlFor={`level-${level}`} className="cursor-pointer">
+                  {level}
                 </Label>
               </div>
             ))}
-          </RadioGroup>
+          </div>
         </div>
 
         <div className="space-y-2">

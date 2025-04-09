@@ -16,12 +16,15 @@ import {
   getLatestSessionState 
 } from "@/services/researchStateService";
 import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted, getUserModels } from "@/services/userModelService";
+import { submitHumanFeedback } from "@/services/humanInteractionService";
+import { submitFeedback } from '@/services/feedbackService';
 import { useToast } from "@/hooks/use-toast";
 import { ResearchForm } from "@/components/research/ResearchForm";
 import ReasoningPath from "@/components/research/ReasoningPath";
 import SourcesList from "@/components/research/SourcesList";
 import ResearchOutput from "@/components/research/ResearchOutput";
 import ResearchHistorySidebar from "@/components/research/ResearchHistorySidebar";
+import HumanApprovalDialog from "@/components/research/HumanApprovalDialog";
 import UserModelOnboarding from "@/components/onboarding/UserModelOnboarding";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { v4 as uuidv4 } from 'uuid';
@@ -33,8 +36,6 @@ import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
 import { ProgressIndicator } from "@/components/research/ProgressIndicator";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { captureEvent } from "@/integrations/posthog/client";
-import ResearchChat from "@/components/research/ResearchChat";
-import { processUserMessage } from "@/services/chatService";
 
 interface ResearchHistory {
   id: string;
@@ -44,17 +45,46 @@ interface ResearchHistory {
   created_at: string;
 }
 
-// Define the Finding interface to resolve type errors
-export interface Finding {
+interface HumanApprovalRequest {
+  call_id: string;
+  node_id: string;
+  query: string;
+  content: string;
+  approval_type: string;
+  interaction_type?: "planning" | "searching" | "synthesizing";
+}
+
+interface Finding {
   source: string;
   content?: string;
   node_id?: string;
   query?: string;
-  finding?: {
-    title?: string;
-    summary?: string;
-    confidence_score?: number;
+  finding?: any;
+}
+
+interface HumanInteraction {
+  call_id: string;
+  node_id: string;
+  query: string;
+  content: string;
+  interaction_type: string;
+  status: "completed" | "pending";
+  response?: {
+    approved: boolean;
+    comment?: string;
+    timestamp: string;
   };
+  type?: string;
+  timestamp?: string;
+}
+
+interface HumanInteractionRequest {
+  call_id: string;
+  node_id: string;
+  query: string;
+  content: string;
+  interaction_type: "planning" | "searching" | "synthesizing";
+  approval_type?: string;
 }
 
 const ResearchPage = () => {
@@ -74,7 +104,11 @@ const ResearchPage = () => {
     return savedState !== null ? savedState === 'true' : false;
   });
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
+  const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
   const [researchObjective, setResearchObjective] = useState("");
+  const [domain, setDomain] = useState("");
+  const [expertiseLevel, setExpertiseLevel] = useState("");
   const [userContext, setUserContext] = useState("");
   const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("");
   const [selectedLLM, setSelectedLLM] = useState("auto");
@@ -83,7 +117,6 @@ const ResearchPage = () => {
   const [displayName, setDisplayName] = useState<string>("");
   const [progressEvents, setProgressEvents] = useState<string[]>([]);
   const [currentStage, setCurrentStage] = useState("Initializing research");
-  const [showChat, setShowChat] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
@@ -181,13 +214,16 @@ const ResearchPage = () => {
     try {
       const model = await getUserModelById(modelId);
       if (model) {
+        setDomain(model.domain);
+        setExpertiseLevel(model.expertise_level);
         setSelectedCognitiveStyle(model.cognitive_style);
         
         trackEvent('user_model_selected', {
           model_id: modelId,
           model_name: model.name,
-          cognitive_style: model.cognitive_style,
-          research_depth: model.research_depth
+          domain: model.domain,
+          expertise_level: model.expertise_level,
+          cognitive_style: model.cognitive_style
         });
         
         toast.success(`Selected user model: ${model.name}`);
@@ -218,6 +254,10 @@ const ResearchPage = () => {
     setReasoningPath([]);
     setActiveTab("reasoning");
     setResearchObjective("");  // Clear the research objective
+    setDomain("");
+    setExpertiseLevel("");
+    setUserContext("");
+    setSelectedCognitiveStyle("");
     researchIdRef.current = null;
     initialEventReceivedRef.current = false;
     setProgressEvents([]);
@@ -295,17 +335,53 @@ const ResearchPage = () => {
           setReasoningPath(sessionState.reasoning_path);
         }
         
+        if (sessionState.status === 'awaiting_human_input' && sessionState.human_interactions) {
+          let interactions: HumanInteraction[] = [];
+          
+          if (typeof sessionState.human_interactions === 'string') {
+            try {
+              interactions = JSON.parse(sessionState.human_interactions);
+            } catch (e) {
+              console.error("Error parsing human interactions:", e);
+              interactions = [];
+            }
+          } else if (Array.isArray(sessionState.human_interactions)) {
+            interactions = sessionState.human_interactions as HumanInteraction[];
+          }
+                
+          const lastInteraction = interactions
+            .filter(interaction => interaction.type === 'interaction_request')
+            .pop();
+            
+          if (lastInteraction) {
+            const approvalRequest: HumanApprovalRequest = {
+              call_id: lastInteraction.call_id,
+              node_id: lastInteraction.node_id,
+              query: lastInteraction.query || sessionState.query,
+              content: lastInteraction.content,
+              approval_type: lastInteraction.interaction_type
+            };
+            
+            setHumanApprovalRequest(approvalRequest);
+            setShowApprovalDialog(true);
+            
+            console.log(`[${new Date().toISOString()}] 🔄 Restored pending human interaction:`, approvalRequest);
+          }
+        }
+        
         if (sessionState.active_tab) {
           setActiveTab(sessionState.active_tab);
         } else {
-          if (sessionState.status === 'in_progress') {
+          if (sessionState.status === 'awaiting_human_input') {
+            setActiveTab('reasoning');
+          } else if (sessionState.status === 'in_progress') {
             setActiveTab('reasoning');
           } else {
             setActiveTab('output');
           }
         }
         
-        if (sessionState.status === 'in_progress') {
+        if (sessionState.status === 'in_progress' || sessionState.status === 'awaiting_human_input') {
           setIsLoading(true);
           pollResearchState(sessionState.research_id);
         }
@@ -313,38 +389,6 @@ const ResearchPage = () => {
     } catch (error) {
       console.error(`[${new Date().toISOString()}] ❌ Error loading session data:`, error);
     }
-  };
-
-  const handleChatMessage = async (message: string): Promise<string> => {
-    try {
-      if (!currentSessionIdRef.current) {
-        return "Error: No active session. Please reload the page.";
-      }
-      
-      // Get the current research context to enhance the AI's understanding
-      const context = {
-        researchObjective: researchObjective,
-        findings: findings.length,
-        sources: sources.length,
-      };
-      
-      // Process the message and get a response
-      const response = await processUserMessage(
-        message, 
-        currentSessionIdRef.current, 
-        researchIdRef.current || undefined,
-        JSON.stringify(context)
-      );
-      
-      return response;
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error processing chat message:`, error);
-      return "Sorry, I encountered an error. Please try again.";
-    }
-  };
-
-  const toggleChat = () => {
-    setShowChat(prev => !prev);
   };
 
   const handleResearch = async (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => {
@@ -374,8 +418,9 @@ const ResearchPage = () => {
             userModelPayload = {
               user_id: user?.id || "anonymous",
               name: user?.email || "anonymous",
+              domain: model.domain,
+              expertise_level: model.expertise_level,
               cognitiveStyle: model.cognitive_style,
-              research_depth: model.research_depth,
               included_sources: model.included_sources || [],
               source_priorities: model.source_priorities || [],
               session_id: currentSessionIdRef.current,
@@ -391,6 +436,8 @@ const ResearchPage = () => {
             name: user?.email || "anonymous",
             userModel: userModelText,
             useCase: useCase,
+            domain: domain,
+            expertise_level: expertiseLevel,
             cognitiveStyle: selectedCognitiveStyle,
             session_id: currentSessionIdRef.current,
             model_id: "claude-3.5-sonnet",
@@ -404,6 +451,8 @@ const ResearchPage = () => {
           name: user?.email || "anonymous",
           userModel: userModelText,
           useCase: useCase,
+          domain: domain,
+          expertise_level: expertiseLevel,
           cognitiveStyle: selectedCognitiveStyle,
           session_id: currentSessionIdRef.current,
           model_id: "claude-3.5-sonnet",
@@ -693,6 +742,17 @@ const ResearchPage = () => {
           });
         }
         
+        if (step.toLowerCase().includes("synthesizing") && reasoningPath.length > 0 && reasoningPath.length % 5 === 0) {
+          const syntheticRequest = {
+            call_id: `synthetic-${researchId}-${reasoningPath.length}`,
+            node_id: `${reasoningPath.length}`,
+            query: researchObjective,
+            content: `This is a synthetic approval request at step ${reasoningPath.length}. This would normally contain synthesized content based on the research so far.`,
+            approval_type: "synthesis"
+          };
+          setHumanApprovalRequest(syntheticRequest);
+        }
+        
         setReasoningPath(prev => [...prev, step]);
         
         if (isLoading) {
@@ -752,6 +812,86 @@ const ResearchPage = () => {
           }).catch(err => console.error("Error updating error state:", err));
         }
         break;
+      case "human_interaction_request":
+        console.log(`[${new Date().toISOString()}] 🧠 Human interaction requested:`, data.data);
+        
+        const interactionRequest: HumanInteractionRequest = {
+          call_id: data.data.call_id,
+          node_id: data.data.node_id,
+          query: data.data.query || researchObjective,
+          content: data.data.content,
+          interaction_type: data.data.interaction_type
+        };
+        
+        const approvalRequest: HumanApprovalRequest = {
+          ...interactionRequest,
+          approval_type: interactionRequest.interaction_type
+        };
+        
+        setHumanApprovalRequest(approvalRequest);
+        setShowApprovalDialog(true);
+        
+        window.postMessage(
+          { 
+            type: "human_interaction_request", 
+            data: interactionRequest
+          }, 
+          window.location.origin
+        );
+        
+        if (currentSessionIdRef.current) {
+          const humanInteractions: HumanInteraction[] = [
+            ...findings.map(f => ({ 
+              type: 'finding', 
+              call_id: f.node_id || '', 
+              node_id: f.node_id || '',
+              content: f.content || '',
+              query: f.query || '',
+              interaction_type: 'finding',
+              status: 'completed' as const
+            })),
+            { 
+              type: 'interaction_request', 
+              call_id: interactionRequest.call_id,
+              node_id: interactionRequest.node_id,
+              query: interactionRequest.query,
+              content: interactionRequest.content,
+              interaction_type: interactionRequest.interaction_type,
+              status: 'pending' as const,
+              timestamp: new Date().toISOString()
+            }
+          ];
+          
+          updateResearchState(researchId, currentSessionIdRef.current, {
+            status: 'awaiting_human_input',
+            human_interactions: humanInteractions
+          }).catch(err => console.error("Error updating human interaction state:", err));
+        }
+        break;
+      case "human_interaction_result":
+        console.log(`[${new Date().toISOString()}] 🧠 Human interaction result received:`, data.data);
+        
+        if (humanApprovalRequest?.call_id === data.data.call_id) {
+          setHumanApprovalRequest(null);
+          setShowApprovalDialog(false);
+        }
+        
+        toast.dismiss(`interaction-${data.data.call_id}`);
+        
+        if (currentSessionIdRef.current) {
+          updateResearchState(researchId, currentSessionIdRef.current, {
+            status: 'in_progress',
+            custom_data: JSON.stringify({
+              ...data.data,
+              timestamp: new Date().toISOString(),
+              type: 'interaction_result'
+            })
+          }).catch(err => console.error("Error updating human interaction result:", err));
+        }
+        
+        const humanFeedbackStep = `Human feedback received for ${data.data.interaction_type}: ${data.data.approved ? 'Approved' : 'Rejected'}${data.data.comment ? ` - Comment: ${data.data.comment}` : ''}`;
+        setReasoningPath(prev => [...prev, humanFeedbackStep]);
+        break;
     }
   };
 
@@ -770,184 +910,342 @@ const ResearchPage = () => {
       
       const data = await getResearchState(researchId, currentSessionIdRef.current);
       
-      if (data) {
-        console.log(`[${new Date().toISOString()}] ✅ Received research state update from polling:`, {
-          research_id: data.research_id,
-          status: data.status,
-          hasFindings: Array.isArray(data.findings) ? data.findings.length : 0
+      if (!data) {
+        console.log(`[${new Date().toISOString()}] ℹ️ No research state found, will retry...`);
+        setTimeout(() => pollResearchState(researchId), 3000);
+        return;
+      }
+      
+      console.log(`[${new Date().toISOString()}] ✅ Polled research state:`, { 
+        id: data.id,
+        status: data.status,
+        clientId: data.client_id?.substring(0, 15) || 'none'
+      });
+      
+      if (data.client_id && data.client_id !== clientIdRef.current) {
+        console.warn(`[${new Date().toISOString()}] 🚫 Rejected polling response for different client:`, {
+          stateClientId: data.client_id.substring(0, 15), 
+          currentClientId: clientIdRef.current.substring(0, 15)
         });
+        return;
+      }
+      
+      if ((data?.session_id && data.session_id !== currentSessionIdRef.current) ||
+          (data?.research_id && data.research_id !== researchId)) {
+        console.warn(`[${new Date().toISOString()}] 🚫 Rejected polling response for different session/research`, {
+          stateSessionId: data.session_id,
+          currentSessionId: currentSessionIdRef.current,
+          stateResearchId: data.research_id,
+          currentResearchId: researchId
+        });
+        return;
+      }
+      
+      if (data.status === "completed") {
+        setResearchOutput(data.answer || "");
+        setSources(data.sources || []);
         
-        if (data.answer) {
-          setResearchOutput(data.answer);
+        if (data.findings) {
+          const parsedFindings = Array.isArray(data.findings) 
+            ? data.findings 
+            : (typeof data.findings === 'string' ? JSON.parse(data.findings) : []);
+          setFindings(parsedFindings);
         }
         
-        if (data.sources && Array.isArray(data.sources)) {
-          setSources(data.sources);
-        }
-        
-        if (data.findings && Array.isArray(data.findings)) {
-          setFindings(data.findings);
-        }
-        
-        if (data.reasoning_path && Array.isArray(data.reasoning_path)) {
-          setReasoningPath(data.reasoning_path);
-        }
-        
-        if (data.status === 'completed') {
-          setIsLoading(false);
-          setActiveTab('output');
-        } else if (data.status === 'error') {
-          setIsLoading(false);
-          uiToast({
-            title: "research error",
-            description: "the research process encountered an error",
-            variant: "destructive",
-          });
-        } else if (data.status === 'in_progress') {
-          setTimeout(() => {
-            if (currentSessionIdRef.current === data.session_id) {
-              pollResearchState(researchId);
-            }
-          }, 5000);
-        }
-      } else {
-        console.log(`[${new Date().toISOString()}] ⚠️ No research state available from polling`);
+        setReasoningPath(data.reasoning_path || []);
         setIsLoading(false);
+        
+        if (data.active_tab) {
+          setActiveTab(data.active_tab);
+        } else if (activeTab === "reasoning") {
+          setActiveTab("output");
+        }
+      } else if (data.status === "in_progress") {
+        if (data.answer) setResearchOutput(data.answer);
+        if (data.sources) setSources(data.sources);
+        
+        if (data.findings) {
+          const parsedFindings = Array.isArray(data.findings) 
+            ? data.findings 
+            : (typeof data.findings === 'string' ? JSON.parse(data.findings) : []);
+          setFindings(parsedFindings);
+        }
+        
+        if (data.reasoning_path) setReasoningPath(data.reasoning_path);
+        
+        setTimeout(() => pollResearchState(researchId), 3000);
+      } else if (data.status === "error") {
+        uiToast({
+          title: "research error",
+          description: data.error || "An error occurred during research",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+      } else if (data.status === 'awaiting_human_input') {
+        console.log(`[${new Date().toISOString()}] ⏳ Awaiting human input, will retry...`);
+        setTimeout(() => pollResearchState(researchId), 3000);
       }
     } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error polling research state:`, error);
+      console.error(`[${new Date().toISOString()}] ❌ Polling error:`, error);
+      uiToast({
+        title: "Error",
+        description: "Failed to retrieve research results",
+        variant: "destructive",
+      });
       setIsLoading(false);
     }
   };
 
-  return (
-    <div className="flex h-screen bg-background">
-      <ResearchHistorySidebar 
-        isOpen={sidebarOpen} 
-        onToggle={toggleSidebar}
-        groupedHistory={groupedHistory}
-        currentSessionId={sessionId || ""}
-        history={history}
-        onHistoryItemClick={() => {}}
-        onSelectItem={() => {}}
-      />
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  const handleNewChat = () => {
+    const newSessionId = uuidv4();
+    
+    localStorage.setItem('newChatRequested', 'true');
+    
+    navigate(`/research/${newSessionId}`);
+  };
+
+  const loadHistoryItem = (item: ResearchHistoryEntry) => {
+    setResearchObjective(item.query);
+    
+    try {
+      const userModelData = JSON.parse(item.user_model || "{}");
+      if (userModelData.domain) setDomain(userModelData.domain);
+      if (userModelData.expertise_level) setExpertiseLevel(userModelData.expertise_level);
+      if (userModelData.userContext) setUserContext(userModelData.userContext);
       
-      <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="border-b bg-background p-4 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <Button variant="outline" size="sm" onClick={toggleSidebar}>
-              <Search className="h-4 w-4 mr-2" />
-              History
-            </Button>
-            
-            <h1 className="text-xl font-medium">Deep Research</h1>
+      if (userModelData.cognitiveStyle) {
+        setSelectedCognitiveStyle(userModelData.cognitiveStyle);
+      }
+      
+      if (userModelData.session_id && userModelData.session_id !== currentSessionIdRef.current) {
+        navigate(`/research/${userModelData.session_id}`);
+        return;
+      }
+    } catch (e) {
+      console.error("Error parsing user model from history:", e);
+    }
+  };
+
+  const handleApproveRequest = async (callId: string, nodeId: string) => {
+    try {
+      console.log(`[${new Date().toISOString()}] 👍 Sending approval for call ID:`, callId, "node ID:", nodeId);
+      
+      await submitFeedback(callId, true, '');
+      
+      toast.success("Feedback submitted successfully");
+      setShowApprovalDialog(false);
+      setHumanApprovalRequest(null);
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] ❌ Error submitting approval:`, error);
+      toast.error("Failed to submit feedback");
+      throw error;
+    }
+  };
+
+  const handleRejectRequest = async (callId: string, nodeId: string, reason: string) => {
+    try {
+      console.log(`[${new Date().toISOString()}] 👎 Sending rejection for call ID:`, callId, "node ID:", nodeId, "reason:", reason);
+      
+      await submitFeedback(callId, false, reason);
+      
+      toast.success("Feedback submitted successfully");
+      setShowApprovalDialog(false);
+      setHumanApprovalRequest(null);
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] ❌ Error submitting rejection:`, error);
+      toast.error("Failed to submit feedback");
+      throw error;
+    }
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen max-h-screen">
+      <header className="border-b">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center space-x-2">
+            <img src="/arcadia.png" alt="Nexus Logo" className="h-6 w-6" />
+            <h1 className="text-lg font-semibold">nexus</h1>
           </div>
           
           <div className="flex items-center space-x-2">
             <Button 
-              variant="outline" 
-              size="icon" 
-              onClick={toggleChat}
-              className={cn(showChat && "bg-muted")}
+              variant="ghost" 
+              size="sm"
+              onClick={() => navigate("/models")}
+              className="flex items-center gap-1"
+            >
+              <User className="h-4 w-4" />
+              <span>user models</span>
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleNewChat}
             >
               <MessageSquarePlus className="h-4 w-4" />
             </Button>
             
-            <div className="flex items-center space-x-2">
-              <div className="rounded-full bg-primary/10 p-1">
-                <User className="h-4 w-4" />
-              </div>
-              <span className="text-sm hidden md:inline-block">{displayName}</span>
-            </div>
-            
-            <Button variant="ghost" size="icon" onClick={() => signOut()}>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleLogout}
+            >
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
-        </header>
-        
-        <div className="flex-1 overflow-hidden flex">
-          <div className="flex-1 overflow-y-auto p-6">
-            <ResearchForm
-              onSubmit={handleResearch}
-              isLoading={isLoading}
-              initialObjective={researchObjective}
-              userModels={userModels}
-              selectedCognitiveStyle={selectedCognitiveStyle}
-              onUserModelSelect={selectUserModel}
-            />
-            
-            {isLoading && (
-              <div className="mb-4">
-                <ProgressIndicator 
-                  events={progressEvents}
-                  currentStage={currentStage}
+        </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden relative">
+        <ResearchHistorySidebar 
+          isOpen={sidebarOpen}
+          history={groupedHistory}
+          onHistoryItemClick={(item) => loadHistoryItem(item)}
+          onSelectItem={(item) => loadHistoryItem(item)}
+          onToggle={toggleSidebar}
+        />
+
+        <main className={cn(
+          "flex-1 flex flex-col overflow-hidden transition-all duration-200 ease-in-out",
+          sidebarOpen && "lg:ml-72",
+          !sidebarOpen && "ml-0"
+        )}>
+          {initialEventReceivedRef.current || researchObjective ? (
+            <>
+              <div className={cn(
+                "p-4 border-b transition-opacity duration-300",
+                isLoading && initialEventReceivedRef.current ? "opacity-50" : "opacity-100"
+              )}>
+                <ResearchForm 
                   isLoading={isLoading}
+                  initialValue={researchObjective}
+                  initialDomain={domain}
+                  initialExpertiseLevel={expertiseLevel}
+                  initialUserContext={userContext}
+                  initialCognitiveStyle={selectedCognitiveStyle}
+                  initialLLM={selectedLLM}
+                  onLLMChange={setSelectedLLM}
+                  onSubmit={handleResearch}
+                  setResearchObjective={setResearchObjective}
                 />
               </div>
-            )}
-            
-            {(reasoningPath.length > 0 || sources.length > 0 || researchOutput) && (
-              <Tabs 
-                value={activeTab} 
-                onValueChange={setActiveTab}
-                className="mt-8"
-              >
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="reasoning">
-                    Reasoning Path
-                  </TabsTrigger>
-                  <TabsTrigger value="sources">
-                    Sources {sources.length > 0 && `(${sources.length})`}
-                  </TabsTrigger>
-                  <TabsTrigger value="output">
-                    Answer
-                  </TabsTrigger>
-                </TabsList>
+              
+              <div className="flex-1 overflow-auto p-4">
+                {isLoading && (
+                  <div className="mb-4">
+                    <ProgressIndicator 
+                      isLoading={isLoading} 
+                      currentStage={currentStage}
+                      events={progressEvents}
+                    />
+                  </div>
+                )}
                 
-                <TabsContent value="reasoning" className="mt-4">
-                  <ReasoningPath
-                    reasoningPath={reasoningPath}
-                    className="mt-4"
-                  />
-                </TabsContent>
-                
-                <TabsContent value="sources" className="mt-4">
-                  <SourcesList 
-                    sources={sources}
-                    findings={findings}
-                    sessionId={sessionId}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="output" className="mt-4">
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="reasoning" className="flex items-center space-x-1">
+                      <span>process ({reasoningPath.length})</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="output" className="flex items-center space-x-1">
+                      <span>output</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="sources" className="flex items-center space-x-1">
+                      <Search className="h-4 w-4" />
+                      <span>sources ({sources.length})</span>
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="reasoning" className="mt-0">
+                    <ReasoningPath 
+                      reasoningPath={reasoningPath} 
+                      sources={sources}
+                      findings={findings}
+                      isActive={activeTab === "reasoning"}
+                      isLoading={isLoading}
+                      rawData={rawData}
+                      sessionId={currentSessionIdRef.current || ""}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="output" className="mt-0">
+                    <ResearchOutput output={researchOutput} isLoading={isLoading} />
+                  </TabsContent>
+                  
+                  <TabsContent value="sources" className="mt-0">
+                    <SourcesList sources={sources} />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-4">
+              <div className="max-w-4xl w-full">
+                <div className="mb-8">
                   <ResearchOutput 
-                    output={researchOutput} 
-                    isLoading={isLoading && activeTab === 'output'}
+                    output="" 
+                    userName={displayName || user?.email?.split('@')[0] || "researcher"}
+                    userModels={userModels}
+                    onSelectModel={selectUserModel}
                   />
-                </TabsContent>
-              </Tabs>
-            )}
-          </div>
-          
-          {showChat && (
-            <div className="w-96 border-l overflow-hidden flex flex-col">
-              <ResearchChat 
-                sessionId={sessionId || ''}
-                researchId={researchIdRef.current || undefined}
-                onSendMessage={handleChatMessage}
-              />
+                </div>
+                
+                <ResearchForm 
+                  isLoading={isLoading}
+                  initialValue={researchObjective}
+                  initialDomain={domain}
+                  initialExpertiseLevel={expertiseLevel}
+                  initialUserContext={userContext}
+                  initialCognitiveStyle={selectedCognitiveStyle}
+                  initialLLM={selectedLLM}
+                  onLLMChange={setSelectedLLM}
+                  onSubmit={handleResearch}
+                  setResearchObjective={setResearchObjective}
+                />
+              </div>
             </div>
           )}
-        </div>
+        </main>
       </div>
+      
+      {showApprovalDialog && humanApprovalRequest && (
+        <HumanApprovalDialog
+          isOpen={showApprovalDialog}
+          callId={humanApprovalRequest.call_id}
+          nodeId={humanApprovalRequest.node_id}
+          query={humanApprovalRequest.query}
+          content={humanApprovalRequest.content}
+          approvalType={humanApprovalRequest.approval_type}
+          onApprove={(callId, nodeId) => handleApproveRequest(callId, nodeId)}
+          onReject={(callId, nodeId, reason) => handleRejectRequest(callId, nodeId, reason)}
+          onClose={() => setShowApprovalDialog(false)}
+        />
+      )}
       
       {showOnboarding && (
         <UserModelOnboarding
-          open={showOnboarding}
-          onComplete={async () => {
+          isOpen={true}
+          onClose={() => setShowOnboarding(false)}
+          onCompleted={(model: any) => {
             setShowOnboarding(false);
-            await markOnboardingCompleted();
+            markOnboardingCompleted();
+            setDomain(model.domain);
+            setExpertiseLevel(model.expertise_level);
+            setSelectedCognitiveStyle(model.cognitive_style);
+            loadUserModels();
           }}
         />
       )}

@@ -147,11 +147,12 @@ export type Database = {
         Row: {
           cognitive_style: string
           created_at: string | null
+          domain: string
+          expertise_level: string
           id: string
           included_sources: string[] | null
           is_default: boolean | null
           name: string
-          research_depth: string
           source_priorities: Json | null
           updated_at: string | null
           user_id: string
@@ -159,11 +160,12 @@ export type Database = {
         Insert: {
           cognitive_style: string
           created_at?: string | null
+          domain: string
+          expertise_level: string
           id?: string
           included_sources?: string[] | null
           is_default?: boolean | null
           name: string
-          research_depth: string
           source_priorities?: Json | null
           updated_at?: string | null
           user_id: string
@@ -171,11 +173,12 @@ export type Database = {
         Update: {
           cognitive_style?: string
           created_at?: string | null
+          domain?: string
+          expertise_level?: string
           id?: string
           included_sources?: string[] | null
           is_default?: boolean | null
           name?: string
-          research_depth?: string
           source_priorities?: Json | null
           updated_at?: string | null
           user_id?: string

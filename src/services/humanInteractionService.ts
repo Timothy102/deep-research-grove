@@ -1,9 +1,10 @@
 
-// This is a stub service for human interaction
-// Human interaction functionality has been removed
+// Human interaction service for submitting feedback to the research backend
+
+const HUMAN_INTERACTION_URL = 'https://timothy102--vertical-deep-research-human-interaction.modal.run';
 
 /**
- * Stub for submitting human feedback (functionality removed)
+ * Submit human feedback for a specific node in the reasoning process
  */
 export async function submitHumanFeedback(
   nodeId: string, 
@@ -11,11 +12,36 @@ export async function submitHumanFeedback(
   interactionType: string, 
   sessionId: string
 ) {
-  console.log(`[${new Date().toISOString()}] ℹ️ Human interaction disabled, no feedback submitted`);
-  
-  // Return a mock success response
-  return { 
-    success: true, 
-    message: "Human interaction disabled" 
-  };
+  try {
+    console.log(`[${new Date().toISOString()}] 📤 Submitting human feedback:`, {
+      nodeId,
+      interactionType,
+      sessionId,
+      feedbackLength: feedback.length
+    });
+
+    const response = await fetch(HUMAN_INTERACTION_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        node_id: nodeId,
+        feedback: feedback,
+        interaction_type: interactionType,
+        session_id: sessionId
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server responded with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log(`[${new Date().toISOString()}] ✅ Human feedback submitted successfully:`, data);
+    return data;
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] ❌ Error submitting human feedback:`, error);
+    throw error;
+  }
 }

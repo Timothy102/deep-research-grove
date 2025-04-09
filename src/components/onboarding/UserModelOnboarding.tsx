@@ -8,24 +8,23 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { createUserModel, markOnboardingCompleted } from "@/services/userModelService";
 import { cn } from '@/lib/utils';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface UserModelOnboardingProps {
-  isOpen?: boolean;
-  onClose?: () => void;
+  isOpen: boolean;
+  onClose: () => void;
   onCompleted?: (model: any) => void; 
   onComplete?: (model: any) => Promise<void>;
 }
 
 const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({ 
-  isOpen = true, 
-  onClose = () => {},
+  isOpen, 
+  onClose,
   onCompleted,
   onComplete
 }) => {
-  const [name, setName] = useState("");
+  const [domain, setDomain] = useState("");
+  const [expertiseLevel, setExpertiseLevel] = useState("");
   const [cognitiveStyle, setCognitiveStyle] = useState("");
-  const [researchDepth, setResearchDepth] = useState("moderate"); // Default to moderate
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -34,7 +33,7 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
     setIsLoading(true);
 
     try {
-      if (!name || !cognitiveStyle) {
+      if (!domain || !expertiseLevel || !cognitiveStyle) {
         toast({
           title: "missing fields",
           description: "please fill out all fields",
@@ -45,9 +44,10 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
       }
 
       const modelData = {
-        name,
+        name: `${domain} model`, 
+        domain,
+        expertise_level: expertiseLevel,
         cognitive_style: cognitiveStyle,
-        research_depth: researchDepth,
       };
 
       const createdModel = await createUserModel(modelData);
@@ -91,35 +91,28 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="name">model name</Label>
+            <Label htmlFor="domain">domain</Label>
             <Input
-              id="name"
-              placeholder="e.g. fitness enthusiast"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              id="domain"
+              placeholder="e.g. artificial intelligence"
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="researchDepth">research depth</Label>
-            <Select
-              value={researchDepth}
-              onValueChange={setResearchDepth}
-            >
-              <SelectTrigger id="researchDepth">
-                <SelectValue placeholder="Select research depth" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="shallow">Shallow</SelectItem>
-                <SelectItem value="moderate">Moderate</SelectItem>
-                <SelectItem value="deep">Deep</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="expertise">expertise level</Label>
+            <Input
+              id="expertise"
+              placeholder="e.g. beginner"
+              value={expertiseLevel}
+              onChange={(e) => setExpertiseLevel(e.target.value)}
+            />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="cognitiveStyle">cognitive style</Label>
             <Textarea
               id="cognitiveStyle"
-              placeholder="e.g. systematic, general, first-principles, creative, practical applier"
+              placeholder="e.g. i prefer concise answers"
               value={cognitiveStyle}
               onChange={(e) => setCognitiveStyle(e.target.value)}
               className="resize-none"
