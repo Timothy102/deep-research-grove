@@ -94,36 +94,44 @@ supabase.channel('research_states_changes')
   });
 
 // Listen for streaming events from the research process
-const eventSource = new EventSource('/api/research/events');
+// Fix: Wrap in try/catch and handle more gracefully to avoid MIME type errors
+try {
+  const eventSource = new EventSource('/api/research/events');
 
-eventSource.onmessage = (event) => {
-  try {
-    const data = JSON.parse(event.data);
-    console.log(`[${new Date().toISOString()}] 📡 Received SSE event:`, data);
-    
-    // Dispatch a custom event with the same format as realtime updates
-    window.dispatchEvent(new CustomEvent('research-new-event', { 
-      detail: { 
-        payload: data,
-        timestamp: new Date().toISOString()
-      },
-      bubbles: true,
-      composed: true
-    }));
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error handling SSE event:`, error);
-  }
-};
+  eventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      console.log(`[${new Date().toISOString()}] 📡 Received SSE event:`, data);
+      
+      // Dispatch a custom event with the same format as realtime updates
+      window.dispatchEvent(new CustomEvent('research-new-event', { 
+        detail: { 
+          payload: data,
+          timestamp: new Date().toISOString()
+        },
+        bubbles: true,
+        composed: true
+      }));
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] ❌ Error handling SSE event:`, error);
+    }
+  };
 
-eventSource.onerror = (error) => {
-  console.error(`[${new Date().toISOString()}] ❌ EventSource error:`, error);
-  // Attempt to reconnect after a delay
-  setTimeout(() => {
-    console.log(`[${new Date().toISOString()}] 🔄 Attempting to reconnect EventSource`);
-    eventSource.close();
-    // The browser will automatically attempt to reconnect
-  }, 5000);
-};
+  eventSource.onerror = (error) => {
+    console.error(`[${new Date().toISOString()}] ❌ EventSource error:`, error);
+    // Attempt to reconnect after a delay, but only if not already closing
+    if (eventSource.readyState !== EventSource.CLOSED && eventSource.readyState !== EventSource.CONNECTING) {
+      setTimeout(() => {
+        console.log(`[${new Date().toISOString()}] 🔄 Attempting to reconnect EventSource`);
+        eventSource.close(); // Close the current connection
+        // The browser will automatically attempt to reconnect
+      }, 5000);
+    }
+  };
+} catch (error) {
+  console.error(`[${new Date().toISOString()}] 🚫 Failed to initialize EventSource:`, error);
+  // Continue without EventSource, so the app can still function without this feature
+}
 
 // Global event handler for human interaction requests 
 window.addEventListener('message', (event) => {

@@ -494,8 +494,12 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       }
       
       if (payload.new.user_model && typeof payload.new.user_model === 'object') {
-        updates.syntheses = payload.new.user_model;
-        shouldUpdate = true;
+        try {
+          updates.syntheses = payload.new.user_model;
+          shouldUpdate = true;
+        } catch (error) {
+          console.error(`[${new Date().toISOString()}] ❌ Error processing user_model:`, error);
+        }
       }
       
       if (shouldUpdate) {
