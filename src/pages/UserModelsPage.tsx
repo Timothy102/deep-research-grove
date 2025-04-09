@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -110,7 +109,11 @@ const UserModelsPage = () => {
     
     setIsSubmitting(true);
     try {
-      await updateUserModel(selectedModel.id, model);
+      await updateUserModel({
+        ...model,
+        id: selectedModel.id
+      });
+      
       toast({
         title: "Model updated",
         description: "Your research model has been updated successfully",

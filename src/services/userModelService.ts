@@ -1,10 +1,9 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
 
 export interface UserModelSourcePriority {
-  source_type: string;
+  url: string;
   priority: number;
 }
 
@@ -12,7 +11,7 @@ export interface UserModel {
   user_id: string;
   id?: string;
   name: string;
-  research_depth: string;  // Changed from domain and expertise_level
+  research_depth: string;
   cognitive_style: string;
   included_sources?: string[];
   source_priorities?: UserModelSourcePriority[];
@@ -25,14 +24,14 @@ export interface UserModel {
 export const defaultUserModel: UserModel = {
   user_id: '',
   name: 'Default Research Assistant',
-  research_depth: 'moderate',  // Changed from domain and expertise_level
+  research_depth: 'moderate',
   cognitive_style: 'balanced',
   included_sources: [],
   source_priorities: [],
   is_default: true
 };
 
-export async function createUserModel(model: UserModel): Promise<UserModel | null> {
+export async function createUserModel(model: Partial<UserModel>): Promise<UserModel | null> {
   try {
     const { data: user } = await supabase.auth.getUser();
     
@@ -44,11 +43,9 @@ export async function createUserModel(model: UserModel): Promise<UserModel | nul
     const userModelData = {
       ...model,
       user_id: user.user.id,
-      // Convert source_priorities to JSON format for database storage
-      source_priorities: model.source_priorities ? model.source_priorities : null
+      source_priorities: model.source_priorities ? JSON.stringify(model.source_priorities) : null
     };
     
-    // Remove session_id if it exists as it's not needed for the database
     if ('session_id' in userModelData) {
       delete userModelData.session_id;
     }
@@ -161,12 +158,10 @@ export async function updateUserModel(model: UserModel): Promise<UserModel | nul
     const userModelData = {
       ...model,
       user_id: user.user.id,
-      // Convert source_priorities to JSON format for database storage
-      source_priorities: model.source_priorities || null,
+      source_priorities: model.source_priorities ? JSON.stringify(model.source_priorities) : null,
       updated_at: new Date().toISOString()
     };
     
-    // Remove session_id if it exists as it's not needed for the database
     if ('session_id' in userModelData) {
       delete userModelData.session_id;
     }
@@ -236,7 +231,6 @@ export async function setDefaultUserModel(id: string): Promise<boolean> {
       return false;
     }
     
-    // First, unset the default flag for all user models
     const { error: resetError } = await supabase
       .from('user_models')
       .update({ is_default: false })
@@ -248,7 +242,6 @@ export async function setDefaultUserModel(id: string): Promise<boolean> {
       return false;
     }
     
-    // Then set the default flag for the specified model
     const { error } = await supabase
       .from('user_models')
       .update({ is_default: true })
@@ -270,13 +263,39 @@ export async function setDefaultUserModel(id: string): Promise<boolean> {
   }
 }
 
+export async function markOnboardingCompleted(): Promise<boolean> {
+  try {
+    const { data: user } = await supabase.auth.getUser();
+    
+    if (!user.user) {
+      toast.error('You need to be signed in to update onboarding status');
+      return false;
+    }
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ onboarding_completed: true })
+      .eq('id', user.user.id);
+      
+    if (error) {
+      console.error('Error updating onboarding status:', error);
+      toast.error(`Failed to update onboarding status: ${error.message}`);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Error in markOnboardingCompleted:', error);
+    toast.error(`An unexpected error occurred: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+}
+
 function transformUserModel(dbModel: any): UserModel {
   let sourcePriorities: UserModelSourcePriority[] | undefined;
   
-  // Convert source_priorities from JSON to array of objects
   if (dbModel.source_priorities) {
     try {
-      // Check if it's already an object or needs parsing
       if (typeof dbModel.source_priorities === 'string') {
         sourcePriorities = JSON.parse(dbModel.source_priorities);
       } else {
@@ -292,7 +311,7 @@ function transformUserModel(dbModel: any): UserModel {
     id: dbModel.id,
     user_id: dbModel.user_id,
     name: dbModel.name,
-    research_depth: dbModel.research_depth,  // Changed from domain and expertise_level
+    research_depth: dbModel.research_depth,
     cognitive_style: dbModel.cognitive_style,
     included_sources: dbModel.included_sources || [],
     source_priorities: sourcePriorities || [],

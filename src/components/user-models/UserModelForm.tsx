@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { UserModel, UserModelSourcePriority } from "@/services/userModelService";
 import { Button } from "@/components/ui/button";
@@ -49,8 +50,8 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
     if (initialData?.included_sources && initialData.included_sources.length > 0) {
       // If we have included sources but no priorities, initialize them
       if (!initialData.source_priorities || initialData.source_priorities.length === 0) {
-        const priorities = initialData.included_sources.map((url, index) => ({
-          url,
+        const priorities = initialData.included_sources.map((source, index) => ({
+          url: source,
           priority: index + 1
         }));
         setSourcePriorities(priorities);
@@ -78,7 +79,7 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
       setIncludedSources(updatedSources);
       
       // Add to priorities at the end
-      const newPriority = {
+      const newPriority: UserModelSourcePriority = {
         url: currentSource,
         priority: sourcePriorities.length + 1
       };
@@ -162,7 +163,8 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
         research_depth: researchDepth,
         cognitive_style: cognitiveStyle,
         included_sources: includedSources,
-        source_priorities: sourcePriorities
+        source_priorities: sourcePriorities,
+        user_id: initialData?.user_id || ''
       });
     } catch (error) {
       console.error("Error submitting form:", error);
