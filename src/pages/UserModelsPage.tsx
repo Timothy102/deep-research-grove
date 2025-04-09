@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -243,7 +244,7 @@ const UserModelsPage = () => {
 
         <p className="text-muted-foreground mb-6">
           Create and customize research models to personalize your research experience.
-          Each model includes your domain, expertise level, and preferred sources.
+          Each model includes your research depth and preferred sources.
         </p>
 
         {isLoading ? (
@@ -258,7 +259,7 @@ const UserModelsPage = () => {
                 <h3 className="text-xl font-medium">No models yet</h3>
                 <p className="text-muted-foreground max-w-md mx-auto">
                   Create your first research model to tailor your research experience
-                  to your specific domain and expertise.
+                  to your specific expertise.
                 </p>
                 <Button 
                   onClick={() => setIsCreateModalOpen(true)}
@@ -286,7 +287,6 @@ const UserModelsPage = () => {
                           </Badge>
                         )}
                       </CardTitle>
-                      <CardDescription>{model.domain}</CardDescription>
                     </div>
                   </div>
                 </CardHeader>

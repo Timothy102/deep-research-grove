@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,8 +44,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   const [query, setQuery] = useState(initialObjective || initialValue || '');
   const [userModelText, setUserModelText] = useState("");
   const [useCase, setUseCase] = useState("");
-  const [userModels, setUserModels] = useState([]);
-  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
   const [currentUnderstanding, setCurrentUnderstanding] = useState("");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [domain, setDomain] = useState(initialDomain || '');
@@ -66,19 +65,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
     }
   }, [initialObjective, initialValue, setResearchObjective]);
 
-  useEffect(() => {
-    const fetchUserModels = async () => {
-      try {
-        const models = await getUserModels();
-        setUserModels(models);
-      } catch (error) {
-        console.error("Error fetching user models:", error);
-      }
-    };
-
-    fetchUserModels();
-  }, []);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAdvancedOpen(false);
@@ -91,7 +77,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
       query, 
       userModelText, 
       useCase, 
-      selectedModelId, 
+      undefined, // Removed selectedModelId 
       currentUnderstanding
     );
   };
@@ -175,16 +161,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
         <CollapsibleContent className="space-y-4 pt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="domain">Domain / Field</Label>
-              <Input
-                id="domain"
-                placeholder="e.g. Computer Science, Medicine, Finance..."
-                value={domain}
-                onChange={(e) => setDomain(e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
               <Label htmlFor="research-depth">Research Depth</Label>
               <Select value={researchDepth} onValueChange={setResearchDepth}>
                 <SelectTrigger id="research-depth">
@@ -210,26 +186,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
                   <SelectItem value="first-principles">First Principles</SelectItem>
                   <SelectItem value="creative">Creative</SelectItem>
                   <SelectItem value="practical">Practical Applier</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="user-model">User Model ID (Optional)</Label>
-              <Select
-                value={selectedModelId || "none"}
-                onValueChange={(value) => setSelectedModelId(value === "none" ? undefined : value)}
-              >
-                <SelectTrigger id="user-model">
-                  <SelectValue placeholder="Select a user model" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {userModels.map((model: any) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      {model.name}
-                    </SelectItem>
-                  ))}
                 </SelectContent>
               </Select>
             </div>

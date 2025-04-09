@@ -22,8 +22,8 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
   onCompleted,
   onComplete
 }) => {
-  const [domain, setDomain] = useState("");
-  const [researchDepth, setResearchDepth] = useState(""); // Changed from expertiseLevel to researchDepth
+  const [name, setName] = useState("My Research Model"); // Added default name since we're removing domain
+  const [researchDepth, setResearchDepth] = useState(""); 
   const [cognitiveStyle, setCognitiveStyle] = useState("");
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +33,7 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
     setIsLoading(true);
 
     try {
-      if (!domain || !researchDepth || !cognitiveStyle) { // Changed variable name
+      if (!researchDepth || !cognitiveStyle) {
         toast({
           title: "missing fields",
           description: "please fill out all fields",
@@ -44,9 +44,8 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
       }
 
       const modelData = {
-        name: `${domain} model`, 
-        domain,
-        research_depth: researchDepth, // Changed from expertise_level to research_depth
+        name,
+        research_depth: researchDepth,
         cognitive_style: cognitiveStyle,
       };
 
@@ -91,16 +90,16 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="domain">domain</Label>
+            <Label htmlFor="name">model name</Label>
             <Input
-              id="domain"
-              placeholder="e.g. artificial intelligence"
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
+              id="name"
+              placeholder="e.g. My Research Model"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="researchDepth">research depth</Label> {/* Changed from expertise to researchDepth */}
+            <Label htmlFor="researchDepth">research depth</Label>
             <Input
               id="researchDepth"
               placeholder="e.g. beginner"

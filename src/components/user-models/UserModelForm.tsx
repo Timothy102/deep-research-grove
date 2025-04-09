@@ -18,7 +18,7 @@ import { Loader2, Plus, X, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 // Define your research depths and cognitive styles
-const researchDepths = ["shallow", "moderate", "deep"]; // Changed from expertise_levels to researchDepths
+const researchDepths = ["shallow", "moderate", "deep"];
 const cognitiveStyles = [
   { id: "systematic", label: "systematic" },
   { id: "general", label: "general" },
@@ -36,8 +36,7 @@ interface UserModelFormProps {
 const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormProps) => {
   const { toast } = useToast();
   const [name, setName] = useState(initialData?.name || "");
-  const [domain, setDomain] = useState(initialData?.domain || "");
-  const [researchDepth, setResearchDepth] = useState(initialData?.research_depth || "moderate"); // Changed from expertiseLevel to researchDepth
+  const [researchDepth, setResearchDepth] = useState(initialData?.research_depth || "moderate");
   const [cognitiveStyle, setCognitiveStyle] = useState(initialData?.cognitive_style || "general");
   const [includedSources, setIncludedSources] = useState<string[]>(initialData?.included_sources || []);
   const [currentSource, setCurrentSource] = useState("");
@@ -147,7 +146,7 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !domain.trim()) {
+    if (!name.trim()) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -160,8 +159,7 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
       await onSubmit({
         ...initialData,
         name,
-        domain,
-        research_depth: researchDepth, // Changed from expertise_level to research_depth
+        research_depth: researchDepth,
         cognitive_style: cognitiveStyle,
         included_sources: includedSources,
         source_priorities: sourcePriorities
@@ -191,31 +189,20 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="domain">Your Domain/Field</Label>
-          <Input
-            id="domain"
-            value={domain}
-            onChange={(e) => setDomain(e.target.value)}
-            placeholder="e.g. Computer Science, Medicine, Finance..."
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Research Depth</Label> {/* Changed from Expertise Level to Research Depth */}
+          <Label>Research Depth</Label>
           <div className="grid grid-cols-3 gap-2">
-            {researchDepths.map((depth) => ( /* Changed from expertiseLevels to researchDepths */
+            {researchDepths.map((depth) => (
               <div key={depth} className="flex items-center space-x-2">
                 <input
                   type="radio"
-                  id={`depth-${depth}`} /* Changed from level to depth */
-                  name="research-depth" /* Changed from expertise-level to research-depth */
+                  id={`depth-${depth}`}
+                  name="research-depth"
                   className="radio"
                   value={depth}
-                  checked={researchDepth === depth} /* Changed from expertiseLevel to researchDepth */
-                  onChange={() => setResearchDepth(depth)} /* Changed from setExpertiseLevel to setResearchDepth */
+                  checked={researchDepth === depth}
+                  onChange={() => setResearchDepth(depth)}
                 />
-                <Label htmlFor={`depth-${depth}`} className="cursor-pointer"> {/* Changed from level to depth */}
+                <Label htmlFor={`depth-${depth}`} className="cursor-pointer">
                   {depth}
                 </Label>
               </div>

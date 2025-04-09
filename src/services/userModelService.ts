@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export type UserModelSourcePriority = {
@@ -10,8 +9,7 @@ export interface UserModel {
   id?: string;
   user_id?: string;
   name: string;
-  domain: string;
-  research_depth: string;  // Changed from expertise_level to research_depth
+  research_depth: string;
   cognitive_style: string;
   included_sources?: string[];
   source_priorities?: UserModelSourcePriority[];
@@ -54,7 +52,6 @@ export async function createUserModel(model: Omit<UserModel, 'user_id'>): Promis
   }
   
   // Here we need to make sure we're using the correct field names
-  // The database expects research_depth instead of expertise_level
   const { data, error } = await supabase
     .from('user_models')
     .insert({
