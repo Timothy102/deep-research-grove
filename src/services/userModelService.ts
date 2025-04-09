@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
@@ -40,14 +41,19 @@ export async function createUserModel(model: Partial<UserModel>): Promise<UserMo
       return null;
     }
     
+    // Ensure all required fields are present
     const userModelData = {
-      ...model,
       user_id: user.user.id,
-      source_priorities: model.source_priorities ? JSON.stringify(model.source_priorities) : null
+      name: model.name || 'New Research Model',
+      research_depth: model.research_depth || 'moderate',
+      cognitive_style: model.cognitive_style || 'balanced',
+      included_sources: model.included_sources || [],
+      source_priorities: model.source_priorities ? JSON.stringify(model.source_priorities) : null,
+      is_default: model.is_default
     };
     
-    if ('session_id' in userModelData) {
-      delete userModelData.session_id;
+    if ('session_id' in model && model.session_id) {
+      delete (userModelData as any).session_id;
     }
     
     const { data, error } = await supabase
@@ -155,15 +161,20 @@ export async function updateUserModel(model: UserModel): Promise<UserModel | nul
       return null;
     }
     
+    // Ensure all required fields are present and handle source_priorities correctly
     const userModelData = {
-      ...model,
       user_id: user.user.id,
+      name: model.name,
+      research_depth: model.research_depth,
+      cognitive_style: model.cognitive_style,
+      included_sources: model.included_sources || [],
       source_priorities: model.source_priorities ? JSON.stringify(model.source_priorities) : null,
+      is_default: model.is_default,
       updated_at: new Date().toISOString()
     };
     
-    if ('session_id' in userModelData) {
-      delete userModelData.session_id;
+    if ('session_id' in model && model.session_id) {
+      delete (userModelData as any).session_id;
     }
     
     const { data, error } = await supabase
