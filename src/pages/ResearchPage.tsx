@@ -1125,7 +1125,6 @@ const ResearchPage = () => {
                 <ResearchForm 
                   isLoading={isLoading}
                   initialValue={researchObjective}
-                  initialDomain={domain}
                   initialResearchDepth={researchDepth}
                   initialUserContext={userContext}
                   initialCognitiveStyle={selectedCognitiveStyle}
@@ -1198,7 +1197,6 @@ const ResearchPage = () => {
                 <ResearchForm 
                   isLoading={isLoading}
                   initialValue={researchObjective}
-                  initialDomain={domain}
                   initialResearchDepth={researchDepth}
                   initialUserContext={userContext}
                   initialCognitiveStyle={selectedCognitiveStyle}
@@ -1234,7 +1232,6 @@ const ResearchPage = () => {
           onCompleted={(model: any) => {
             setShowOnboarding(false);
             markOnboardingCompleted();
-            setDomain(model.domain);
             setResearchDepth(model.research_depth);
             setSelectedCognitiveStyle(model.cognitive_style);
             loadUserModels();
