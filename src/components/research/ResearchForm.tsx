@@ -205,7 +205,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="user-model">User Model ID (Optional)</Label>
+              <Label htmlFor="user-model">User Model (Optional)</Label>
               <Select
                 value={selectedModelId || "none"}
                 onValueChange={(value) => setSelectedModelId(value === "none" ? undefined : value)}

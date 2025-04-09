@@ -11,15 +11,15 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface UserModelOnboardingProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
   onCompleted?: (model: any) => void; 
   onComplete?: (model: any) => Promise<void>;
 }
 
 const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({ 
-  isOpen, 
-  onClose,
+  isOpen = true, 
+  onClose = () => {},
   onCompleted,
   onComplete
 }) => {

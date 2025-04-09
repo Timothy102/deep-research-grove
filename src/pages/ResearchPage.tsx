@@ -973,16 +973,23 @@ const ResearchPage = () => {
           <div className="space-y-4">
             <ProgressIndicator 
               isLoading={isLoading} 
-              stage={currentStage} 
+              currentStage={currentStage} 
               events={progressEvents} 
             />
-            <ReasoningPath steps={reasoningPath} rawData={rawData} />
+            <ReasoningPath 
+              reasoningPath={reasoningPath} 
+              rawData={rawData} 
+            />
           </div>
         );
       case 'sources':
         return <SourcesList sources={sources} />;
       case 'output':
-        return <ResearchOutput content={researchOutput} sources={sources} findings={findings} />;
+        return <ResearchOutput 
+          answer={researchOutput} 
+          sources={sources} 
+          findings={findings} 
+        />;
       default:
         return <div>Select a tab to view content</div>;
     }
@@ -992,7 +999,11 @@ const ResearchPage = () => {
     if (showOnboarding) {
       return (
         <div className="flex-1 overflow-auto p-6">
-          <UserModelOnboarding onComplete={completeOnboarding} />
+          <UserModelOnboarding 
+            isOpen={showOnboarding} 
+            onClose={() => setShowOnboarding(false)} 
+            onComplete={completeOnboarding} 
+          />
         </div>
       );
     }
@@ -1033,7 +1044,7 @@ const ResearchPage = () => {
     <div className="flex h-screen bg-background">
       <ResearchHistorySidebar
         isOpen={sidebarOpen}
-        toggleSidebar={toggleSidebar}
+        onToggle={toggleSidebar}
         groupedHistory={groupedHistory}
         loadHistory={loadHistory}
       />
@@ -1070,8 +1081,8 @@ const ResearchPage = () => {
           callId={humanApprovalRequest?.call_id || ""}
           nodeId={humanApprovalRequest?.node_id || ""}
           onClose={() => setShowApprovalDialog(false)}
-          onApprove={handleFeedbackSubmit}
-          onReject={handleFeedbackSubmit}
+          onApprove={(callId, nodeId) => handleFeedbackSubmit(callId, true)}
+          onReject={(callId, nodeId, reason) => handleFeedbackSubmit(callId, false, reason)}
         />
       </div>
     </div>
