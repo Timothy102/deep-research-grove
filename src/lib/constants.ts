@@ -1,66 +1,170 @@
-
+// Local storage keys for better state persistence
 export const LOCAL_STORAGE_KEYS = {
-  CURRENT_RESEARCH_ID: "current_research_id",
-  CURRENT_SESSION_ID: "current_session_id",
-  CURRENT_STATE: "current_state",
-  SOURCES_CACHE: "sources_cache",
-  FINDINGS_CACHE: "findings_cache",
-  REASONING_PATH_CACHE: "reasoning_path_cache",
-  ANSWER_CACHE: "answer_cache",
-  SESSION_DATA_CACHE: "session_data_cache",
-  RESEARCH_HISTORY: "research_history",
-  USER_PREFERENCES: "user_preferences",
-  AUTH_STATE: "auth_state",
-  USER_MODELS_CACHE: "user_models_cache",
-  ACTIVE_MODEL_ID: "active_model_id",
-  RESEARCH_SESSIONS: "research_sessions",
-  ANSWERS_CACHE: "answers_cache",
-  FINAL_REPORT_CACHE: "final_report_cache",
-  SIDEBAR_STATE: "sidebar_state",
-  SESSION_HISTORY: "session_history",
-  SYNTHESIS_CACHE: "synthesis_cache",
-  RAW_DATA_CACHE: "raw_data_cache"
+  CURRENT_RESEARCH_ID: "deepresearch.current_research_id",
+  CURRENT_SESSION_ID: "deepresearch.current_session_id",
+  CURRENT_STATE: "deepresearch.current_state",
+  SOURCES_CACHE: "deepresearch.sources_cache",
+  FINDINGS_CACHE: "deepresearch.findings_cache",
+  REASONING_PATH_CACHE: "deepresearch.reasoning_path_cache",
+  ANSWER_CACHE: "deepresearch.answer_cache",
+  SESSION_DATA_CACHE: "deepresearch.session_data_cache",
+  SIDEBAR_STATE: "deepresearch.sidebar_state",
+  RESEARCH_OBJECTIVE: "deepresearch.research_objective",
+  STEPS_CACHE: "deepresearch.steps_cache",
+  RAW_DATA_CACHE: "deepresearch.raw_data_cache",
+  SESSION_HISTORY: "deepresearch.session_history",
+  SYNTHESIS_CACHE: "deepresearch.synthesis_cache",
+  ANSWERS_CACHE: "deepresearch.answers_cache"
 };
 
-export const getSessionStorageKey = (key: string, sessionId: string) => {
-  return `${key}_${sessionId}`;
+// Session-specific keys
+export const getSessionStorageKey = (baseKey: string, sessionId: string) => {
+  return `${baseKey}.${sessionId}`;
 };
 
+// Get all session storage keys for caching all state elements
+export const getAllSessionKeys = (sessionId: string) => {
+  if (!sessionId) return {};
+  
+  return {
+    stateKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId),
+    sourcesKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.SOURCES_CACHE, sessionId),
+    findingsKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, sessionId),
+    reasoningPathKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId),
+    answerKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWER_CACHE, sessionId),
+    stepsKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.STEPS_CACHE, sessionId),
+    rawDataKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.RAW_DATA_CACHE, sessionId),
+    objectiveKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.RESEARCH_OBJECTIVE, sessionId),
+    synthesisKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.SYNTHESIS_CACHE, sessionId),
+    answersKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWERS_CACHE, sessionId)
+  };
+};
+
+// Get all session data at once
 export const getSessionData = (sessionId: string) => {
+  if (!sessionId) return null;
+  
   try {
-    const sessionKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId);
-    const sessionData = localStorage.getItem(sessionKey);
+    const keys = getAllSessionKeys(sessionId);
+    const data: Record<string, any> = {};
     
-    if (sessionData) {
-      return JSON.parse(sessionData);
+    // Try to get each piece of data with fallbacks
+    Object.entries(keys).forEach(([keyType, storageKey]) => {
+      const value = localStorage.getItem(storageKey);
+      if (value) {
+        try {
+          data[keyType] = JSON.parse(value);
+        } catch (e) {
+          data[keyType] = value;
+        }
+      }
+    });
+    
+    // Also try to get general objective if exists
+    const objective = localStorage.getItem(LOCAL_STORAGE_KEYS.RESEARCH_OBJECTIVE);
+    if (objective && !data.objectiveKey) {
+      data.objective = objective;
     }
     
-    return null;
+    return Object.keys(data).length > 0 ? data : null;
   } catch (e) {
-    console.error(`[${new Date().toISOString()}] Error loading session data:`, e);
+    console.error(`Error retrieving session data for ${sessionId}:`, e);
     return null;
   }
 };
 
-export const saveSessionData = (sessionId: string, data: any) => {
+// Save complete session data at once
+export const saveSessionData = (sessionId: string, data: Record<string, any>) => {
+  if (!sessionId || !data) return;
+  
   try {
-    const sessionKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId);
+    const keys = getAllSessionKeys(sessionId);
     
-    // Get existing data
-    const existingData = getSessionData(sessionId) || {};
+    // Map data to corresponding storage keys
+    if (data.state) {
+      localStorage.setItem(keys.stateKey, JSON.stringify(data.state));
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, JSON.stringify(data.state));
+    }
     
-    // Merge with new data
-    const updatedData = {
-      ...existingData,
-      ...data,
-      updated_at: new Date().toISOString()
-    };
+    if (data.sources) {
+      localStorage.setItem(keys.sourcesKey, JSON.stringify(data.sources));
+      localStorage.setItem(LOCAL_STORAGE_KEYS.SOURCES_CACHE, JSON.stringify(data.sources));
+    }
     
-    localStorage.setItem(sessionKey, JSON.stringify(updatedData));
+    if (data.findings) {
+      localStorage.setItem(keys.findingsKey, JSON.stringify(data.findings));
+      localStorage.setItem(LOCAL_STORAGE_KEYS.FINDINGS_CACHE, JSON.stringify(data.findings));
+    }
     
-    return updatedData;
+    if (data.reasoningPath) {
+      localStorage.setItem(keys.reasoningPathKey, JSON.stringify(data.reasoningPath));
+      localStorage.setItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, JSON.stringify(data.reasoningPath));
+    }
+    
+    if (data.answer) {
+      localStorage.setItem(keys.answerKey, JSON.stringify(data.answer));
+      localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWER_CACHE, JSON.stringify(data.answer));
+    }
+    
+    if (data.steps) {
+      localStorage.setItem(keys.stepsKey, JSON.stringify(data.steps));
+      localStorage.setItem(LOCAL_STORAGE_KEYS.STEPS_CACHE, JSON.stringify(data.steps));
+    }
+    
+    if (data.rawData) {
+      localStorage.setItem(keys.rawDataKey, JSON.stringify(data.rawData));
+      localStorage.setItem(LOCAL_STORAGE_KEYS.RAW_DATA_CACHE, JSON.stringify(data.rawData));
+    }
+    
+    if (data.objective) {
+      localStorage.setItem(keys.objectiveKey, data.objective);
+      localStorage.setItem(LOCAL_STORAGE_KEYS.RESEARCH_OBJECTIVE, data.objective);
+    }
+    
+    if (data.synthesis) {
+      localStorage.setItem(keys.synthesisKey, JSON.stringify(data.synthesis));
+      localStorage.setItem(LOCAL_STORAGE_KEYS.SYNTHESIS_CACHE, JSON.stringify(data.synthesis));
+    }
+    
+    if (data.answers) {
+      localStorage.setItem(keys.answersKey, JSON.stringify(data.answers));
+      localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWERS_CACHE, JSON.stringify(data.answers));
+    }
+    
+    // Save current session ID
+    localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, sessionId);
+    
+    // If there's a research ID, save that too
+    if (data.researchId) {
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID, data.researchId);
+    }
+    
+    // Create a history entry if needed
+    try {
+      const history = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEYS.SESSION_HISTORY) || '[]');
+      
+      // Check if this session already exists in history
+      const existingEntryIndex = history.findIndex((entry: any) => entry.session_id === sessionId);
+      
+      const historyEntry = {
+        session_id: sessionId,
+        research_id: data.researchId || data.state?.research_id,
+        query: data.state?.query || data.answer?.query || "Unknown query",
+        created_at: data.state?.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      if (existingEntryIndex >= 0) {
+        history[existingEntryIndex] = {...history[existingEntryIndex], ...historyEntry};
+      } else {
+        history.push(historyEntry);
+      }
+      
+      localStorage.setItem(LOCAL_STORAGE_KEYS.SESSION_HISTORY, JSON.stringify(history));
+    } catch (e) {
+      console.error("Error updating session history:", e);
+    }
   } catch (e) {
-    console.error(`[${new Date().toISOString()}] Error saving session data:`, e);
-    return null;
+    console.error(`Error saving session data for ${sessionId}:`, e);
   }
 };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ExternalLink, Copy, CheckCircle2, MessageSquare, Lightbulb, FileText, Book, BookOpen } from "lucide-react";
+import { ExternalLink, Copy, CheckCircle2, MessageSquare, Lightbulb } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData } from "@/lib/constants";
@@ -10,8 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { getLatestSessionState } from "@/services/researchStateService";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 
 export type Finding = {
   content?: string;
@@ -34,143 +32,6 @@ export type ResearchResult = {
   research_id?: string;
   findings?: Finding[];
   syntheses?: Record<string, any>;
-  timestamp?: string;
-  isFinal?: boolean;
-};
-
-const FinalReportView = ({ 
-  data, 
-  allSources, 
-  allFindings 
-}: { 
-  data: any; 
-  allSources: string[]; 
-  allFindings: Finding[];
-}) => {
-  const [isCopied, setIsCopied] = useState(false);
-
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(data.synthesis || data.answer || "");
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy text: ", err);
-    }
-  };
-
-  return (
-    <div className="space-y-6 p-4 max-h-[calc(100vh-220px)] overflow-y-auto">
-      <div className="bg-background border rounded-lg p-6 shadow-sm">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h2 className="text-2xl font-bold">{data.query}</h2>
-            <p className="text-muted-foreground text-sm mt-1">
-              {data.timestamp ? new Date(data.timestamp).toLocaleString() : "Just now"}
-            </p>
-          </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={copyToClipboard} 
-            className="h-8 w-8 p-0"
-          >
-            {isCopied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-          </Button>
-        </div>
-        
-        <div className="prose dark:prose-invert max-w-none mt-6">
-          <p className="whitespace-pre-wrap text-base">{data.synthesis || data.answer}</p>
-        </div>
-        
-        {typeof data.confidence === 'number' && (
-          <div className="mt-6 space-y-2">
-            <div className="flex justify-between items-center">
-              <p className="text-sm font-medium">Confidence</p>
-              <p className="text-sm font-semibold">{Math.round(data.confidence * 100)}%</p>
-            </div>
-            <Progress value={data.confidence * 100} className="h-2" />
-          </div>
-        )}
-      </div>
-      
-      {data.isFinal && (
-        <>
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary" />
-                Sources
-              </CardTitle>
-              <CardDescription>
-                {allSources.length} source{allSources.length !== 1 ? 's' : ''} used in this research
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {allSources.map((source, index) => (
-                  <div key={`source-${index}`} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <span className="text-sm truncate flex-1">{source}</span>
-                    <a 
-                      href={source} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="ml-2 text-primary hover:text-primary/80 transition-colors"
-                    >
-                      <ExternalLink size={16} />
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                Key Findings
-              </CardTitle>
-              <CardDescription>
-                {allFindings.length} finding{allFindings.length !== 1 ? 's' : ''} from research
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {allFindings.slice(0, 10).map((finding, index) => (
-                  <div key={`finding-${index}`} className="border border-border p-4 rounded-lg">
-                    {finding.finding?.title && (
-                      <h4 className="font-medium mb-2">{finding.finding.title}</h4>
-                    )}
-                    <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                      {finding.finding?.summary || finding.content || "No content available"}
-                    </p>
-                    <div className="mt-3 flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
-                        {finding.source}
-                      </span>
-                      {finding.finding?.confidence_score && (
-                        <Badge variant="outline" className="text-xs">
-                          Confidence: {Math.round(finding.finding.confidence_score * 100)}%
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {allFindings.length > 10 && (
-                  <div className="text-center">
-                    <Badge variant="outline" className="px-3 py-1">
-                      +{allFindings.length - 10} more findings
-                    </Badge>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
-    </div>
-  );
 };
 
 const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Finding[] }) => {
@@ -417,20 +278,12 @@ const ResearchAnswer = ({ answer }: { answer: string }) => {
   );
 };
 
-const ResearchResults = ({ result, reportData }: { result: ResearchResult | null; reportData?: any }) => {
+const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const resultRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [currentResult, setCurrentResult] = useState<ResearchResult | null>(result);
-  const [currentReportData, setCurrentReportData] = useState<any>(reportData);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  
-  useEffect(() => {
-    if (reportData && (!currentReportData || JSON.stringify(reportData) !== JSON.stringify(currentReportData))) {
-      console.log(`[${new Date().toISOString()}] 📊 Updating report data:`, reportData);
-      setCurrentReportData(reportData);
-    }
-  }, [reportData, currentReportData]);
   
   useEffect(() => {
     if (result) {
@@ -746,18 +599,6 @@ const ResearchResults = ({ result, reportData }: { result: ResearchResult | null
       resultRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [currentResult]);
-
-  if (currentReportData) {
-    return (
-      <div ref={resultRef} className="animate-fade-in">
-        <FinalReportView 
-          data={currentReportData} 
-          allSources={currentResult?.sources || []}
-          allFindings={currentResult?.findings || []}
-        />
-      </div>
-    );
-  }
 
   if (!currentResult) {
     return (
