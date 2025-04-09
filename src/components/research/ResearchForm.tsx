@@ -22,6 +22,7 @@ interface ResearchFormProps {
   initialExpertiseLevel?: string;
   initialUserContext?: string;
   initialCognitiveStyle?: string;
+  initialResearchDepth?: string;
   initialLLM?: string;
   onLLMChange?: React.Dispatch<React.SetStateAction<string>>;
 }
@@ -38,6 +39,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   initialExpertiseLevel = 'intermediate',
   initialUserContext = '',
   initialCognitiveStyle = 'general',
+  initialResearchDepth = 'moderate',
   initialLLM,
   onLLMChange
 }) => {
@@ -52,6 +54,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   const [expertiseLevel, setExpertiseLevel] = useState(initialExpertiseLevel || 'intermediate');
   const [userContext, setUserContext] = useState(initialUserContext || '');
   const [cognitiveStyle, setCognitiveStyle] = useState(initialCognitiveStyle || 'general');
+  const [researchDepth, setResearchDepth] = useState(initialResearchDepth || 'moderate');
 
   useEffect(() => {
     if (initialObjective) {
@@ -178,7 +181,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-4 pt-2">
-          {/* Grid layout for 2 columns */}
+          {/* Grid layout for columns */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="domain">Domain / Field</Label>
@@ -217,6 +220,20 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
                   <SelectItem value="first-principles">First Principles</SelectItem>
                   <SelectItem value="creative">Creative</SelectItem>
                   <SelectItem value="practical">Practical Applier</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="research-depth">Research Depth</Label>
+              <Select value={researchDepth} onValueChange={setResearchDepth}>
+                <SelectTrigger id="research-depth">
+                  <SelectValue placeholder="Select research depth" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="shallow">Shallow</SelectItem>
+                  <SelectItem value="moderate">Moderate</SelectItem>
+                  <SelectItem value="deep">Deep</SelectItem>
                 </SelectContent>
               </Select>
             </div>

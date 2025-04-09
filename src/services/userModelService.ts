@@ -4,14 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 export type UserModelSourcePriority = {
   url: string;
   priority: number;
+  source_type?: string;
 };
 
 export interface UserModel {
   id?: string;
   user_id?: string;
   name: string;
-  domain: string;
-  expertise_level: string;
+  domain?: string;
+  expertise_level?: string;
+  research_depth: string; // shallow, moderate, deep
   cognitive_style: string;
   included_sources?: string[];
   source_priorities?: UserModelSourcePriority[];

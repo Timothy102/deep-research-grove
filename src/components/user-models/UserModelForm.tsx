@@ -14,6 +14,7 @@ import {
   CardTitle, 
   CardDescription 
 } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Plus, X, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,6 +26,11 @@ const cognitiveStyles = [
   { id: "first-principles", label: "first-principles" },
   { id: "creative", label: "creative" },
   { id: "practical", label: "practical applier" },
+];
+const researchDepthLevels = [
+  { id: "shallow", label: "Shallow" },
+  { id: "moderate", label: "Moderate" },
+  { id: "deep", label: "Deep" },
 ];
 
 interface UserModelFormProps {
@@ -39,6 +45,7 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
   const [domain, setDomain] = useState(initialData?.domain || "");
   const [expertiseLevel, setExpertiseLevel] = useState(initialData?.expertise_level || "intermediate");
   const [cognitiveStyle, setCognitiveStyle] = useState(initialData?.cognitive_style || "general");
+  const [researchDepth, setResearchDepth] = useState(initialData?.research_depth || "moderate");
   const [includedSources, setIncludedSources] = useState<string[]>(initialData?.included_sources || []);
   const [currentSource, setCurrentSource] = useState("");
   const [sourcePriorities, setSourcePriorities] = useState<UserModelSourcePriority[]>(
@@ -163,6 +170,7 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
         domain,
         expertise_level: expertiseLevel,
         cognitive_style: cognitiveStyle,
+        research_depth: researchDepth,
         included_sources: includedSources,
         source_priorities: sourcePriorities
       });
@@ -221,6 +229,24 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Research Depth</Label>
+          <RadioGroup 
+            value={researchDepth} 
+            onValueChange={setResearchDepth}
+            className="grid grid-cols-3 gap-2"
+          >
+            {researchDepthLevels.map((depth) => (
+              <div key={depth.id} className="flex items-center space-x-2">
+                <RadioGroupItem value={depth.id} id={`depth-${depth.id}`} />
+                <Label htmlFor={`depth-${depth.id}`} className="cursor-pointer">
+                  {depth.label}
+                </Label>
+              </div>
+            ))}
+          </RadioGroup>
         </div>
 
         <div className="space-y-2">
