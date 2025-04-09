@@ -1,322 +1,272 @@
 
-import { supabase } from '@/integrations/supabase/client';
-import { Json } from '@/integrations/supabase/types';
-import { toast } from 'sonner';
-import { v4 as uuidv4 } from 'uuid';
+import { supabase } from "@/integrations/supabase/client";
 
-export interface UserModelSourcePriority {
+export type UserModelSourcePriority = {
   url: string;
   priority: number;
-  source_type?: string; // Made optional with ?
-}
+};
 
 export interface UserModel {
   id?: string;
-  user_id: string;
+  user_id?: string;
   name: string;
-  research_depth: string;
+  domain: string;
+  expertise_level: string;
   cognitive_style: string;
   included_sources?: string[];
-  source_priorities?: UserModelSourcePriority[] | null;
+  source_priorities?: UserModelSourcePriority[];
   is_default?: boolean;
   created_at?: string;
   updated_at?: string;
-  session_id?: string;
 }
 
-export const getUserModels = async (): Promise<UserModel[]> => {
+// Helper function to parse JSON safely
+const parseJson = <T>(jsonString: string | null | undefined, fallback: T): T => {
+  if (!jsonString) return fallback;
   try {
-    const user = await supabase.auth.getUser();
-    if (!user.data.user) {
-      return [];
-    }
-    
-    const { data, error } = await supabase
-      .from('user_models')
-      .select('*')
-      .eq('user_id', user.data.user.id);
-    
-    if (error) {
-      console.error('Error fetching user models:', error);
-      return [];
-    }
-    
-    return data.map(model => ({
+    return JSON.parse(jsonString) as T;
+  } catch (e) {
+    console.error("Error parsing JSON:", e);
+    return fallback;
+  }
+};
+
+// Helper function to parse a UserModel from the database
+const parseUserModel = (data: any): UserModel => {
+  if (!data) return {} as UserModel;
+  
+  return {
+    ...data,
+    // Ensure source_priorities is properly parsed from JSON if it's a string
+    source_priorities: typeof data.source_priorities === 'string' 
+      ? parseJson<UserModelSourcePriority[]>(data.source_priorities, [])
+      : data.source_priorities || [],
+    // Ensure included_sources is always an array
+    included_sources: data.included_sources || []
+  };
+};
+
+export async function createUserModel(model: Omit<UserModel, 'user_id'>): Promise<UserModel | null> {
+  const { data: user } = await supabase.auth.getUser();
+  
+  if (!user.user) {
+    throw new Error("User not authenticated");
+  }
+  
+  const { data, error } = await supabase
+    .from('user_models')
+    .insert({
       ...model,
-      source_priorities: model.source_priorities ? JSON.parse(model.source_priorities as string) : null
-    })) as UserModel[];
-  } catch (error) {
-    console.error('Error in getUserModels:', error);
-    return [];
+      user_id: user.user.id
+    })
+    .select();
+    
+  if (error) {
+    console.error("Error creating user model:", error);
+    throw error;
   }
-};
+  
+  return data && data.length > 0 ? parseUserModel(data[0]) : null;
+}
 
-export const createUserModel = async (model: Partial<UserModel>): Promise<UserModel | null> => {
-  try {
-    const user = await supabase.auth.getUser();
-    if (!user.data.user) {
-      toast.error("You must be logged in to create a user model");
-      return null;
-    }
-    
-    // Ensure all required fields are present
-    const userModelData = {
-      user_id: user.data.user.id,
-      name: model.name || 'New Research Model',
-      research_depth: model.research_depth || 'moderate',
-      cognitive_style: model.cognitive_style || 'balanced',
-      included_sources: model.included_sources || [],
-      is_default: model.is_default || false,
-      source_priorities: model.source_priorities ? JSON.stringify(model.source_priorities) : null,
-    };
-    
-    const { data, error } = await supabase
-      .from('user_models')
-      .insert(userModelData)
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error creating user model:', error);
-      toast.error("Failed to create user model");
-      return null;
-    }
-    
-    toast.success("User model created successfully");
-    
-    return {
-      ...data,
-      source_priorities: data.source_priorities ? JSON.parse(data.source_priorities as string) : null
-    } as UserModel;
-  } catch (error) {
-    console.error('Error in createUserModel:', error);
-    toast.error("An unexpected error occurred while creating the user model");
-    return null;
+export async function getUserModels(): Promise<UserModel[]> {
+  const { data: user } = await supabase.auth.getUser();
+  
+  if (!user.user) {
+    throw new Error("User not authenticated");
   }
-};
+  
+  const { data, error } = await supabase
+    .from('user_models')
+    .select('*')
+    .eq('user_id', user.user.id)
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error("Error fetching user models:", error);
+    throw error;
+  }
+  
+  return (data || []).map(model => parseUserModel(model));
+}
 
-export const markOnboardingCompleted = async (): Promise<boolean> => {
+export async function getUserModelById(id: string): Promise<UserModel | null> {
+  const { data: user } = await supabase.auth.getUser();
+  
+  if (!user.user) {
+    throw new Error("User not authenticated");
+  }
+  
+  const { data, error } = await supabase
+    .from('user_models')
+    .select('*')
+    .eq('id', id)
+    .eq('user_id', user.user.id)
+    .maybeSingle();
+    
+  if (error) {
+    console.error("Error fetching user model:", error);
+    throw error;
+  }
+  
+  return data ? parseUserModel(data) : null;
+}
+
+export async function updateUserModel(id: string, updates: Partial<UserModel>): Promise<UserModel | null> {
+  const { data: user } = await supabase.auth.getUser();
+  
+  if (!user.user) {
+    throw new Error("User not authenticated");
+  }
+  
+  const { data, error } = await supabase
+    .from('user_models')
+    .update(updates)
+    .eq('id', id)
+    .eq('user_id', user.user.id)
+    .select();
+    
+  if (error) {
+    console.error("Error updating user model:", error);
+    throw error;
+  }
+  
+  return data && data.length > 0 ? parseUserModel(data[0]) : null;
+}
+
+export async function deleteUserModel(id: string): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  
+  if (!user.user) {
+    throw new Error("User not authenticated");
+  }
+  
+  const { error } = await supabase
+    .from('user_models')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.user.id);
+    
+  if (error) {
+    console.error("Error deleting user model:", error);
+    throw error;
+  }
+}
+
+export async function setDefaultUserModel(id: string): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  
+  if (!user.user) {
+    throw new Error("User not authenticated");
+  }
+  
+  // First remove default status from all models
+  const { error: clearError } = await supabase
+    .from('user_models')
+    .update({ is_default: false })
+    .eq('user_id', user.user.id);
+    
+  if (clearError) {
+    console.error("Error clearing default status:", clearError);
+    throw clearError;
+  }
+  
+  // Set the new default model
+  const { error } = await supabase
+    .from('user_models')
+    .update({ is_default: true })
+    .eq('id', id)
+    .eq('user_id', user.user.id);
+    
+  if (error) {
+    console.error("Error setting default user model:", error);
+    throw error;
+  }
+}
+
+export async function getDefaultUserModel(): Promise<UserModel | null> {
+  const { data: user } = await supabase.auth.getUser();
+  
+  if (!user.user) {
+    throw new Error("User not authenticated");
+  }
+  
+  const { data, error } = await supabase
+    .from('user_models')
+    .select('*')
+    .eq('user_id', user.user.id)
+    .eq('is_default', true)
+    .maybeSingle();
+    
+  if (error) {
+    console.error("Error fetching default user model:", error);
+    throw error;
+  }
+  
+  return data ? parseUserModel(data) : null;
+}
+
+export async function updateUserOnboardingStatus(completed: boolean): Promise<void> {
+  const { data: user } = await supabase.auth.getUser();
+  
+  if (!user.user) {
+    throw new Error("User not authenticated");
+  }
+  
+  const { error } = await supabase
+    .from('profiles')
+    .update({ onboarding_completed: completed })
+    .eq('id', user.user.id);
+    
+  if (error) {
+    console.error("Error updating onboarding status:", error);
+    throw error;
+  }
+}
+
+export async function getUserOnboardingStatus(): Promise<boolean> {
+  const { data: user } = await supabase.auth.getUser();
+  
+  if (!user.user) {
+    throw new Error("User not authenticated");
+  }
+  
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('onboarding_completed')
+    .eq('id', user.user.id)
+    .maybeSingle();
+    
+  if (error) {
+    console.error("Error fetching onboarding status:", error);
+    throw error;
+  }
+  
+  return data?.onboarding_completed || false;
+}
+
+// Add new function to mark onboarding as completed
+export const markOnboardingCompleted = async (): Promise<void> => {
   try {
-    const user = await supabase.auth.getUser();
-    if (!user.data.user) {
-      toast.error("You must be logged in to update your profile");
-      return false;
+    const { data: userData } = await supabase.auth.getUser();
+    
+    if (!userData.user) {
+      throw new Error("No authenticated user found");
     }
     
+    // Update the onboarding_completed field in the profiles table
     const { error } = await supabase
       .from('profiles')
       .update({ onboarding_completed: true })
-      .eq('id', user.data.user.id);
-    
+      .eq('id', userData.user.id);
+      
     if (error) {
-      console.error('Error updating onboarding status:', error);
-      return false;
+      throw error;
     }
-    
-    return true;
+      
+    console.log("Onboarding marked as completed");
   } catch (error) {
-    console.error('Error in markOnboardingCompleted:', error);
-    return false;
-  }
-};
-
-export const getDefaultUserModel = async (): Promise<UserModel | null> => {
-  try {
-    const models = await getUserModels();
-    
-    const defaultModel = models.find(model => model.is_default);
-    
-    if (defaultModel) {
-      return defaultModel;
-    }
-    
-    if (models.length > 0) {
-      return models[0];
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('Error in getDefaultUserModel:', error);
-    return null;
-  }
-};
-
-export const getUserModelById = async (id: string): Promise<UserModel | null> => {
-  try {
-    const { data, error } = await supabase
-      .from('user_models')
-      .select('*')
-      .eq('id', id)
-      .single();
-    
-    if (error) {
-      console.error('Error fetching user model by id:', error);
-      return null;
-    }
-    
-    return {
-      ...data,
-      source_priorities: data.source_priorities ? JSON.parse(data.source_priorities as string) : null
-    } as UserModel;
-  } catch (error) {
-    console.error('Error in getUserModelById:', error);
-    return null;
-  }
-};
-
-export const updateUserModel = async (model: UserModel): Promise<UserModel | null> => {
-  try {
-    const user = await supabase.auth.getUser();
-    if (!user.data.user) {
-      toast.error("You must be logged in to update a user model");
-      return null;
-    }
-    
-    // Prepare the model data for update, making sure to properly handle source_priorities
-    const userModelData = {
-      name: model.name,
-      research_depth: model.research_depth,
-      cognitive_style: model.cognitive_style,
-      included_sources: model.included_sources || [],
-      is_default: model.is_default || false,
-      source_priorities: model.source_priorities ? JSON.stringify(model.source_priorities) : null,
-      updated_at: new Date().toISOString()
-    };
-    
-    // Make sure we have the ID
-    if (!model.id) {
-      toast.error("Model ID is required for update");
-      return null;
-    }
-    
-    const { data, error } = await supabase
-      .from('user_models')
-      .update(userModelData)
-      .eq('id', model.id)
-      .eq('user_id', user.data.user.id)
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error updating user model:', error);
-      toast.error("Failed to update user model");
-      return null;
-    }
-    
-    toast.success("User model updated successfully");
-    
-    return {
-      ...data,
-      source_priorities: data.source_priorities ? JSON.parse(data.source_priorities as string) : null
-    } as UserModel;
-  } catch (error) {
-    console.error('Error in updateUserModel:', error);
-    toast.error("An unexpected error occurred while updating the user model");
-    return null;
-  }
-};
-
-export const deleteUserModel = async (id: string): Promise<boolean> => {
-  try {
-    const user = await supabase.auth.getUser();
-    if (!user.data.user) {
-      toast.error("You must be logged in to delete a user model");
-      return false;
-    }
-    
-    const { error } = await supabase
-      .from('user_models')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.data.user.id);
-    
-    if (error) {
-      console.error('Error deleting user model:', error);
-      toast.error("Failed to delete user model");
-      return false;
-    }
-    
-    toast.success("User model deleted successfully");
-    return true;
-  } catch (error) {
-    console.error('Error in deleteUserModel:', error);
-    toast.error("An unexpected error occurred while deleting the user model");
-    return false;
-  }
-};
-
-export const setDefaultUserModel = async (id: string): Promise<boolean> => {
-  try {
-    const user = await supabase.auth.getUser();
-    if (!user.data.user) {
-      toast.error("You must be logged in to set a default user model");
-      return false;
-    }
-    
-    // First, unset default from all models
-    const { error: resetError } = await supabase
-      .from('user_models')
-      .update({ is_default: false })
-      .eq('user_id', user.data.user.id);
-    
-    if (resetError) {
-      console.error('Error resetting default user models:', resetError);
-      toast.error("Failed to set default user model");
-      return false;
-    }
-    
-    // Then set the new default
-    const { error } = await supabase
-      .from('user_models')
-      .update({ is_default: true })
-      .eq('id', id)
-      .eq('user_id', user.data.user.id);
-    
-    if (error) {
-      console.error('Error setting default user model:', error);
-      toast.error("Failed to set default user model");
-      return false;
-    }
-    
-    toast.success("Default user model set successfully");
-    return true;
-  } catch (error) {
-    console.error('Error in setDefaultUserModel:', error);
-    toast.error("An unexpected error occurred while setting the default user model");
-    return false;
-  }
-};
-
-export const generateUserModel = async (prompt: string): Promise<UserModel | null> => {
-  try {
-    const user = await supabase.auth.getUser();
-    if (!user.data.user) {
-      toast.error("You must be logged in to generate a user model");
-      return null;
-    }
-    
-    const modelId = uuidv4();
-    
-    // TODO: Implement AI generation of user model based on prompt
-    // For now, create a basic model
-    
-    const userModelData: UserModel = {
-      id: modelId,
-      user_id: user.data.user.id,
-      name: `Model from prompt: ${prompt.substring(0, 20)}...`,
-      research_depth: 'moderate',
-      cognitive_style: prompt,
-      included_sources: [],
-      source_priorities: [],
-      is_default: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    return await createUserModel(userModelData);
-  } catch (error) {
-    console.error('Error in generateUserModel:', error);
-    toast.error("An unexpected error occurred while generating the user model");
-    return null;
+    console.error("Error marking onboarding as completed:", error);
+    throw error;
   }
 };

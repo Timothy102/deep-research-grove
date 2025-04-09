@@ -11,18 +11,19 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface ResearchFormProps {
-  onSubmit: (query: string, userModelText?: string, useCase?: string, selectedModelId?: string, currentUnderstanding?: string) => Promise<void>;
+  onSubmit: (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => Promise<void>;
   isLoading: boolean;
   initialObjective?: string;
   setResearchObjective?: React.Dispatch<React.SetStateAction<string>>;
   selectedLLM?: string;
   setSelectedLLM?: React.Dispatch<React.SetStateAction<string>>;
   initialValue?: string;
-  initialResearchDepth?: string;
+  initialDomain?: string;
+  initialExpertiseLevel?: string;
   initialUserContext?: string;
   initialCognitiveStyle?: string;
   initialLLM?: string;
-  onLLMChange?: (value: string) => void;
+  onLLMChange?: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export const ResearchForm: React.FC<ResearchFormProps> = ({ 
@@ -33,7 +34,8 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   selectedLLM = 'auto',
   setSelectedLLM,
   initialValue,
-  initialResearchDepth = 'moderate',
+  initialDomain = '',
+  initialExpertiseLevel = 'intermediate',
   initialUserContext = '',
   initialCognitiveStyle = 'general',
   initialLLM,
@@ -46,7 +48,8 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
   const [currentUnderstanding, setCurrentUnderstanding] = useState("");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-  const [researchDepth, setResearchDepth] = useState(initialResearchDepth || 'moderate');
+  const [domain, setDomain] = useState(initialDomain || '');
+  const [expertiseLevel, setExpertiseLevel] = useState(initialExpertiseLevel || 'intermediate');
   const [userContext, setUserContext] = useState(initialUserContext || '');
   const [cognitiveStyle, setCognitiveStyle] = useState(initialCognitiveStyle || 'general');
 
@@ -178,15 +181,26 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
           {/* Grid layout for 2 columns */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="researchDepth">Research Depth</Label>
-              <Select value={researchDepth} onValueChange={setResearchDepth}>
-                <SelectTrigger id="researchDepth">
-                  <SelectValue placeholder="Select research depth" />
+              <Label htmlFor="domain">Domain / Field</Label>
+              <Input
+                id="domain"
+                placeholder="e.g. Computer Science, Medicine, Finance..."
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="expertise-level">Expertise Level</Label>
+              <Select value={expertiseLevel} onValueChange={setExpertiseLevel}>
+                <SelectTrigger id="expertise-level">
+                  <SelectValue placeholder="Select expertise level" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="shallow">Shallow</SelectItem>
-                  <SelectItem value="moderate">Moderate</SelectItem>
-                  <SelectItem value="deep">Deep</SelectItem>
+                  <SelectItem value="beginner">Beginner</SelectItem>
+                  <SelectItem value="intermediate">Intermediate</SelectItem>
+                  <SelectItem value="advanced">Advanced</SelectItem>
+                  <SelectItem value="expert">Expert</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -244,5 +258,3 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
     </div>
   );
 };
-
-export default ResearchForm;
