@@ -85,24 +85,8 @@ const ResearchOutput = ({
     );
   }
 
-  // Empty initial state styling - make sure it's not dark
-  if (!loading && !completed && !paused && !reasoningPath.length && !sources.length && !result) {
-    return (
-      <div className="relative bg-background min-h-[400px] rounded-lg border border-border p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-          <div className="flex items-center justify-center border-r border-border">
-            <p className="text-muted-foreground">Reasoning process will appear here...</p>
-          </div>
-          <div className="flex items-center justify-center">
-            <p className="text-muted-foreground">No research results yet. Start a query to see results here.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="relative bg-background">
+    <div className="relative">
       {paused && (
         <Alert className="my-4 border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
           <Pause className="h-4 w-4" />
