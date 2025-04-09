@@ -200,6 +200,7 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
 
   const exportToDocx = async () => {
     try {
+      // Create a new document
       const doc = new Document({
         sections: [{
           properties: {},
@@ -218,20 +219,29 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
       
       // Add sources if available
       if (reportSources && reportSources.length > 0) {
-        doc.addSection({
+        // Create a new section for sources
+        const sourcesSection = {
+          properties: {},
           children: [
             new Paragraph({
               children: [
                 new TextRun({ text: "Sources", bold: true, size: 24 }),
               ],
             }),
-            ...reportSources.map((source, index) => 
-              new Paragraph({
-                text: `${index + 1}. ${source}`,
-              })
-            ),
           ],
+        };
+        
+        // Add each source as a paragraph
+        reportSources.forEach((source, index) => {
+          sourcesSection.children.push(
+            new Paragraph({
+              text: `${index + 1}. ${source}`,
+            })
+          );
         });
+        
+        // Add the sources section to the document
+        doc.addSection(sourcesSection);
       }
       
       const blob = await Packer.toBlob(doc);
