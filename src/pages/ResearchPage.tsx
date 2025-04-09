@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,7 +13,6 @@ import { getUserModels } from "@/services/userModelService";
 import { captureEvent } from "@/integrations/posthog/client";
 import ResearchReport from "@/components/research/ResearchReport";
 
-// Let's add the missing startResearch function
 const startResearch = async (query: string, userModelId?: string) => {
   try {
     const response = await fetch('/api/research/start', {
@@ -66,7 +64,6 @@ const ResearchPage = () => {
         const models = await getUserModels();
         setUserModels(models);
         
-        // Set default model if one exists
         const defaultModel = models.find(model => model.is_default);
         if (defaultModel && !selectedUserModelId) {
           setSelectedUserModelId(defaultModel.id);
@@ -80,14 +77,11 @@ const ResearchPage = () => {
   }, [user, selectedUserModelId]);
   
   useEffect(() => {
-    // Set current session ID
     if (sessionId) {
       setCurrentSessionId(sessionId);
       
-      // Update localStorage to track current session
       localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, sessionId);
       
-      // Load session data
       loadSessionData(sessionId);
     } else {
       setCurrentSessionId(null);
@@ -102,7 +96,6 @@ const ResearchPage = () => {
   
   const loadSessionData = async (sessionId: string) => {
     try {
-      // First check for cached data
       const sessionDataKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId);
       const cachedData = localStorage.getItem(sessionDataKey);
       
@@ -123,7 +116,6 @@ const ResearchPage = () => {
         }
       }
       
-      // Then try to fetch the latest state from the server
       try {
         const state = await getLatestSessionState(sessionId);
         
@@ -136,11 +128,7 @@ const ResearchPage = () => {
           if (state.findings) setFindings(state.findings);
           if (state.answer) setOutput(state.answer);
           
-          // Determine if research is still in progress - use string comparison for status
-          // Fixed the status comparison to check for all possible "in progress" values
-          setIsLoading(state.status === 'in_progress' || 
-                       state.status === 'pending' || 
-                       state.status === 'awaiting_human_input');
+          setIsLoading(state.status === 'in_progress' || state.status === 'awaiting_human_input');
         }
       } catch (e) {
         console.error("Error fetching state from server:", e);
@@ -178,13 +166,10 @@ const ResearchPage = () => {
       if (sessionId) {
         setCurrentSessionId(sessionId);
         
-        // Store current session ID
         localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID, sessionId);
         
-        // Update URL without reloading
         navigate(`/research/${sessionId}`, { replace: true });
         
-        // Notify other components about the session change
         window.dispatchEvent(new CustomEvent('session-selected', { 
           detail: { 
             sessionId,
@@ -215,8 +200,6 @@ const ResearchPage = () => {
   
   return (
     <div className="flex flex-col min-h-screen">
-      {/* The ResearchHistorySidebar would be imported from '@/components/research/ResearchHistorySidebar' */}
-      
       <div className="flex-1 container flex flex-col max-w-7xl py-4 px-4 sm:px-6 lg:px-8">
         <div ref={formRef} className="w-full max-w-3xl mx-auto mb-6">
           <ResearchForm 
