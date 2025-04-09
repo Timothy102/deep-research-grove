@@ -15,9 +15,52 @@ export const LOCAL_STORAGE_KEYS = {
   ACTIVE_MODEL_ID: "active_model_id",
   RESEARCH_SESSIONS: "research_sessions",
   ANSWERS_CACHE: "answers_cache",
-  FINAL_REPORT_CACHE: "final_report_cache"
+  FINAL_REPORT_CACHE: "final_report_cache",
+  SIDEBAR_STATE: "sidebar_state",
+  SESSION_HISTORY: "session_history",
+  SYNTHESIS_CACHE: "synthesis_cache",
+  RAW_DATA_CACHE: "raw_data_cache"
 };
 
 export const getSessionStorageKey = (key: string, sessionId: string) => {
   return `${key}_${sessionId}`;
+};
+
+export const getSessionData = (sessionId: string) => {
+  try {
+    const sessionKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId);
+    const sessionData = localStorage.getItem(sessionKey);
+    
+    if (sessionData) {
+      return JSON.parse(sessionData);
+    }
+    
+    return null;
+  } catch (e) {
+    console.error(`[${new Date().toISOString()}] Error loading session data:`, e);
+    return null;
+  }
+};
+
+export const saveSessionData = (sessionId: string, data: any) => {
+  try {
+    const sessionKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SESSION_DATA_CACHE, sessionId);
+    
+    // Get existing data
+    const existingData = getSessionData(sessionId) || {};
+    
+    // Merge with new data
+    const updatedData = {
+      ...existingData,
+      ...data,
+      updated_at: new Date().toISOString()
+    };
+    
+    localStorage.setItem(sessionKey, JSON.stringify(updatedData));
+    
+    return updatedData;
+  } catch (e) {
+    console.error(`[${new Date().toISOString()}] Error saving session data:`, e);
+    return null;
+  }
 };
