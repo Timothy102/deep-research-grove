@@ -947,7 +947,12 @@ const ResearchPage = () => {
         isOpen={sidebarOpen}
         onToggle={toggleSidebar}
         history={history}
-        onLoadHistory={loadHistory}
+        onHistoryItemClick={(item) => {
+          console.log(`Selected history item: ${item.query}`);
+        }}
+        onSelectItem={(item) => {
+          setResearchObjective(item.query);
+        }}
       />
       
       <div className={cn("flex-1 flex flex-col h-full overflow-hidden", 
@@ -974,8 +979,10 @@ const ResearchPage = () => {
           <ResearchForm 
             onSubmit={handleResearch}
             isLoading={isLoading}
-            researchObjective={researchObjective}
-            userModels={userModels}
+            initialObjective={researchObjective}
+            setResearchObjective={setResearchObjective}
+            selectedLLM={selectedLLM}
+            setSelectedLLM={setSelectedLLM}
             onUserModelSelect={selectUserModel}
           />
           
@@ -1017,7 +1024,7 @@ const ResearchPage = () => {
                 
                 <TabsContent value="output" className="mt-4">
                   <ResearchOutput 
-                    answer={researchOutput}
+                    output={researchOutput}
                     sources={sources}
                     findings={findings}
                   />
