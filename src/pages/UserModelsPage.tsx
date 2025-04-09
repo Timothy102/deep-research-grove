@@ -231,7 +231,7 @@ const UserModelsPage = () => {
               <DialogHeader>
                 <DialogTitle>Create Research Model</DialogTitle>
                 <DialogDescription>
-                  Define a research model that matches your expertise and interests
+                  Define a research model that matches your preferences
                 </DialogDescription>
               </DialogHeader>
               <UserModelForm 
@@ -244,7 +244,7 @@ const UserModelsPage = () => {
 
         <p className="text-muted-foreground mb-6">
           Create and customize research models to personalize your research experience.
-          Each model includes your domain, expertise level, and preferred sources.
+          Each model includes your research depth and preferred sources.
         </p>
 
         {isLoading ? (
@@ -259,7 +259,7 @@ const UserModelsPage = () => {
                 <h3 className="text-xl font-medium">No models yet</h3>
                 <p className="text-muted-foreground max-w-md mx-auto">
                   Create your first research model to tailor your research experience
-                  to your specific domain and expertise.
+                  to your specific preferences.
                 </p>
                 <Button 
                   onClick={() => setIsCreateModalOpen(true)}
@@ -287,7 +287,7 @@ const UserModelsPage = () => {
                           </Badge>
                         )}
                       </CardTitle>
-                      <CardDescription>{model.domain}</CardDescription>
+                      <CardDescription>{model.research_depth} research</CardDescription>
                     </div>
                   </div>
                 </CardHeader>
@@ -295,8 +295,8 @@ const UserModelsPage = () => {
                   <div className="space-y-4">
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium">Expertise Level</span>
-                        <span className="text-sm">{model.expertise_level}</span>
+                        <span className="text-sm font-medium">Research Depth</span>
+                        <span className="text-sm">{model.research_depth}</span>
                       </div>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-medium">Cognitive Style</span>

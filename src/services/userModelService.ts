@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export type UserModelSourcePriority = {
@@ -10,14 +9,14 @@ export interface UserModel {
   id?: string;
   user_id?: string;
   name: string;
-  domain: string;
-  expertise_level: string;
+  research_depth: string;
   cognitive_style: string;
   included_sources?: string[];
   source_priorities?: UserModelSourcePriority[];
   is_default?: boolean;
   created_at?: string;
   updated_at?: string;
+  session_id?: string;
 }
 
 // Helper function to parse JSON safely
@@ -206,24 +205,6 @@ export async function getDefaultUserModel(): Promise<UserModel | null> {
   return data ? parseUserModel(data) : null;
 }
 
-export async function updateUserOnboardingStatus(completed: boolean): Promise<void> {
-  const { data: user } = await supabase.auth.getUser();
-  
-  if (!user.user) {
-    throw new Error("User not authenticated");
-  }
-  
-  const { error } = await supabase
-    .from('profiles')
-    .update({ onboarding_completed: completed })
-    .eq('id', user.user.id);
-    
-  if (error) {
-    console.error("Error updating onboarding status:", error);
-    throw error;
-  }
-}
-
 export async function getUserOnboardingStatus(): Promise<boolean> {
   const { data: user } = await supabase.auth.getUser();
   
@@ -245,8 +226,7 @@ export async function getUserOnboardingStatus(): Promise<boolean> {
   return data?.onboarding_completed || false;
 }
 
-// Add new function to mark onboarding as completed
-export const markOnboardingCompleted = async (): Promise<void> => {
+export async function markOnboardingCompleted(): Promise<void> {
   try {
     const { data: userData } = await supabase.auth.getUser();
     
@@ -269,4 +249,4 @@ export const markOnboardingCompleted = async (): Promise<void> => {
     console.error("Error marking onboarding as completed:", error);
     throw error;
   }
-};
+}

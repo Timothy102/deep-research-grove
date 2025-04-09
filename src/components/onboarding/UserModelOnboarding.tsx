@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { createUserModel, markOnboardingCompleted } from "@/services/userModelService";
-import { cn } from '@/lib/utils';
 
 interface UserModelOnboardingProps {
   isOpen: boolean;
@@ -22,8 +22,8 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
   onCompleted,
   onComplete
 }) => {
-  const [domain, setDomain] = useState("");
-  const [expertiseLevel, setExpertiseLevel] = useState("");
+  const [name, setName] = useState("");
+  const [researchDepth, setResearchDepth] = useState("moderate");
   const [cognitiveStyle, setCognitiveStyle] = useState("");
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +33,7 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
     setIsLoading(true);
 
     try {
-      if (!domain || !expertiseLevel || !cognitiveStyle) {
+      if (!name || !researchDepth || !cognitiveStyle) {
         toast({
           title: "missing fields",
           description: "please fill out all fields",
@@ -44,9 +44,8 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
       }
 
       const modelData = {
-        name: `${domain} model`, 
-        domain,
-        expertise_level: expertiseLevel,
+        name: name || `${researchDepth} research model`, 
+        research_depth: researchDepth,
         cognitive_style: cognitiveStyle,
       };
 
@@ -91,22 +90,29 @@ const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="domain">domain</Label>
+            <Label htmlFor="name">model name</Label>
             <Input
-              id="domain"
-              placeholder="e.g. artificial intelligence"
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
+              id="name"
+              placeholder="e.g. my research assistant"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="expertise">expertise level</Label>
-            <Input
-              id="expertise"
-              placeholder="e.g. beginner"
-              value={expertiseLevel}
-              onChange={(e) => setExpertiseLevel(e.target.value)}
-            />
+            <Label htmlFor="researchDepth">research depth</Label>
+            <Select
+              value={researchDepth}
+              onValueChange={setResearchDepth}
+            >
+              <SelectTrigger id="researchDepth">
+                <SelectValue placeholder="Select research depth" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="shallow">Shallow</SelectItem>
+                <SelectItem value="moderate">Moderate</SelectItem>
+                <SelectItem value="deep">Deep</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="cognitiveStyle">cognitive style</Label>

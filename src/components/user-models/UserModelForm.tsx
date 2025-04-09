@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Card, 
   CardContent, 
@@ -17,8 +18,10 @@ import {
 import { Loader2, Plus, X, GripVertical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-// Define your expertise levels and cognitive styles
-const expertiseLevels = ["beginner", "intermediate", "advanced", "expert"];
+// Define research depth options
+const researchDepthLevels = ["shallow", "moderate", "deep"];
+
+// Define cognitive styles
 const cognitiveStyles = [
   { id: "systematic", label: "systematic" },
   { id: "general", label: "general" },
@@ -36,8 +39,7 @@ interface UserModelFormProps {
 const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormProps) => {
   const { toast } = useToast();
   const [name, setName] = useState(initialData?.name || "");
-  const [domain, setDomain] = useState(initialData?.domain || "");
-  const [expertiseLevel, setExpertiseLevel] = useState(initialData?.expertise_level || "intermediate");
+  const [researchDepth, setResearchDepth] = useState(initialData?.research_depth || "moderate");
   const [cognitiveStyle, setCognitiveStyle] = useState(initialData?.cognitive_style || "general");
   const [includedSources, setIncludedSources] = useState<string[]>(initialData?.included_sources || []);
   const [currentSource, setCurrentSource] = useState("");
@@ -147,7 +149,7 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !domain.trim()) {
+    if (!name.trim() || !researchDepth) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -160,8 +162,7 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
       await onSubmit({
         ...initialData,
         name,
-        domain,
-        expertise_level: expertiseLevel,
+        research_depth: researchDepth,
         cognitive_style: cognitiveStyle,
         included_sources: includedSources,
         source_priorities: sourcePriorities
@@ -191,36 +192,19 @@ const UserModelForm = ({ initialData, onSubmit, isSubmitting }: UserModelFormPro
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="domain">Your Domain/Field</Label>
-          <Input
-            id="domain"
-            value={domain}
-            onChange={(e) => setDomain(e.target.value)}
-            placeholder="e.g. Computer Science, Medicine, Finance..."
-            required
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label>Expertise Level</Label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {expertiseLevels.map((level) => (
-              <div key={level} className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id={`level-${level}`}
-                  name="expertise-level"
-                  className="radio"
-                  value={level}
-                  checked={expertiseLevel === level}
-                  onChange={() => setExpertiseLevel(level)}
-                />
-                <Label htmlFor={`level-${level}`} className="cursor-pointer">
+          <Label htmlFor="researchDepth">Research Depth</Label>
+          <Select value={researchDepth} onValueChange={setResearchDepth}>
+            <SelectTrigger id="researchDepth">
+              <SelectValue placeholder="Select research depth" />
+            </SelectTrigger>
+            <SelectContent>
+              {researchDepthLevels.map((level) => (
+                <SelectItem key={level} value={level}>
                   {level}
-                </Label>
-              </div>
-            ))}
-          </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">

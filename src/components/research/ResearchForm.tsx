@@ -18,8 +18,7 @@ interface ResearchFormProps {
   selectedLLM?: string;
   setSelectedLLM?: React.Dispatch<React.SetStateAction<string>>;
   initialValue?: string;
-  initialDomain?: string;
-  initialExpertiseLevel?: string;
+  initialResearchDepth?: string;
   initialUserContext?: string;
   initialCognitiveStyle?: string;
   initialLLM?: string;
@@ -34,8 +33,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   selectedLLM = 'auto',
   setSelectedLLM,
   initialValue,
-  initialDomain = '',
-  initialExpertiseLevel = 'intermediate',
+  initialResearchDepth = 'moderate',
   initialUserContext = '',
   initialCognitiveStyle = 'general',
   initialLLM,
@@ -48,8 +46,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
   const [currentUnderstanding, setCurrentUnderstanding] = useState("");
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
-  const [domain, setDomain] = useState(initialDomain || '');
-  const [expertiseLevel, setExpertiseLevel] = useState(initialExpertiseLevel || 'intermediate');
+  const [researchDepth, setResearchDepth] = useState(initialResearchDepth || 'moderate');
   const [userContext, setUserContext] = useState(initialUserContext || '');
   const [cognitiveStyle, setCognitiveStyle] = useState(initialCognitiveStyle || 'general');
 
@@ -181,26 +178,15 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
           {/* Grid layout for 2 columns */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="domain">Domain / Field</Label>
-              <Input
-                id="domain"
-                placeholder="e.g. Computer Science, Medicine, Finance..."
-                value={domain}
-                onChange={(e) => setDomain(e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="expertise-level">Expertise Level</Label>
-              <Select value={expertiseLevel} onValueChange={setExpertiseLevel}>
-                <SelectTrigger id="expertise-level">
-                  <SelectValue placeholder="Select expertise level" />
+              <Label htmlFor="researchDepth">Research Depth</Label>
+              <Select value={researchDepth} onValueChange={setResearchDepth}>
+                <SelectTrigger id="researchDepth">
+                  <SelectValue placeholder="Select research depth" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="beginner">Beginner</SelectItem>
-                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                  <SelectItem value="advanced">Advanced</SelectItem>
-                  <SelectItem value="expert">Expert</SelectItem>
+                  <SelectItem value="shallow">Shallow</SelectItem>
+                  <SelectItem value="moderate">Moderate</SelectItem>
+                  <SelectItem value="deep">Deep</SelectItem>
                 </SelectContent>
               </Select>
             </div>
