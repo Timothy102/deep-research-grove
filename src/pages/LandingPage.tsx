@@ -55,11 +55,11 @@ const LandingPage = () => {
           </p>
           
           <p className="text-base font-light">
-            This might be AGI then — an intelligence capable of both identifying optimal research objectives and self-optimizing to build the most effective context graphs to navigate. That's what we're trying to achieve with this project. 
+            This might be AGI then — an intelligence capable of both identifying optimal research objectives and self-optimizing to build the most effective context graphs to navigate. That's what we're trying to achieve with this project. You can read the full article <a href="https://generativeai.pub/deep-research-sucks-a8e443abe610" className="text-blue-500 hover:underline font-light">here</a>.
           </p>
           
           <p className="text-base font-light">
-            we're working with a selected few to launch their personal deep researchers. if you want us to build your personalized deep research agent, <a href="mailto:tim@timcvetko.com" className="font-light">drop us a line.</a>
+            we're working with a selected few to launch their personal deep researchers. if you want us to build your personalized deep research agent, <a href="https://cal.com/timcvetko" className="text-blue-500 hover:underline font-light">book a call</a>
           </p>
 
           <p className="text-base font-light">
