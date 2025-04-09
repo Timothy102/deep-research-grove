@@ -27,6 +27,9 @@ interface SynthesisData {
   timestamp?: string;
   depth?: number;
   parent_id?: string;
+  is_root?: boolean;
+  findings?: Finding[];
+  gaps?: string[];
 }
 
 interface ReasoningPathProps {
@@ -37,6 +40,7 @@ interface ReasoningPathProps {
   isLoading?: boolean;
   rawData?: Record<string, string>;
   sessionId?: string;
+  onReportUpdate?: (data: any) => void;
 }
 
 interface StepData {
@@ -56,7 +60,8 @@ const ReasoningPath = ({
   isActive = false, 
   isLoading = false, 
   rawData = {},
-  sessionId = "" 
+  sessionId = "",
+  onReportUpdate
 }: ReasoningPathProps) => {
   const [displayReasoningPath, setDisplayReasoningPath] = useState<string[]>(reasoningPath);
   const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings);
@@ -66,6 +71,7 @@ const ReasoningPath = ({
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [forcedUpdate, setForcedUpdate] = useState(0);
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
+  const [reportData, setReportData] = useState<any>(null);
   
   useEffect(() => {
     if (sessionId && sessionId !== lastSessionId) {
@@ -77,6 +83,7 @@ const ReasoningPath = ({
       setAnswersData({});
       setSessionLoaded(false);
       setLastSessionId(sessionId);
+      setReportData(null);
       
       const allKeys = Object.keys(localStorage);
       const currentSessionKeys = [
@@ -252,6 +259,12 @@ const ReasoningPath = ({
           [synthesisData.node_id]: synthesisData
         }));
         
+        if (synthesisData.is_root || synthesisData.node_id === "0") {
+          if (onReportUpdate) {
+            onReportUpdate(synthesisData);
+          }
+        }
+        
         try {
           if (sessionId) {
             const sessionSynthesisKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.SYNTHESIS_CACHE, sessionId);
@@ -323,7 +336,46 @@ const ReasoningPath = ({
         }
       }
     }
-  }, [sessionId, displayReasoningPath.length, displayFindings.length, displaySources]);
+    
+    if (payload.event === 'report_update' || payload.event_type === 'report_update') {
+      console.log(`[${new Date().toISOString()}] 📊 Received report update`, payload.data);
+      
+      if (onReportUpdate) {
+        onReportUpdate(payload.data);
+      }
+      
+      setReportData(payload.data);
+    }
+    
+    if (payload.event === 'final_report') {
+      console.log(`[${new Date().toISOString()}] 📑 Received final report`, payload.data);
+      
+      if (onReportUpdate) {
+        onReportUpdate({
+          ...payload.data,
+          isFinal: true
+        });
+      }
+      
+      setReportData({
+        ...payload.data,
+        isFinal: true
+      });
+      
+      try {
+        if (sessionId) {
+          const sessionReportKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINAL_REPORT_CACHE, sessionId);
+          localStorage.setItem(sessionReportKey, JSON.stringify(payload.data));
+          
+          saveSessionData(sessionId, {
+            finalReport: payload.data
+          });
+        }
+      } catch (e) {
+        console.error("Error saving final report to cache:", e);
+      }
+    }
+  }, [sessionId, displayReasoningPath.length, displayFindings.length, displaySources, onReportUpdate]);
   
   const handleResearchEvents = useCallback(() => {
     setForcedUpdate(prev => prev + 1);
