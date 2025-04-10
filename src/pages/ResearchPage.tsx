@@ -116,7 +116,6 @@ const ResearchPage = () => {
   const [displayName, setDisplayName] = useState<string>("");
   const [progressEvents, setProgressEvents] = useState<string[]>([]);
   const [currentStage, setCurrentStage] = useState("Initializing research");
-  const [reportData, setReportData] = useState<any>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
@@ -259,7 +258,6 @@ const ResearchPage = () => {
     initialEventReceivedRef.current = false;
     setProgressEvents([]);
     setCurrentStage("Initializing research");
-    setReportData(null);
     
     localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID);
@@ -326,24 +324,44 @@ const ResearchPage = () => {
         }
         
         if (sessionState.findings) {
-          const parsedFindings = Array.isArray(sessionState.findings) 
-            ? sessionState.findings 
-            : (typeof sessionState.findings === 'string' ? JSON.parse(sessionState.findings) : []);
-          setFindings(parsedFindings);
+          setFindings(Array.isArray(sessionState.findings) ? sessionState.findings : []);
         }
         
         if (sessionState.reasoning_path) {
           setReasoningPath(sessionState.reasoning_path);
         }
         
-        if (sessionState.report_data) {
-          try {
-            const parsedReportData = typeof sessionState.report_data === 'string' 
-              ? JSON.parse(sessionState.report_data) 
-              : sessionState.report_data;
-            setReportData(parsedReportData);
-          } catch (e) {
-            console.error("Error parsing report data:", e);
+        if (sessionState.status === 'awaiting_human_input' && sessionState.human_interactions) {
+          let interactions: HumanInteraction[] = [];
+          
+          if (typeof sessionState.human_interactions === 'string') {
+            try {
+              interactions = JSON.parse(sessionState.human_interactions);
+            } catch (e) {
+              console.error("Error parsing human interactions:", e);
+              interactions = [];
+            }
+          } else if (Array.isArray(sessionState.human_interactions)) {
+            interactions = sessionState.human_interactions as HumanInteraction[];
+          }
+                
+          const lastInteraction = interactions
+            .filter(interaction => interaction.type === 'interaction_request')
+            .pop();
+            
+          if (lastInteraction) {
+            const approvalRequest: HumanApprovalRequest = {
+              call_id: lastInteraction.call_id,
+              node_id: lastInteraction.node_id,
+              query: lastInteraction.query || sessionState.query,
+              content: lastInteraction.content,
+              approval_type: lastInteraction.interaction_type
+            };
+            
+            setHumanApprovalRequest(approvalRequest);
+            setShowApprovalDialog(true);
+            
+            console.log(`[${new Date().toISOString()}] 🔄 Restored pending human interaction:`, approvalRequest);
           }
         }
         
@@ -601,7 +619,7 @@ const ResearchPage = () => {
       return;
     }
     
-    const eventType = data.event || data.type || data.event_type;
+    const eventType = data.event || data.type;
     console.log(`[${new Date().toISOString()}] 📊 Processing event:`, { 
       type: eventType, 
       clientId: clientIdRef.current.substring(0, 15)
@@ -618,11 +636,12 @@ const ResearchPage = () => {
       const rawEventData = JSON.stringify(data, null, 2);
       
       setRawData(prev => {
-        const existing = prev[nodeId] || '';
-        return {
-          ...prev,
-          [nodeId]: existing ? `${existing}\n${rawEventData}` : rawData
-        };
+        const existingData = prev[nodeId] || '';
+        const updatedData = existingData 
+          ? `${existingData}\n${rawEventData}`
+          : rawEventData;
+        
+        return { ...prev, [nodeId]: updatedData };
       });
     }
     
@@ -738,97 +757,6 @@ const ResearchPage = () => {
           updateResearchState(researchId, currentSessionIdRef.current, {
             reasoning_path: updatedPath
           }).catch(err => console.error("Error updating reasoning path:", err));
-        }
-        break;
-      case "synthesis":
-        console.log(`[${new Date().toISOString()}] 📝 Synthesis event received:`, data.data);
-        // Handle synthesis events, which are intermediate report updates
-        if (data.data.synthesis) {
-          const synthUpdate = {
-            query: data.data.query || researchObjective,
-            synthesis: data.data.synthesis,
-            confidence: data.data.confidence || 0,
-            node_id: data.data.node_id,
-            findings: data.data.findings || [],
-            timestamp: data.data.timestamp || new Date().toISOString()
-          };
-          
-          // Only update if this is a root node synthesis (main report)
-          if (data.data.is_root) {
-            setReportData(synthUpdate);
-            setCurrentStage("Synthesizing research findings");
-            
-            if (currentSessionIdRef.current) {
-              updateResearchState(researchId, currentSessionIdRef.current, {
-                report_data: synthUpdate
-              }).catch(err => console.error("Error updating report data:", err));
-            }
-          }
-        }
-        break;
-        
-      case "report_update":
-        console.log(`[${new Date().toISOString()}] 📊 Report update received:`, data.data);
-        
-        if (data.data) {
-          const reportUpdate = {
-            query: data.data.query || researchObjective,
-            synthesis: data.data.synthesis,
-            confidence: data.data.confidence || 0,
-            node_id: data.data.node_id,
-            timestamp: data.data.timestamp || new Date().toISOString()
-          };
-          
-          setReportData(reportUpdate);
-          setCurrentStage("Updating research report");
-          
-          if (currentSessionIdRef.current) {
-            updateResearchState(researchId, currentSessionIdRef.current, {
-              report_data: reportUpdate
-            }).catch(err => console.error("Error updating report data:", err));
-          }
-        }
-        break;
-        
-      case "final_report":
-        console.log(`[${new Date().toISOString()}] 📑 Final report received:`, data.data);
-        
-        if (data.data) {
-          const finalReport = {
-            query: data.data.query || researchObjective,
-            synthesis: data.data.synthesis,
-            confidence: data.data.confidence || 0,
-            reasoning_path: data.data.reasoning_path || [],
-            findings: data.data.findings || [],
-            sources: data.data.sources || [],
-            timestamp: data.data.timestamp || new Date().toISOString()
-          };
-          
-          setReportData(finalReport);
-          setResearchOutput(data.data.synthesis || "");
-          setSources(data.data.sources || []);
-          setFindings(data.data.findings || []);
-          setReasoningPath(data.data.reasoning_path || []);
-          setIsLoading(false);
-          
-          if (currentSessionIdRef.current) {
-            updateResearchState(researchId, currentSessionIdRef.current, {
-              status: 'completed',
-              answer: data.data.synthesis || "",
-              sources: data.data.sources || [],
-              findings: data.data.findings || [],
-              reasoning_path: data.data.reasoning_path || [],
-              report_data: finalReport
-            }).catch(err => console.error("Error updating final state:", err));
-          }
-          
-          trackEvent('research_completed', {
-            research_id: researchId,
-            session_id: currentSessionIdRef.current,
-            sources_count: data.data.sources?.length || 0,
-            findings_count: data.data.findings?.length || 0,
-            answer_length: data.data.synthesis?.length || 0
-          });
         }
         break;
       case "complete":
@@ -1020,17 +948,6 @@ const ResearchPage = () => {
         setReasoningPath(data.reasoning_path || []);
         setIsLoading(false);
         
-        if (data.report_data) {
-          try {
-            const parsedReportData = typeof data.report_data === 'string' 
-              ? JSON.parse(data.report_data) 
-              : data.report_data;
-            setReportData(parsedReportData);
-          } catch (e) {
-            console.error("Error parsing report data:", e);
-          }
-        }
-        
         if (data.active_tab) {
           setActiveTab(data.active_tab);
         } else if (activeTab === "reasoning") {
@@ -1048,17 +965,6 @@ const ResearchPage = () => {
         }
         
         if (data.reasoning_path) setReasoningPath(data.reasoning_path);
-        
-        if (data.report_data) {
-          try {
-            const parsedReportData = typeof data.report_data === 'string' 
-              ? JSON.parse(data.report_data) 
-              : data.report_data;
-            setReportData(parsedReportData);
-          } catch (e) {
-            console.error("Error parsing report data:", e);
-          }
-        }
         
         setTimeout(() => pollResearchState(researchId), 3000);
       } else if (data.status === "error") {
@@ -1268,9 +1174,22 @@ const ResearchPage = () => {
                   
                   <TabsContent value="output" className="mt-0">
                     <ResearchOutput 
-                      output={researchOutput} 
-                      isLoading={isLoading} 
-                      reportData={reportData}
+                      loading={isLoading}
+                      completed={!isLoading && researchOutput !== ""}
+                      paused={false}
+                      result={researchOutput ? {
+                        answer: researchOutput,
+                        confidence: 0,
+                        query: researchObjective,
+                        sources: sources,
+                        reasoning_path: reasoningPath
+                      } : null}
+                      error={null}
+                      reasoningPath={reasoningPath}
+                      sources={sources}
+                      findings={findings}
+                      rawData={rawData}
+                      sessionId={currentSessionIdRef.current}
                     />
                   </TabsContent>
                   
@@ -1285,7 +1204,16 @@ const ResearchPage = () => {
               <div className="max-w-4xl w-full">
                 <div className="mb-8">
                   <ResearchOutput 
-                    output="" 
+                    loading={isLoading}
+                    completed={false}
+                    paused={false}
+                    result={null}
+                    error={null}
+                    reasoningPath={[]}
+                    sources={[]}
+                    findings={[]}
+                    rawData={{}}
+                    sessionId={currentSessionIdRef.current}
                     userName={displayName || user?.email?.split('@')[0] || "researcher"}
                     userModels={userModels}
                     onSelectModel={selectUserModel}

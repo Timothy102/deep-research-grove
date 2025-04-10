@@ -1,433 +1,161 @@
 
-import React, { useState } from 'react';
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { FileText, Copy, Download, CheckCircle2, ChevronDown, ChevronUp, FileSpreadsheet } from "lucide-react";
-import { saveAs } from 'file-saver';
-import { toast } from 'sonner';
-import { Document, Packer, Paragraph, TextRun } from 'docx';
-import { captureEvent } from '@/integrations/posthog/client';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from '@/lib/constants';
+import { useEffect, useState } from "react";
+import { Separator } from "@/components/ui/separator";
+import ReasoningPath from "./ReasoningPath";
+import ResearchResults, { ResearchResult } from "./ResearchResults";
+import { AlertTriangle, Check, Pause, Clock } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
 
-export interface ResearchResult {
-  query: string;
-  synthesis?: string;
-  confidence: number;
-  reasoning_path?: string[];
-  findings?: any[];
-  sources?: string[];
-  timestamp?: string;
-  node_id?: string;
-}
-
-export interface ResearchOutputProps {
-  output: string;
-  isLoading?: boolean;
+interface ResearchOutputProps {
+  loading: boolean;
+  completed: boolean;
+  paused: boolean;
+  result: ResearchResult | null;
+  error: string | null;
+  reasoningPath: string[];
+  sources: string[];
+  findings: any[];
+  rawData: Record<string, string>;
+  sessionId?: string;
   userName?: string;
   userModels?: any[];
-  onSelectModel?: (modelId: string) => void;
-  reportData?: ResearchResult;
-  result?: ResearchResult;
+  onSelectModel?: (modelId: string) => Promise<void>;
 }
 
-const ResearchOutput: React.FC<ResearchOutputProps> = ({ 
-  output, 
-  isLoading = false, 
+const ResearchOutput = ({
+  loading,
+  completed,
+  paused,
+  result,
+  error,
+  reasoningPath,
+  sources,
+  findings,
+  rawData,
+  sessionId,
   userName,
-  userModels = [],
-  onSelectModel,
-  reportData,
-  result
-}) => {
-  const [isCopied, setIsCopied] = useState(false);
-  const [isReportExpanded, setIsReportExpanded] = useState(true);
-  const [isSourcesExpanded, setIsSourcesExpanded] = useState(false);
-  const [isConfidenceExpanded, setIsConfidenceExpanded] = useState(false);
+  userModels,
+  onSelectModel
+}: ResearchOutputProps) => {
+  const [reportData, setReportData] = useState<any>(null);
+  
+  useEffect(() => {
+    if (sessionId) {
+      // Try to load final report from session storage
+      try {
+        const sessionReportKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINAL_REPORT_CACHE, sessionId);
+        const cachedReport = localStorage.getItem(sessionReportKey);
+        
+        if (cachedReport) {
+          const parsedReport = JSON.parse(cachedReport);
+          console.log(`[${new Date().toISOString()}] 📂 Loaded final report from cache for session ${sessionId}`);
+          setReportData({
+            ...parsedReport,
+            isFinal: true
+          });
+        }
+      } catch (e) {
+        console.error("Error loading final report from cache:", e);
+      }
+    }
+  }, [sessionId]);
+  
+  const handleReportUpdate = (data: any) => {
+    console.log(`[${new Date().toISOString()}] 📊 Report update received:`, data);
+    setReportData(data);
+    
+    if (data.isFinal && sessionId) {
+      try {
+        const sessionReportKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINAL_REPORT_CACHE, sessionId);
+        localStorage.setItem(sessionReportKey, JSON.stringify(data));
+      } catch (e) {
+        console.error("Error caching final report:", e);
+      }
+    }
+  };
 
-  if (isLoading) {
+  if (error) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-5/6" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-2/3" />
-      </div>
+      <Alert variant="destructive" className="my-4">
+        <AlertTriangle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
     );
   }
 
-  if (!output.trim() && !reportData && !result) {
+  // Empty initial state styling - make sure it's not dark
+  if (!loading && !completed && !paused && !reasoningPath.length && !sources.length && !result) {
     return (
-      <div className="text-center space-y-6">
-        {userName ? (
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold">Hey, {userName}</h2>
-            <p className="text-muted-foreground text-lg">Who are you today?</p>
-            
-            {userModels && userModels.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-w-4xl mx-auto">
-                {userModels.map((model) => (
-                  <Card 
-                    key={model?.id || Math.random().toString()} 
-                    className="cursor-pointer hover:border-primary transition-colors duration-200"
-                    onClick={() => onSelectModel && model?.id && onSelectModel(model.id)}
-                  >
-                    <CardContent className="p-3">
-                      <div className="flex flex-col space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium truncate">{model?.name || "Unnamed Model"}</span>
-                          {model?.is_default && (
-                            <Badge variant="outline" className="text-xs px-1 py-0">Default</Badge>
-                          )}
-                        </div>
-                        
-                        {model?.domain && (
-                          <span className="text-xs text-muted-foreground truncate">
-                            Domain: {model.domain}
-                          </span>
-                        )}
-                        
-                        {model?.expertise_level && (
-                          <span className="text-xs text-muted-foreground truncate">
-                            Expertise: {model.expertise_level}
-                          </span>
-                        )}
-                        
-                        {model?.cognitive_style && (
-                          <span className="text-xs text-muted-foreground truncate">
-                            Style: {model.cognitive_style}
-                          </span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-muted-foreground mt-4">
-                <p>No user models found. Create one to get started!</p>
-              </div>
-            )}
+      <div className="relative bg-background min-h-[400px] rounded-lg border border-border p-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+          <div className="flex items-center justify-center border-r border-border">
+            <p className="text-muted-foreground">Reasoning process will appear here...</p>
           </div>
-        ) : (
-          <p className="text-muted-foreground">No research output yet. Start a search to see results here.</p>
-        )}
+          <div className="flex items-center justify-center">
+            <p className="text-muted-foreground">No research results yet. Start a query to see results here.</p>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Use reportData or result if available, otherwise use the output string
-  const reportContent = reportData?.synthesis || result?.synthesis || output;
-  const reportQuery = reportData?.query || result?.query || '';
-  const reportConfidence = reportData?.confidence || result?.confidence || 0;
-  const reportSources = reportData?.sources || result?.sources || [];
-  const reportFindings = reportData?.findings || result?.findings || [];
+  return (
+    <div className="relative bg-background">
+      {paused && (
+        <Alert className="my-4 border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
+          <Pause className="h-4 w-4" />
+          <AlertTitle>Research Paused</AlertTitle>
+          <AlertDescription>
+            The research process is currently paused. You can resume it at any time.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {completed && (
+        <Alert variant="default" className="my-4 border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-300">
+          <Check className="h-4 w-4" />
+          <AlertTitle>Research Completed</AlertTitle>
+          <AlertDescription>
+            The research has been completed successfully.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {!completed && loading && !paused && (
+        <Alert variant="default" className="my-4 border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300">
+          <Clock className="h-4 w-4 animate-pulse" />
+          <AlertTitle>Research In Progress</AlertTitle>
+          <AlertDescription>
+            The research is in progress. This may take a few minutes...
+          </AlertDescription>
+        </Alert>
+      )}
 
-  const copyToClipboard = async () => {
-    try {
-      const contentToCopy = reportContent;
-      await navigator.clipboard.writeText(contentToCopy);
-      setIsCopied(true);
-      toast.success("Output copied to clipboard");
-      setTimeout(() => setIsCopied(false), 2000);
-      
-      captureEvent('research_output_copied', { 
-        output_length: contentToCopy.length 
-      });
-    } catch (err) {
-      console.error("Failed to copy text:", err);
-      toast.error("Failed to copy text");
-      
-      captureEvent('research_output_copy_error', {
-        error: err instanceof Error ? err.message : String(err)
-      });
-    }
-  };
-
-  const exportToPdf = async () => {
-    try {
-      const { jsPDF } = await import('jspdf');
-      
-      const doc = new jsPDF();
-      
-      doc.setFontSize(16);
-      doc.text(reportQuery || "Research Results", 20, 20);
-      
-      doc.setFontSize(12);
-      const splitText = doc.splitTextToSize(reportContent, 170);
-      doc.text(splitText, 20, 30);
-      
-      if (reportSources && reportSources.length > 0) {
-        const lastTextY = Math.min(doc.internal.pageSize.height - 20, 30 + splitText.length * 5);
-        doc.text("Sources:", 20, lastTextY + 10);
-        
-        let sourceY = lastTextY + 15;
-        reportSources.forEach((source, index) => {
-          const sourceLine = `${index + 1}. ${source}`;
-          const splitSource = doc.splitTextToSize(sourceLine, 170);
-          
-          // Add new page if needed
-          if (sourceY + splitSource.length * 5 > doc.internal.pageSize.height - 10) {
-            doc.addPage();
-            sourceY = 20;
-          }
-          
-          doc.text(splitSource, 20, sourceY);
-          sourceY += splitSource.length * 5 + 5;
-        });
-      }
-      
-      doc.save("research-output.pdf");
-      toast.success("PDF downloaded successfully");
-      
-      captureEvent('research_output_exported', { 
-        format: 'pdf',
-        output_length: reportContent.length
-      });
-    } catch (err) {
-      console.error("Failed to export as PDF:", err);
-      toast.error("Failed to export as PDF");
-      
-      captureEvent('research_output_export_error', {
-        format: 'pdf',
-        error: err instanceof Error ? err.message : String(err)
-      });
-    }
-  };
-
-  const exportToDocx = async () => {
-    try {
-      // Create a new document
-      const doc = new Document({
-        sections: [{
-          properties: {},
-          children: [
-            new Paragraph({
-              children: [
-                new TextRun({ text: reportQuery || "Research Results", bold: true, size: 28 }),
-              ],
-            }),
-            new Paragraph({
-              text: reportContent,
-            }),
-          ],
-        }],
-      });
-      
-      // Add sources if available
-      if (reportSources && reportSources.length > 0) {
-        // Create a new section for sources
-        const sourcesSection = {
-          properties: {},
-          children: [
-            new Paragraph({
-              children: [
-                new TextRun({ text: "Sources", bold: true, size: 24 }),
-              ],
-            }),
-          ],
-        };
-        
-        // Add each source as a paragraph
-        reportSources.forEach((source, index) => {
-          sourcesSection.children.push(
-            new Paragraph({
-              text: `${index + 1}. ${source}`,
-            })
-          );
-        });
-        
-        // Add the sources section to the document
-        doc.addSection(sourcesSection);
-      }
-      
-      const blob = await Packer.toBlob(doc);
-      saveAs(blob, "research-output.docx");
-      toast.success("DOCX downloaded successfully");
-      
-      captureEvent('research_output_exported', { 
-        format: 'docx',
-        output_length: reportContent.length
-      });
-    } catch (err) {
-      console.error("Failed to export as DOCX:", err);
-      toast.error("Failed to export as DOCX");
-      
-      captureEvent('research_output_export_error', {
-        format: 'docx',
-        error: err instanceof Error ? err.message : String(err)
-      });
-    }
-  };
-
-  const exportToMarkdown = () => {
-    try {
-      let markdown = `# ${reportQuery || 'Research Results'}\n\n`;
-      markdown += reportContent;
-      
-      if (reportSources && reportSources.length > 0) {
-        markdown += '\n\n## Sources\n\n';
-        reportSources.forEach((source, index) => {
-          markdown += `${index + 1}. ${source}\n`;
-        });
-      }
-      
-      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
-      saveAs(blob, "research-output.md");
-      toast.success("Markdown downloaded successfully");
-      
-      captureEvent('research_output_exported', { 
-        format: 'markdown',
-        output_length: reportContent.length
-      });
-    } catch (err) {
-      console.error("Failed to export as Markdown:", err);
-      toast.error("Failed to export as Markdown");
-      
-      captureEvent('research_output_export_error', {
-        format: 'markdown',
-        error: err instanceof Error ? err.message : String(err)
-      });
-    }
-  };
-
-  const renderConfidenceScore = (confidence: number) => {
-    let color = 'text-red-500';
-    if (confidence >= 0.8) {
-      color = 'text-green-500';
-    } else if (confidence >= 0.5) {
-      color = 'text-yellow-500';
-    }
-    
-    const percentage = Math.round(confidence * 100);
-    
-    return (
-      <div className="flex items-center">
-        <span className={`text-sm font-semibold ${color}`}>
-          {percentage}%
-        </span>
-        <div className="ml-2 bg-gray-200 dark:bg-gray-700 rounded-full h-2 w-24">
-          <div 
-            className={`h-full rounded-full ${
-              confidence >= 0.8 ? 'bg-green-500' : 
-              confidence >= 0.5 ? 'bg-yellow-500' : 'bg-red-500'
-            }`}
-            style={{ width: `${percentage}%` }}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="lg:border-r lg:pr-6">
+          <ReasoningPath
+            reasoningPath={reasoningPath}
+            sources={sources}
+            findings={findings}
+            isActive={loading && !paused}
+            isLoading={loading}
+            rawData={rawData}
+            sessionId={sessionId}
+            onReportUpdate={handleReportUpdate}
+          />
+        </div>
+        <div className="lg:pl-6">
+          <ResearchResults 
+            result={result} 
+            reportData={reportData}
+            userName={userName}
+            userModels={userModels}
+            onSelectModel={onSelectModel}
           />
         </div>
       </div>
-    );
-  };
-
-  return (
-    <div className="prose prose-sm max-w-none dark:prose-invert">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <div className="flex items-center gap-2">
-          {reportConfidence > 0 && (
-            <Collapsible open={isConfidenceExpanded} onOpenChange={setIsConfidenceExpanded}>
-              <CollapsibleTrigger asChild>
-                <Button variant="outline" size="sm" className="flex items-center gap-1">
-                  <span>Confidence</span> 
-                  {renderConfidenceScore(reportConfidence)}
-                  {isConfidenceExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="mt-2 p-2 border rounded-md">
-                <p className="text-sm">
-                  {reportConfidence >= 0.8 
-                    ? "High confidence: This research has strong supporting evidence and comprehensive analysis."
-                    : reportConfidence >= 0.5 
-                    ? "Medium confidence: This research has reasonable supporting evidence but may benefit from additional sources."
-                    : "Low confidence: Consider this research preliminary. Additional sources and analysis are recommended."
-                  }
-                </p>
-              </CollapsibleContent>
-            </Collapsible>
-          )}
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1" 
-            onClick={copyToClipboard}
-          >
-            {isCopied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-            <span>{isCopied ? "Copied" : "Copy"}</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1" 
-            onClick={exportToPdf}
-          >
-            <FileText size={16} />
-            <span>PDF</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1" 
-            onClick={exportToDocx}
-          >
-            <FileSpreadsheet size={16} />
-            <span>DOCX</span>
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="flex items-center gap-1" 
-            onClick={exportToMarkdown}
-          >
-            <Download size={16} />
-            <span>MD</span>
-          </Button>
-        </div>
-      </div>
-      
-      {reportQuery && (
-        <h2 className="text-xl font-bold mt-0 mb-4">{reportQuery}</h2>
-      )}
-      
-      <Collapsible open={isReportExpanded} onOpenChange={setIsReportExpanded}>
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-lg font-semibold m-0">Report</h3>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm">
-              {isReportExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </Button>
-          </CollapsibleTrigger>
-        </div>
-        <CollapsibleContent className="transition-all">
-          <div className="whitespace-pre-wrap">{reportContent}</div>
-        </CollapsibleContent>
-      </Collapsible>
-      
-      {reportSources && reportSources.length > 0 && (
-        <Collapsible open={isSourcesExpanded} onOpenChange={setIsSourcesExpanded} className="mt-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold m-0">Sources ({reportSources.length})</h3>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm">
-                {isSourcesExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </Button>
-            </CollapsibleTrigger>
-          </div>
-          <CollapsibleContent className="transition-all">
-            <ul className="pl-5 mt-2">
-              {reportSources.map((source, index) => (
-                <li key={index} className="mb-1 text-sm">
-                  {source}
-                </li>
-              ))}
-            </ul>
-          </CollapsibleContent>
-        </Collapsible>
-      )}
     </div>
   );
 };
