@@ -1,161 +1,226 @@
+import React, { useState } from 'react';
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { FileText, Copy, Download, CheckCircle2 } from "lucide-react";
+import { saveAs } from 'file-saver';
+import { toast } from 'sonner';
+import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { captureEvent } from '@/integrations/posthog/client';
 
-import { useEffect, useState } from "react";
-import { Separator } from "@/components/ui/separator";
-import ReasoningPath from "./ReasoningPath";
-import ResearchResults, { ResearchResult } from "./ResearchResults";
-import { AlertTriangle, Check, Pause, Clock } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
-
-interface ResearchOutputProps {
-  loading: boolean;
-  completed: boolean;
-  paused: boolean;
-  result: ResearchResult | null;
-  error: string | null;
-  reasoningPath: string[];
-  sources: string[];
-  findings: any[];
-  rawData: Record<string, string>;
-  sessionId?: string;
+export interface ResearchOutputProps {
+  output: string;
+  isLoading?: boolean;
   userName?: string;
   userModels?: any[];
-  onSelectModel?: (modelId: string) => Promise<void>;
+  onSelectModel?: (modelId: string) => void;
 }
 
-const ResearchOutput = ({
-  loading,
-  completed,
-  paused,
-  result,
-  error,
-  reasoningPath,
-  sources,
-  findings,
-  rawData,
-  sessionId,
+const ResearchOutput: React.FC<ResearchOutputProps> = ({ 
+  output, 
+  isLoading = false, 
   userName,
-  userModels,
+  userModels = [],
   onSelectModel
-}: ResearchOutputProps) => {
-  const [reportData, setReportData] = useState<any>(null);
-  
-  useEffect(() => {
-    if (sessionId) {
-      // Try to load final report from session storage
-      try {
-        const sessionReportKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINAL_REPORT_CACHE, sessionId);
-        const cachedReport = localStorage.getItem(sessionReportKey);
-        
-        if (cachedReport) {
-          const parsedReport = JSON.parse(cachedReport);
-          console.log(`[${new Date().toISOString()}] 📂 Loaded final report from cache for session ${sessionId}`);
-          setReportData({
-            ...parsedReport,
-            isFinal: true
-          });
-        }
-      } catch (e) {
-        console.error("Error loading final report from cache:", e);
-      }
-    }
-  }, [sessionId]);
-  
-  const handleReportUpdate = (data: any) => {
-    console.log(`[${new Date().toISOString()}] 📊 Report update received:`, data);
-    setReportData(data);
-    
-    if (data.isFinal && sessionId) {
-      try {
-        const sessionReportKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.FINAL_REPORT_CACHE, sessionId);
-        localStorage.setItem(sessionReportKey, JSON.stringify(data));
-      } catch (e) {
-        console.error("Error caching final report:", e);
-      }
+}) => {
+  const navigate = useNavigate();
+  const [isCopied, setIsCopied] = useState(false);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-5/6" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-2/3" />
+      </div>
+    );
+  }
+
+  if (!output.trim()) {
+    return (
+      <div className="text-center space-y-6">
+        {userName ? (
+          <div className="space-y-4">
+            <h2 className="text-2xl font-bold">Hey, {userName}</h2>
+            <p className="text-muted-foreground text-lg">Who are you today?</p>
+            
+            {userModels && userModels.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-w-4xl mx-auto">
+                {userModels.map((model) => (
+                  <Card 
+                    key={model?.id || Math.random().toString()} 
+                    className="cursor-pointer hover:border-primary transition-colors duration-200"
+                    onClick={() => onSelectModel && model?.id && onSelectModel(model.id)}
+                  >
+                    <CardContent className="p-3">
+                      <div className="flex flex-col space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium truncate">{model?.name || "Unnamed Model"}</span>
+                          {model?.is_default && (
+                            <Badge variant="outline" className="text-xs px-1 py-0">Default</Badge>
+                          )}
+                        </div>
+                        
+                        {model?.domain && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            Domain: {model.domain}
+                          </span>
+                        )}
+                        
+                        {model?.expertise_level && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            Expertise: {model.expertise_level}
+                          </span>
+                        )}
+                        
+                        {model?.cognitive_style && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            Style: {model.cognitive_style}
+                          </span>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-muted-foreground mt-4">
+                <p>No user models found. Create one to get started!</p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-muted-foreground">No research output yet. Start a search to see results here.</p>
+        )}
+      </div>
+    );
+  }
+
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(output);
+      setIsCopied(true);
+      toast.success("Output copied to clipboard");
+      setTimeout(() => setIsCopied(false), 2000);
+      
+      captureEvent('research_output_copied', { 
+        output_length: output.length 
+      });
+    } catch (err) {
+      console.error("Failed to copy text:", err);
+      toast.error("Failed to copy text");
+      
+      captureEvent('research_output_copy_error', {
+        error: err instanceof Error ? err.message : String(err)
+      });
     }
   };
 
-  if (error) {
-    return (
-      <Alert variant="destructive" className="my-4">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    );
-  }
+  const exportToPdf = async () => {
+    try {
+      const { jsPDF } = await import('jspdf');
+      
+      const doc = new jsPDF();
+      
+      doc.setFontSize(16);
+      doc.text("Research Results", 20, 20);
+      
+      doc.setFontSize(12);
+      const splitText = doc.splitTextToSize(output, 170);
+      doc.text(splitText, 20, 30);
+      
+      doc.save("research-output.pdf");
+      toast.success("PDF downloaded successfully");
+      
+      captureEvent('research_output_exported', { 
+        format: 'pdf',
+        output_length: output.length
+      });
+    } catch (err) {
+      console.error("Failed to export as PDF:", err);
+      toast.error("Failed to export as PDF");
+      
+      captureEvent('research_output_export_error', {
+        format: 'pdf',
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
+  };
 
-  // Empty initial state styling - make sure it's not dark
-  if (!loading && !completed && !paused && !reasoningPath.length && !sources.length && !result) {
-    return (
-      <div className="relative bg-background min-h-[400px] rounded-lg border border-border p-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
-          <div className="flex items-center justify-center border-r border-border">
-            <p className="text-muted-foreground">Reasoning process will appear here...</p>
-          </div>
-          <div className="flex items-center justify-center">
-            <p className="text-muted-foreground">No research results yet. Start a query to see results here.</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const exportToDocx = async () => {
+    try {
+      const doc = new Document({
+        sections: [{
+          properties: {},
+          children: [
+            new Paragraph({
+              children: [
+                new TextRun({ text: "Research Results", bold: true, size: 28 }),
+              ],
+            }),
+            new Paragraph({
+              text: output,
+            }),
+          ],
+        }],
+      });
+      
+      const blob = await Packer.toBlob(doc);
+      saveAs(blob, "research-output.docx");
+      toast.success("DOCX downloaded successfully");
+      
+      captureEvent('research_output_exported', { 
+        format: 'docx',
+        output_length: output.length
+      });
+    } catch (err) {
+      console.error("Failed to export as DOCX:", err);
+      toast.error("Failed to export as DOCX");
+      
+      captureEvent('research_output_export_error', {
+        format: 'docx',
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
+  };
 
   return (
-    <div className="relative bg-background">
-      {paused && (
-        <Alert className="my-4 border-yellow-200 bg-yellow-50 text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
-          <Pause className="h-4 w-4" />
-          <AlertTitle>Research Paused</AlertTitle>
-          <AlertDescription>
-            The research process is currently paused. You can resume it at any time.
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      {completed && (
-        <Alert variant="default" className="my-4 border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-300">
-          <Check className="h-4 w-4" />
-          <AlertTitle>Research Completed</AlertTitle>
-          <AlertDescription>
-            The research has been completed successfully.
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      {!completed && loading && !paused && (
-        <Alert variant="default" className="my-4 border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300">
-          <Clock className="h-4 w-4 animate-pulse" />
-          <AlertTitle>Research In Progress</AlertTitle>
-          <AlertDescription>
-            The research is in progress. This may take a few minutes...
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="lg:border-r lg:pr-6">
-          <ReasoningPath
-            reasoningPath={reasoningPath}
-            sources={sources}
-            findings={findings}
-            isActive={loading && !paused}
-            isLoading={loading}
-            rawData={rawData}
-            sessionId={sessionId}
-            onReportUpdate={handleReportUpdate}
-          />
-        </div>
-        <div className="lg:pl-6">
-          <ResearchResults 
-            result={result} 
-            reportData={reportData}
-            userName={userName}
-            userModels={userModels}
-            onSelectModel={onSelectModel}
-          />
-        </div>
+    <div className="prose prose-sm max-w-none dark:prose-invert">
+      <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1" 
+          onClick={copyToClipboard}
+        >
+          {isCopied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
+          <span>{isCopied ? "Copied" : "Copy"}</span>
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1" 
+          onClick={exportToPdf}
+        >
+          <FileText size={16} />
+          <span>PDF</span>
+        </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1" 
+          onClick={exportToDocx}
+        >
+          <Download size={16} />
+          <span>DOCX</span>
+        </Button>
       </div>
+      
+      <div className="whitespace-pre-wrap">{output}</div>
     </div>
   );
 };
