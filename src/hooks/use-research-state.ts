@@ -23,7 +23,7 @@ export const useResearchState = () => {
 
   // Reset research state
   const resetResearchState = useCallback(() => {
-    console.log(`[${new Date().toISOString()}] 🔄 Resetting research state completely`);
+    console.log(`[${new Date().toISOString()}] 🔄 Resetting research state`);
     
     setResearchOutput("");
     setSources([]);
@@ -37,6 +37,7 @@ export const useResearchState = () => {
     setProgressEvents([]);
     setCurrentStage("Initializing research");
     setReportData(undefined);
+    setRawData({});
     
     localStorage.removeItem('CURRENT_STATE');
     localStorage.removeItem('CURRENT_RESEARCH_ID');

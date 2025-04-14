@@ -48,13 +48,15 @@ interface ResearchHistory {
   query: string;
   user_model: string;
   use_case: string;
-  created_at: string;
 }
 
 const ResearchPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
+  const currentSessionIdRef = useRef<string | null>(sessionId || null);
+  const researchIdRef = useRef<string | null>(null);
+  const clientIdRef = useRef<string>(getClientId());
   
   const { 
     isLoading, setIsLoading,
@@ -82,8 +84,8 @@ const ResearchPage = () => {
     humanApprovalRequest, setHumanApprovalRequest,
     handleApprovalAction
   } = useHumanApproval({
-    currentSessionIdRef: useRef<string | null>(sessionId || null),
-    researchIdRef: useRef<string | null>(null)
+    currentSessionIdRef,
+    researchIdRef
   });
 
   const { startResearchStream } = useResearchStream({
@@ -115,9 +117,6 @@ const ResearchPage = () => {
   const [displayName, setDisplayName] = useState<string>("");
   
   const eventSourceRef = useRef<EventSource | null>(null);
-  const researchIdRef = useRef<string | null>(null);
-  const currentSessionIdRef = useRef<string | null>(sessionId || null);
-  const clientIdRef = useRef<string>(getClientId());
   const initialEventReceivedRef = useRef<boolean>(false);
   const { toast: uiToast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -441,15 +440,16 @@ const ResearchPage = () => {
       });
       
       if (currentSessionIdRef.current) {
-        saveResearchState({
+        await saveResearchState({
           research_id: newResearchId,
           session_id: currentSessionIdRef.current,
           status: 'in_progress',
           query: query,
           user_model: JSON.stringify(userModelPayload),
           active_tab: "reasoning",
-          reasoning_path: initialReasoningPath
-        }).catch(err => console.error("Error saving initial research state:", err));
+          reasoning_path: initialReasoningPath,
+          client_id: clientIdRef.current
+        });
       }
       
       const modelToUse = selectedLLM === 'auto' ? 'claude-3.5-sonnet' : selectedLLM;

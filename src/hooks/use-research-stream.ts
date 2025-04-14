@@ -6,16 +6,16 @@ import { HumanApprovalRequest } from "@/hooks/use-human-approval";
 
 interface UseResearchStreamProps {
   setIsLoading: (loading: boolean) => void;
-  setSources: (sources: string[]) => void;
-  setFindings: (findings: any[]) => void;
-  setReasoningPath: (path: string[]) => void;
-  setResearchOutput: (output: string) => void;
+  setSources: (sources: string[] | ((prev: string[]) => string[])) => void;
+  setFindings: (findings: any[] | ((prev: any[]) => any[])) => void;
+  setReasoningPath: (path: string[] | ((prev: string[]) => string[])) => void;
+  setResearchOutput: (output: string | ((prev: string) => string)) => void;
   setActiveTab: (tab: string) => void;
-  setProgressEvents: (events: string[]) => void;
+  setProgressEvents: (events: string[] | ((prev: string[]) => string[])) => void;
   setCurrentStage: (stage: string) => void;
-  setRawData: (data: Record<string, string>) => void;
+  setRawData: (data: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
   setHumanApprovalRequest: (request: HumanApprovalRequest | null) => void;
-  setReportData: (data: any) => void;
+  setReportData: (data: any | ((prev: any) => any)) => void;
   sources: string[];
   findings: any[];
   reasoningPath: string[];
