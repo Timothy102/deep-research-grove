@@ -91,7 +91,9 @@ const ResearchPage = () => {
     findings,
     reasoningPath,
     researchObjective,
-    reportData
+    reportData,
+    progressEvents,
+    rawData
   });
   
   const [history, setHistory] = useState<ResearchHistoryEntry[]>([]);

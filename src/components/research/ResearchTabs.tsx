@@ -52,7 +52,7 @@ export const ResearchTabs: React.FC<ResearchTabsProps> = ({
       <TabsContent value="output" className="space-y-4">
         <ResearchOutput 
           output={researchOutput} 
-          isLoading={isLoading && !(hasReportSections && reportData.sections.length > 0)}
+          isLoading={isLoading && !(hasReportSections && reportData?.sections?.length > 0)}
           reportData={reportData}
           sessionId={sessionId}
           showReport={true}

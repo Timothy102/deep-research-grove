@@ -19,6 +19,8 @@ interface ResearchStreamProps {
   reasoningPath: string[];
   researchObjective: string;
   reportData: any;
+  progressEvents: string[]; // Added this prop
+  rawData: Record<string, string>; // Added this prop
 }
 
 export const useResearchStream = ({
@@ -36,7 +38,9 @@ export const useResearchStream = ({
   findings,
   reasoningPath,
   researchObjective,
-  reportData
+  reportData,
+  progressEvents, // Using the prop
+  rawData // Using the prop
 }: ResearchStreamProps) => {
   const startResearchStream = useCallback(async (
     userModelPayload: any,
