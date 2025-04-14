@@ -124,6 +124,17 @@ textarea:placeholder-shown {
   border-left: 3px solid hsl(var(--primary));
 }
 
+/* Restore the search button styling */
+form button[type="submit"] {
+  background-color: #1A1F2C;
+  color: white;
+}
+
+form button[type="submit"]:hover {
+  background-color: #1A1F2C;
+  opacity: 0.9;
+}
+
 /* Mobile-specific adjustments */
 @media (max-width: 640px) {
   .sidebar-button-container {

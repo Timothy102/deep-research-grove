@@ -2,13 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, ChevronDown, ChevronUp } from "lucide-react";
 import { getUserModels } from "@/services/userModelService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface ResearchFormProps {
   onSubmit: (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => Promise<void>;
@@ -140,7 +139,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
             <SelectItem value="deepseek-ai/DeepSeek-R1">{getModelDisplayName('deepseek-ai/DeepSeek-R1')}</SelectItem>
           </SelectContent>
         </Select>
-        <Button type="submit" disabled={isLoading}>
+        <Button type="submit" disabled={isLoading} className="bg-black hover:bg-black/90 text-white">
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
