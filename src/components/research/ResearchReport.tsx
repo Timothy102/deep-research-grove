@@ -22,15 +22,17 @@ const ResearchReport = ({
 }: ResearchReportProps) => {
   // We use sessionId to avoid reopening the dialog when switching sessions
   const [lastSessionId, setLastSessionId] = useState<string | null>(null);
+  const [hasShownToast, setHasShownToast] = useState<boolean>(false);
   
   useEffect(() => {
     if (sessionId && sessionId !== lastSessionId) {
       setLastSessionId(sessionId);
+      setHasShownToast(false);
     }
   }, [sessionId, lastSessionId]);
   
   useEffect(() => {
-    if (isComplete && finalReport && sessionId === lastSessionId) {
+    if (isComplete && finalReport && sessionId === lastSessionId && !hasShownToast) {
       toast.success("Research report is ready", {
         description: "Your complete research report is now available",
         action: {
@@ -38,8 +40,24 @@ const ResearchReport = ({
           onClick: () => {}
         }
       });
+      setHasShownToast(true);
     }
-  }, [isComplete, finalReport, sessionId, lastSessionId]);
+  }, [isComplete, finalReport, sessionId, lastSessionId, hasShownToast]);
+
+  // Add an effect to listen for report update events directly
+  useEffect(() => {
+    const handleReportUpdate = (event: CustomEvent) => {
+      if (!event.detail || !event.detail.payload) return;
+      
+      console.log(`[${new Date().toISOString()}] 📝 Report update event received in ResearchReport:`, event.detail);
+    };
+    
+    window.addEventListener('research_report_update', handleReportUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('research_report_update', handleReportUpdate as EventListener);
+    };
+  }, []);
 
   return (
     <ReportBuildupDialog

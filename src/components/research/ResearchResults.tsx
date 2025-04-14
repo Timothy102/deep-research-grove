@@ -493,15 +493,18 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
     const payload = event.detail?.payload;
     if (!payload) return;
     
-    if (payload.event_type === "report_update" && payload.data) {
-      console.log(`[${new Date().toISOString()}] 📊 Received report update:`, payload.data);
+    if (payload.eventType === "report_update" || payload.event_type === "report_update") {
+      const data = payload.data || payload.new?.data;
+      if (!data) return;
+      
+      console.log(`[${new Date().toISOString()}] 📊 Received report update:`, data);
       
       const newSynthesis: ReportSynthesis = {
-        synthesis: payload.data.synthesis || "",
-        confidence: payload.data.confidence || 0,
-        timestamp: payload.data.timestamp || new Date().toISOString(),
-        node_id: payload.data.node_id || "",
-        query: payload.data.query || currentResult.query
+        synthesis: data.synthesis || "",
+        confidence: data.confidence || 0,
+        timestamp: data.timestamp || new Date().toISOString(),
+        node_id: data.node_id || "",
+        query: data.query || currentResult.query
       };
       
       setReportSyntheses(prev => [...prev, newSynthesis]);
@@ -513,17 +516,18 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       return;
     }
     
-    if (payload.event === "final_report" && payload.data) {
-      console.log(`[${new Date().toISOString()}] 📊 Received final report:`, payload.data);
+    if ((payload.eventType === "final_report" || payload.event === "final_report" || payload.event_type === "final_report") && payload.data) {
+      const data = payload.data;
+      console.log(`[${new Date().toISOString()}] 📊 Received final report:`, data);
       
       const report: FinalReport = {
-        query: payload.data.query || currentResult.query,
-        synthesis: payload.data.synthesis || "",
-        confidence: payload.data.confidence || 0,
-        reasoning_path: payload.data.reasoning_path || [],
-        findings: payload.data.findings || [],
-        sources: payload.data.sources || [],
-        timestamp: payload.data.timestamp || new Date().toISOString()
+        query: data.query || currentResult.query,
+        synthesis: data.synthesis || "",
+        confidence: data.confidence || 0,
+        reasoning_path: data.reasoning_path || [],
+        findings: data.findings || [],
+        sources: data.sources || [],
+        timestamp: data.timestamp || new Date().toISOString()
       };
       
       setFinalReport(report);
