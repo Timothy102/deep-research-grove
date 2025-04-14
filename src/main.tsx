@@ -60,7 +60,7 @@ supabase.channel('research_states_changes')
         
         // Special handling for report update events
         if (payload.new && typeof payload.new === 'object' && 'data' in payload.new && payload.new.data) {
-          // Check for report_update event
+          // Check for report_update event  
           const hasEventType = 'event_type' in payload.new && typeof payload.new.event_type === 'string';
           const hasEvent = 'event' in payload.new && typeof payload.new.event === 'string';
           

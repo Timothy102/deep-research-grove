@@ -34,11 +34,7 @@ const ResearchReport = ({
   useEffect(() => {
     if (isComplete && finalReport && sessionId === lastSessionId && !hasShownToast) {
       toast.success("Research report is ready", {
-        description: "Your complete research report is now available",
-        action: {
-          label: "View",
-          onClick: () => {}
-        }
+        description: "Your complete research report is now available"
       });
       setHasShownToast(true);
     }
@@ -58,6 +54,11 @@ const ResearchReport = ({
       window.removeEventListener('research_report_update', handleReportUpdate as EventListener);
     };
   }, []);
+
+  // Only render the dialog if explicitly requested to open
+  if (!isOpen) {
+    return null;
+  }
 
   return (
     <ReportBuildupDialog

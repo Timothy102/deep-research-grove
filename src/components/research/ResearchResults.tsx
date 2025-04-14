@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { getLatestSessionState } from "@/services/researchStateService";
-import ResearchReport from "./ResearchReport";
+import LiveReportView from "./LiveReportView";
 
 export type Finding = {
   content?: string;
@@ -307,7 +307,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const [reportSyntheses, setReportSyntheses] = useState<ReportSynthesis[]>([]);
   const [finalReport, setFinalReport] = useState<FinalReport | null>(null);
   const [isReportComplete, setIsReportComplete] = useState(false);
-  const [showReportDialog, setShowReportDialog] = useState(false);
   
   useEffect(() => {
     if (result) {
@@ -331,7 +330,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         setReportSyntheses([]);
         setFinalReport(null);
         setIsReportComplete(false);
-        setShowReportDialog(false);
       }
     }
   }, [result, currentResult]);
@@ -508,11 +506,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       };
       
       setReportSyntheses(prev => [...prev, newSynthesis]);
-      
-      if (!showReportDialog && reportSyntheses.length === 0) {
-        setShowReportDialog(true);
-      }
-      
       return;
     }
     
@@ -532,8 +525,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       
       setFinalReport(report);
       setIsReportComplete(true);
-      setShowReportDialog(true);
-      
       return;
     }
     
@@ -616,7 +607,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         }
       }
     }
-  }, [currentResult, showReportDialog, reportSyntheses.length]);
+  }, [currentResult]);
   
   useEffect(() => {
     window.addEventListener('research_state_update', handleRealtimeUpdate as EventListener);
@@ -700,86 +691,75 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   };
 
   return (
-    <div ref={resultRef} className="animate-fade-in">
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold mb-1">Research Results</h2>
-          <div className="flex items-center space-x-2">
-            {(reportSyntheses.length > 0 || finalReport) && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="flex items-center gap-1 text-primary"
-                onClick={() => setShowReportDialog(true)}
-              >
-                <FileText className="h-4 w-4" />
-                <span>View Report</span>
-              </Button>
-            )}
-            
-            {currentResult.session_id && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="flex items-center gap-1 text-primary"
-                onClick={handleSessionClick}
-              >
-                <MessageSquare className="h-4 w-4" />
-                <span>View Session</span>
-              </Button>
-            )}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="md:col-span-2" ref={resultRef}>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold mb-1">Research Results</h2>
+            <div className="flex items-center space-x-2">
+              {currentResult.session_id && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex items-center gap-1 text-primary"
+                  onClick={handleSessionClick}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  <span>View Session</span>
+                </Button>
+              )}
+            </div>
           </div>
+          <p className="text-sm text-muted-foreground">Query: {currentResult.query}</p>
         </div>
-        <p className="text-sm text-muted-foreground">Query: {currentResult.query}</p>
-      </div>
 
-      <Tabs defaultValue="answer">
-        <TabsList className="mb-4">
-          <TabsTrigger value="answer">Answer</TabsTrigger>
-          <TabsTrigger value="sources">
-            Sources ({currentResult.sources.length})
-            {currentResult.findings && currentResult.findings.length > 0 && (
-              <Badge variant="outline" className="ml-2 text-xs">
-                {currentResult.findings.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="reasoning">Reasoning Path</TabsTrigger>
-        </TabsList>
+        <Tabs defaultValue="answer">
+          <TabsList className="mb-4">
+            <TabsTrigger value="answer">Answer</TabsTrigger>
+            <TabsTrigger value="sources">
+              Sources ({currentResult.sources.length})
+              {currentResult.findings && currentResult.findings.length > 0 && (
+                <Badge variant="outline" className="ml-2 text-xs">
+                  {currentResult.findings.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="reasoning">Reasoning Path</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="answer">
+            <ResearchAnswer answer={currentResult.answer} />
+          </TabsContent>
+          
+          <TabsContent value="sources">
+            <SourcesList 
+              sources={currentResult.sources} 
+              findings={currentResult.findings} 
+            />
+          </TabsContent>
+          
+          <TabsContent value="reasoning">
+            <ReasoningPath 
+              path={currentResult.reasoning_path} 
+              syntheses={currentResult.syntheses}
+            />
+          </TabsContent>
+        </Tabs>
         
-        <TabsContent value="answer">
-          <ResearchAnswer answer={currentResult.answer} />
-        </TabsContent>
-        
-        <TabsContent value="sources">
-          <SourcesList 
-            sources={currentResult.sources} 
-            findings={currentResult.findings} 
-          />
-        </TabsContent>
-        
-        <TabsContent value="reasoning">
-          <ReasoningPath 
-            path={currentResult.reasoning_path} 
-            syntheses={currentResult.syntheses}
-          />
-        </TabsContent>
-      </Tabs>
-      
-      <div className="mt-6 text-sm text-right text-muted-foreground">
-        <span>Confidence score: {(currentResult.confidence * 100).toFixed(1)}%</span>
+        <div className="mt-6 text-sm text-right text-muted-foreground">
+          <span>Confidence score: {(currentResult.confidence * 100).toFixed(1)}%</span>
+        </div>
       </div>
       
-      {(reportSyntheses.length > 0 || finalReport) && (
-        <ResearchReport 
-          isOpen={showReportDialog}
-          onClose={() => setShowReportDialog(false)}
+      {/* Live Report View */}
+      <div className="md:col-span-1 border-l pl-6 h-[calc(100vh-200px)]">
+        <LiveReportView 
           syntheses={reportSyntheses}
           finalReport={finalReport}
           isComplete={isReportComplete}
           sessionId={currentSessionId}
         />
-      )}
+      </div>
     </div>
   );
 };
