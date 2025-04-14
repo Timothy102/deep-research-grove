@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { Plus, History } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { LOCAL_STORAGE_KEYS, saveSessionData } from '@/lib/constants';
@@ -9,6 +9,30 @@ import { LOCAL_STORAGE_KEYS, saveSessionData } from '@/lib/constants';
 export const SidebarButtons = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    const savedState = localStorage.getItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE);
+    return savedState !== null ? savedState === 'true' : false;
+  });
+
+  useEffect(() => {
+    const handleSidebarToggle = (event: CustomEvent) => {
+      setSidebarOpen(event.detail.open);
+    };
+    
+    window.addEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
+    
+    return () => {
+      window.removeEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
+    };
+  }, []);
+
+  const toggleSidebar = () => {
+    const newState = !sidebarOpen;
+    setSidebarOpen(newState);
+    localStorage.setItem(LOCAL_STORAGE_KEYS.SIDEBAR_STATE, String(newState));
+    // Dispatch a custom event that ResearchPage can listen for
+    window.dispatchEvent(new CustomEvent('sidebar-toggle', { detail: { open: newState } }));
+  };
 
   const handleNewChat = () => {
     try {
@@ -73,6 +97,16 @@ export const SidebarButtons = () => {
         aria-label="New chat"
       >
         <Plus className="h-5 w-5" />
+      </Button>
+      
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleSidebar}
+        className="rounded-full bg-background hover:bg-secondary"
+        aria-label="Research history"
+      >
+        <History className="h-5 w-5" />
       </Button>
     </div>
   );

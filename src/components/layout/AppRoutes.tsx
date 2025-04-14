@@ -9,6 +9,7 @@ import LandingPage from '@/pages/LandingPage';
 import AuthPage from '@/pages/AuthPage';
 import UserModelsPage from '@/pages/UserModelsPage';
 import NotFound from '@/pages/NotFound';
+import SidebarButtons from './SidebarButtons';
 import { configureModalApi } from '@/utils/apiConfig';
 
 export const AppRoutes = () => {
@@ -77,14 +78,17 @@ export const AppRoutes = () => {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/auth" element={<AuthPage />} />
-      <Route path="/research/:sessionId?" element={<ResearchPage />} />
-      <Route path="/profile" element={<ProfilePage />} />
-      <Route path="/models" element={<UserModelsPage />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <>
+      <SidebarButtons />
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/research/:sessionId?" element={<ResearchPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/models" element={<UserModelsPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
   );
 };
 

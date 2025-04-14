@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import {
   saveResearchState, 
   updateResearchState, 
   getResearchState, 
-  getLatestSessionState,
+  getLatestSessionState 
 } from "@/services/researchStateService";
 import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted, getUserModels } from "@/services/userModelService";
 import { submitHumanFeedback } from "@/services/humanInteractionService";
@@ -389,64 +389,11 @@ const ResearchPage = () => {
           pollResearchState(sessionState.research_id);
         }
       }
-    } catch (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error loading session data:`, error);
     }
-  };
-
-  const pollResearchState = (researchId: string) => {
-    console.log(`[${new Date().toISOString()}] 🔄 Starting polling for research state:`, researchId);
-    
-    const checkInterval = setInterval(async () => {
-      if (!currentSessionIdRef.current) {
-        clearInterval(checkInterval);
-        return;
-      }
-      
-      try {
-        const state = await getResearchState(researchId, currentSessionIdRef.current);
-        
-        if (state) {
-          console.log(`[${new Date().toISOString()}] 📊 Polled state update:`, {
-            status: state.status,
-            hasAnswer: !!state.answer,
-            sourceCount: state.sources?.length || 0,
-            findingsCount: state.findings?.length || 0
-          });
-          
-          if (state.status === 'completed') {
-            console.log(`[${new Date().toISOString()}] ✅ Research completed according to polled state`);
-            setIsLoading(false);
-            clearInterval(checkInterval);
-            
-            // Update UI with final state
-            if (state.answer) setResearchOutput(state.answer);
-            if (state.sources) setSources(state.sources);
-            if (state.findings) setFindings(state.findings);
-            if (state.reasoning_path) setReasoningPath(state.reasoning_path);
-            if (state.report_data) setReportData(state.report_data);
-            
-            setActiveTab("output");
-          } else if (state.status === 'error') {
-            console.error(`[${new Date().toISOString()}] ❌ Research error according to polled state:`, state.error);
-            setIsLoading(false);
-            clearInterval(checkInterval);
-            
-            if (state.error) {
-              toast.error(state.error);
-            } else {
-              toast.error("An error occurred during research");
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Error polling research state:", err);
-      }
-    }, 5000); // Poll every 5 seconds
-    
-    // Return interval ID to clear it later
-    return checkInterval;
-  };
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] ❌ Error loading session data:`, error);
+  }
+};
 
   const handleResearch = async (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => {
     if (!query.trim()) {
@@ -697,11 +644,12 @@ const ResearchPage = () => {
       const rawEventData = JSON.stringify(data, null, 2);
       
       setRawData(prev => {
-        const existing = prev[nodeId] || '';
-        return {
-          ...prev,
-          [nodeId]: existing ? `${existing}\n${rawEventData}` : rawEventData
-        };
+        const existingData = prev[nodeId] || '';
+        const updatedData = existingData 
+          ? `${existingData}\n${rawEventData}`
+          : rawEventData;
+        
+        return { ...prev, [nodeId]: updatedData };
       });
     }
     
@@ -819,6 +767,7 @@ const ResearchPage = () => {
           }).catch(err => console.error("Error updating reasoning path:", err));
         }
         break;
+      // Add new case for report_update events
       case "report_update":
         console.log(`[${new Date().toISOString()}] 📄 Received report update:`, data.data);
         
@@ -830,21 +779,25 @@ const ResearchPage = () => {
           query: data.data.query
         };
         
+        // Update report data with new section
         setReportData(prev => {
           const existingData = prev || { sections: [] };
           
+          // Check if we already have this section
           const sectionIndex = existingData.sections.findIndex(
             s => s.node_id === reportUpdate.node_id
           );
           
           let updatedSections;
           if (sectionIndex >= 0) {
+            // Update existing section
             updatedSections = [...existingData.sections];
             updatedSections[sectionIndex] = {
               ...updatedSections[sectionIndex],
               ...reportUpdate
             };
           } else {
+            // Add new section
             updatedSections = [...existingData.sections, reportUpdate];
           }
           
@@ -862,12 +815,15 @@ const ResearchPage = () => {
         
         setCurrentStage("Updating research report");
         break;
+
+      // Add new case for final_report events
       case "final_report":
         console.log(`[${new Date().toISOString()}] 📝 Received final report:`, data.data);
         
         setReportData(prev => {
           const existingData = prev || { sections: [] };
           
+          // Create a root section if it doesn't exist
           const rootSection = {
             node_id: 'root',
             synthesis: data.data.synthesis || '',
@@ -876,16 +832,19 @@ const ResearchPage = () => {
             is_root: true
           };
           
+          // Check if we already have a root section
           const rootIndex = existingData.sections.findIndex(s => s.is_root);
           
           let updatedSections;
           if (rootIndex >= 0) {
+            // Update existing root section
             updatedSections = [...existingData.sections];
             updatedSections[rootIndex] = {
               ...updatedSections[rootIndex],
               ...rootSection
             };
           } else {
+            // Add root section to the beginning
             updatedSections = [rootSection, ...existingData.sections];
           }
           
@@ -908,6 +867,7 @@ const ResearchPage = () => {
         setResearchOutput(data.data.synthesis || '');
         setCurrentStage("Finalizing research report");
         break;
+
       case "complete":
         const finalAnswer = data.data.answer || "";
         const finalSources = data.data.sources || [];
@@ -948,233 +908,4 @@ const ResearchPage = () => {
           description: data.data.error || "Unknown error",
           variant: "destructive",
         });
-        setIsLoading(false);
-        break;
-    }
-  };
-
-  const handleOnboardingComplete = async (model: any) => {
-    setShowOnboarding(false);
-    await markOnboardingCompleted();
-    loadUserModels();
-    return Promise.resolve();
-  };
-
-  return (
-    <div className="container mx-auto px-4 py-8 flex flex-col lg:flex-row">
-      {/* Sidebar */}
-      <div className={cn(
-        "lg:w-1/4 lg:pr-6 lg:border-r transition-all duration-300 ease-in-out",
-        sidebarOpen ? "block" : "hidden lg:block"
-      )}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Research History</h2>
-          <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(false)} className="lg:hidden">
-            Close
-          </Button>
-        </div>
-
-        <ResearchHistorySidebar 
-          history={groupedHistory} 
-          onSessionClick={(sessionId, query) => {
-            if (sessionId !== currentSessionIdRef.current) {
-              navigate(`/research/${sessionId}`);
-            }
-          }} 
-          currentSessionId={sessionId}
-          isOpen={sidebarOpen}
-          onToggle={toggleSidebar}
-          onHistoryItemClick={(item) => {
-            console.log("History item clicked:", item);
-          }}
-        />
-      </div>
-
-      {/* Main Content */}
-      <div className={cn(
-        "flex-1 lg:pl-6 mt-4 lg:mt-0 overflow-hidden",
-        sidebarOpen ? "hidden lg:block" : "block"
-      )}>
-        {/* Mobile Header */}
-        <div className="flex items-center justify-between mb-6 lg:hidden">
-          <Button variant="outline" size="sm" onClick={toggleSidebar}>
-            History
-          </Button>
-          
-          <h1 className="text-2xl font-bold">Research</h1>
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => {
-              const newSessionId = uuidv4();
-              navigate(`/research/${newSessionId}`);
-              window.dispatchEvent(new CustomEvent('new-chat-requested', { 
-                detail: { sessionId: newSessionId }
-              }));
-            }}
-          >
-            <MessageSquarePlus className="h-5 w-5" />
-          </Button>
-        </div>
-        
-        {/* Desktop Header */}
-        <div className="hidden lg:flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Research Assistant</h1>
-          
-          <div className="flex items-center space-x-4">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => {
-                const newSessionId = uuidv4();
-                navigate(`/research/${newSessionId}`);
-                window.dispatchEvent(new CustomEvent('new-chat-requested', { 
-                  detail: { sessionId: newSessionId }
-                }));
-              }}
-              className="flex items-center space-x-2"
-            >
-              <MessageSquarePlus className="h-5 w-5" />
-              <span>New Research</span>
-            </Button>
-            
-            {user && (
-              <div className="flex items-center space-x-2">
-                <div className="text-sm text-muted-foreground">
-                  {displayName}
-                </div>
-                <Button variant="ghost" size="sm" onClick={signOut}>
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Research Form */}
-        <div className="mb-8">
-          <ResearchForm 
-            initialObjective={researchObjective}
-            onSubmit={handleResearch}
-            isLoading={isLoading}
-            userModels={userModels}
-            onModelSelect={selectUserModel}
-          />
-        </div>
-        
-        {/* Loading Indicator */}
-        {isLoading && (
-          <div className="mb-6">
-            <ProgressIndicator 
-              currentStage={currentStage}
-              steps={reasoningPath.length}
-              sources={sources.length}
-              findings={findings.length}
-              events={progressEvents}
-              isLoading={isLoading}
-            />
-          </div>
-        )}
-        
-        {/* Results Area */}
-        <Tabs 
-          value={activeTab} 
-          onValueChange={setActiveTab}
-          className={cn(
-            "transition-opacity",
-            (isLoading || researchOutput || sources.length > 0 || reasoningPath.length > 0) 
-              ? "opacity-100" 
-              : "opacity-0"
-          )}
-        >
-          <TabsList className="mb-4">
-            <TabsTrigger value="output">Output</TabsTrigger>
-            <TabsTrigger value="sources">
-              Sources ({sources.length})
-            </TabsTrigger>
-            <TabsTrigger value="reasoning">
-              Reasoning Path ({reasoningPath.length})
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="output" className="min-h-[400px]">
-            <ResearchOutput 
-              output={researchOutput} 
-              isLoading={isLoading && reasoningPath.length < 3}
-              userName={!isLoading && !researchOutput ? displayName : undefined}
-              userModels={!isLoading && !researchOutput ? userModels : undefined}
-              onSelectModel={!isLoading && !researchOutput ? selectUserModel : undefined}
-              reportData={reportData}
-              sessionId={sessionId}
-              showReport={true}
-            />
-          </TabsContent>
-          
-          <TabsContent value="sources" className="min-h-[400px]">
-            <SourcesList 
-              sources={sources} 
-              findings={findings}
-              isLoading={isLoading && sources.length === 0}
-            />
-          </TabsContent>
-          
-          <TabsContent value="reasoning" className="min-h-[400px]">
-            <ReasoningPath 
-              path={reasoningPath} 
-              isLoading={isLoading}
-              reportData={reportData}
-            />
-          </TabsContent>
-        </Tabs>
-        
-        {/* Human Approval Dialog */}
-        {showApprovalDialog && humanApprovalRequest && (
-          <HumanApprovalDialog
-            content={humanApprovalRequest.content}
-            query={humanApprovalRequest.query}
-            callId={humanApprovalRequest.call_id}
-            nodeId={humanApprovalRequest.node_id}
-            approvalType={humanApprovalRequest.approval_type}
-            isOpen={showApprovalDialog}
-            onClose={() => setShowApprovalDialog(false)}
-            onApprove={async (callId, nodeId) => {
-              try {
-                await submitFeedback(callId, true);
-                toast.success("Feedback submitted successfully");
-                setShowApprovalDialog(false);
-                return Promise.resolve();
-              } catch (error) {
-                toast.error("Failed to submit feedback");
-                throw error;
-              }
-            }}
-            onReject={async (callId, nodeId, reason) => {
-              try {
-                await submitFeedback(callId, false, reason);
-                toast.success("Feedback submitted successfully");
-                setShowApprovalDialog(false);
-                return Promise.resolve();
-              } catch (error) {
-                toast.error("Failed to submit feedback");
-                throw error;
-              }
-            }}
-          />
-        )}
-        
-        {/* Onboarding Dialog */}
-        <UserModelOnboarding
-          isOpen={showOnboarding}
-          onClose={async () => {
-            setShowOnboarding(false);
-            await markOnboardingCompleted();
-          }}
-          onComplete={handleOnboardingComplete}
-        />
-      </div>
-    </div>
-  );
-};
-
-export default ResearchPage;
+        setIsLoading

@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&display=swap');
 
 @tailwind base;
@@ -59,78 +58,6 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-    font-family: 'Inter', sans-serif;
-  }
-  
-  /* Style the research section */
-  .research-section {
-    display: flex;
-  }
-  
-  .research-history {
-    width: 25%;
-    border-right: 1px solid #eee;
-    height: calc(100vh - 3.5rem);
-    overflow-y: auto;
-    padding: 1rem;
-  }
-  
-  .research-content {
-    width: 75%;
-    padding: 2rem;
-  }
-  
-  /* Research form styling */
-  form {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  
-  /* Style the persona cards */
-  .persona-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .persona-card {
-    border: 1px solid #eee;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    transition: border-color 0.2s;
-  }
-  
-  .persona-card:hover {
-    border-color: #000;
-  }
-  
-  /* Match header style */
-  header {
-    border-bottom: 1px solid #eee;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 1rem;
-    height: 3.5rem;
-  }
-  
-  /* Main layout */
-  .main-layout {
-    display: flex;
-    min-height: calc(100vh - 3.5rem);
-  }
-  
-  @media (max-width: 768px) {
-    .research-history {
-      display: none;
-    }
-    
-    .research-content {
-      width: 100%;
-      padding: 1rem;
-    }
   }
 }
 
@@ -187,22 +114,54 @@
     isolation: isolate;
   }
   
-  /* Left-side research history */
-  .research-history-section {
-    width: 280px;
-    border-right: 1px solid #eee;
-    height: 100%;
+  /* Collapsible animations */
+  .collapsible-content-enter {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
   }
   
-  .research-history-heading {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    padding: 1rem 1rem 0;
+  .collapsible-content-enter-active {
+    max-height: 1000px;
+    opacity: 1;
   }
   
-  /* Research assistant layout */
-  .research-assistant-container {
-    display: flex;
+  .collapsible-content-exit {
+    max-height: 1000px;
+    opacity: 1;
+    transition: max-height 0.3s ease-in, opacity 0.2s ease-in;
+  }
+  
+  .collapsible-content-exit-active {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+  }
+  
+  /* Neo-morphism style for sources and findings */
+  .neo-morphism {
+    box-shadow: 
+      0 2px 6px rgba(0, 0, 0, 0.05),
+      0 1px 3px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease;
+  }
+  
+  .dark .neo-morphism {
+    box-shadow: 
+      0 2px 6px rgba(0, 0, 0, 0.2),
+      0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .neo-morphism:hover {
+    box-shadow: 
+      0 3px 8px rgba(0, 0, 0, 0.08),
+      0 1px 4px rgba(0, 0, 0, 0.05);
+  }
+  
+  .dark .neo-morphism:hover {
+    box-shadow: 
+      0 3px 8px rgba(0, 0, 0, 0.25),
+      0 1px 4px rgba(0, 0, 0, 0.15);
   }
 }

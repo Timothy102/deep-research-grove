@@ -1,193 +1,203 @@
 
-import { supabase } from "@/integrations/supabase/client";
-import { Json } from "@/integrations/supabase/types";
+import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
+import { ReportData } from "@/components/research/ResearchOutput";
 
 export interface ResearchState {
   id?: string;
-  research_id: string; // Making this required to match database requirements
+  research_id: string;
   session_id: string;
   status: 'in_progress' | 'completed' | 'error' | 'awaiting_human_input';
   query?: string;
   answer?: string;
   sources?: string[];
-  findings?: any[];
   reasoning_path?: string[];
-  user_model?: string;
   active_tab?: string;
-  client_id?: string;
-  error?: string;
-  human_interactions?: any;
-  report_data?: any;
-  completed_nodes?: number; 
-  created_at?: string;
   updated_at?: string;
-  user_id?: string; // Added user_id as optional to match database requirements
+  error?: string;
+  human_interactions?: any[];
+  client_id?: string;
+  custom_data?: string;
+  findings?: any[];
+  report_data?: ReportData;
+  user_model?: string;
 }
 
-export async function saveResearchState(state: ResearchState): Promise<ResearchState> {
+export const saveResearchState = async (data: Partial<ResearchState>): Promise<void> => {
   try {
-    console.log(`[${new Date().toISOString()}] 💾 Saving research state for session:`, state.session_id);
+    // Create a storage key that combines session and research IDs
+    const storageKey = `${data.session_id}_${data.research_id}_state`;
     
-    // Make sure we have all required fields
-    if (!state.research_id) {
-      throw new Error('research_id is required');
+    // Save the state to localStorage
+    const timestamp = new Date().toISOString();
+    const stateData = { ...data, updated_at: timestamp };
+    
+    localStorage.setItem(storageKey, JSON.stringify(stateData));
+    localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, storageKey);
+    
+    // Store report data separately for better performance
+    if (data.report_data) {
+      const reportStorageKey = `${data.session_id}_${data.research_id}_report_data`;
+      localStorage.setItem(reportStorageKey, JSON.stringify(data.report_data));
     }
     
-    if (!state.session_id) {
-      throw new Error('session_id is required');
+    // For current research/session tracking
+    if (data.research_id) {
+      localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID, data.research_id);
     }
     
-    // Make sure we have a user_id value, even if it's null
-    // Also ensure query has a default value if not provided to satisfy the database requirement
-    const stateWithRequiredFields = {
-      ...state,
-      user_id: state.user_id || null,
-      query: state.query || 'No query provided' // Provide a default value for query
+    return Promise.resolve();
+  } catch (error) {
+    console.error("Error saving research state:", error);
+    return Promise.reject(error);
+  }
+};
+
+export const updateResearchState = async (
+  researchId: string,
+  sessionId: string,
+  updates: Partial<ResearchState>
+): Promise<void> => {
+  try {
+    // Create a storage key that combines session and research IDs
+    const storageKey = `${sessionId}_${researchId}_state`;
+    
+    // Retrieve existing state
+    const existingStateStr = localStorage.getItem(storageKey);
+    const existingState = existingStateStr ? JSON.parse(existingStateStr) : {};
+    
+    // Update the state with new values
+    const timestamp = new Date().toISOString();
+    const updatedState = { 
+      ...existingState,
+      ...updates,
+      updated_at: timestamp
     };
     
-    const { data, error } = await supabase
-      .from('research_states')
-      .insert(stateWithRequiredFields)
-      .select()
-      .single();
+    // Save back to localStorage
+    localStorage.setItem(storageKey, JSON.stringify(updatedState));
     
-    if (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error saving research state:`, error);
-      throw new Error(`Failed to save research state: ${error.message}`);
+    // Also store report data separately for better performance
+    if (updates.report_data) {
+      const reportStorageKey = `${sessionId}_${researchId}_report_data`;
+      localStorage.setItem(reportStorageKey, JSON.stringify(updates.report_data));
     }
     
-    console.log(`[${new Date().toISOString()}] ✅ Research state saved successfully`);
-    return data as ResearchState;
+    return Promise.resolve();
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error in saveResearchState:`, error);
-    throw error;
+    console.error("Error updating research state:", error);
+    return Promise.reject(error);
   }
-}
+};
 
-export async function updateResearchState(
-  researchId: string, 
-  sessionId: string, 
-  updates: Partial<ResearchState>
-): Promise<ResearchState> {
+export const getResearchState = (
+  researchId?: string | null,
+  sessionId?: string | null
+): ResearchState | null => {
   try {
-    console.log(`[${new Date().toISOString()}] 🔄 Updating research state:`, { 
-      researchId, 
-      sessionId, 
-      updates: Object.keys(updates) 
-    });
-    
-    const { data, error } = await supabase
-      .from('research_states')
-      .update(updates)
-      .match({ research_id: researchId, session_id: sessionId })
-      .select()
-      .single();
-    
-    if (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error updating research state:`, error);
-      throw new Error(`Failed to update research state: ${error.message}`);
-    }
-    
-    console.log(`[${new Date().toISOString()}] ✅ Research state updated successfully`);
-    return data as ResearchState;
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error in updateResearchState:`, error);
-    throw error;
-  }
-}
-
-export async function getResearchState(
-  researchId: string, 
-  sessionId: string
-): Promise<ResearchState | null> {
-  try {
-    console.log(`[${new Date().toISOString()}] 🔍 Getting research state:`, { researchId, sessionId });
-    
-    const { data, error } = await supabase
-      .from('research_states')
-      .select('*')
-      .match({ research_id: researchId, session_id: sessionId })
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-    
-    if (error) {
-      if (error.code === 'PGRST116') {
-        // No rows returned
-        console.log(`[${new Date().toISOString()}] ℹ️ No research state found for:`, { researchId, sessionId });
-        return null;
-      }
-      
-      console.error(`[${new Date().toISOString()}] ❌ Error getting research state:`, error);
-      throw new Error(`Failed to get research state: ${error.message}`);
-    }
-    
-    return data as ResearchState;
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error in getResearchState:`, error);
-    throw error;
-  }
-}
-
-export async function getLatestSessionState(sessionId: string): Promise<ResearchState | null> {
-  try {
-    console.log(`[${new Date().toISOString()}] 🔍 Getting latest session state for:`, sessionId);
-    
-    const { data, error } = await supabase
-      .from('research_states')
-      .select('*')
-      .eq('session_id', sessionId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    
-    if (error) {
-      console.error(`[${new Date().toISOString()}] ❌ Error getting latest session state:`, error);
-      throw new Error(`Failed to get latest session state: ${error.message}`);
-    }
-    
-    if (!data) {
-      console.log(`[${new Date().toISOString()}] ℹ️ No session state found for:`, sessionId);
+    if (!researchId || !sessionId) {
       return null;
     }
     
-    return data as ResearchState;
+    // Create a storage key that combines session and research IDs
+    const storageKey = `${sessionId}_${researchId}_state`;
+    
+    // Try to retrieve the state
+    const stateStr = localStorage.getItem(storageKey);
+    if (!stateStr) {
+      return null;
+    }
+    
+    // Parse the state
+    const state = JSON.parse(stateStr);
+    
+    // Check for report data in the separate storage
+    const reportStorageKey = `${sessionId}_${researchId}_report_data`;
+    const reportDataStr = localStorage.getItem(reportStorageKey);
+    
+    if (reportDataStr) {
+      try {
+        state.report_data = JSON.parse(reportDataStr);
+      } catch (e) {
+        console.error("Error parsing report data:", e);
+      }
+    }
+    
+    return state;
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error in getLatestSessionState:`, error);
-    throw error;
+    console.error("Error getting research state:", error);
+    return null;
   }
-}
+};
 
-export function subscribeToResearchState(
-  researchId: string, 
-  sessionId: string,
-  callback: (payload: any) => void
-) {
+export const getLatestSessionState = async (sessionId: string): Promise<ResearchState | null> => {
   try {
-    console.log(`[${new Date().toISOString()}] 🔄 Setting up subscription for:`, { researchId, sessionId });
+    // Try to retrieve the latest state from localStorage
+    // First, check if we have a current research ID for this session
+    const storageKey = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
     
-    const channel = supabase
-      .channel(`research-${researchId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'research_states',
-        filter: `research_id=eq.${researchId}`,
-      }, (payload) => {
-        console.log(`[${new Date().toISOString()}] 📬 Received update for research:`, researchId);
-        callback({
-          eventType: payload.eventType,
-          data: payload.new,
-          timestamp: new Date().toISOString()
-        });
-      })
-      .subscribe();
+    if (storageKey && storageKey.startsWith(`${sessionId}_`)) {
+      const stateStr = localStorage.getItem(storageKey);
+      if (stateStr) {
+        const state = JSON.parse(stateStr);
+        
+        // Check for report data in the separate storage
+        if (state.research_id) {
+          const reportStorageKey = `${sessionId}_${state.research_id}_report_data`;
+          const reportDataStr = localStorage.getItem(reportStorageKey);
+          
+          if (reportDataStr) {
+            try {
+              state.report_data = JSON.parse(reportDataStr);
+            } catch (e) {
+              console.error("Error parsing report data:", e);
+            }
+          }
+        }
+        
+        return state;
+      }
+    }
     
-    console.log(`[${new Date().toISOString()}] ✅ Subscription set up successfully`);
+    // If no current state, try to find any state for this session
+    const allKeys = Object.keys(localStorage);
+    const sessionKeys = allKeys.filter(key => key.startsWith(`${sessionId}_`) && key.endsWith('_state'));
     
-    return channel;
+    if (sessionKeys.length === 0) {
+      return null;
+    }
+    
+    // Sort by timestamp, get the latest
+    let latestState: ResearchState | null = null;
+    let latestTimestamp = '';
+    
+    for (const key of sessionKeys) {
+      const stateStr = localStorage.getItem(key);
+      if (stateStr) {
+        const state = JSON.parse(stateStr);
+        if (state.updated_at && (!latestTimestamp || state.updated_at > latestTimestamp)) {
+          latestTimestamp = state.updated_at;
+          latestState = state;
+        }
+      }
+    }
+    
+    // Check for report data in the separate storage for the latest state
+    if (latestState && latestState.research_id) {
+      const reportStorageKey = `${sessionId}_${latestState.research_id}_report_data`;
+      const reportDataStr = localStorage.getItem(reportStorageKey);
+      
+      if (reportDataStr) {
+        try {
+          latestState.report_data = JSON.parse(reportDataStr);
+        } catch (e) {
+          console.error("Error parsing report data:", e);
+        }
+      }
+    }
+    
+    return latestState;
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error setting up subscription:`, error);
-    throw error;
+    console.error("Error getting latest session state:", error);
+    return null;
   }
-}
+};

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { ExternalLink, Search, FileText, Lightbulb } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -27,15 +28,13 @@ interface SourcesListProps {
   findings?: Finding[];
   className?: string;
   sessionId?: string;
-  isLoading?: boolean;
 }
 
 const SourcesList: React.FC<SourcesListProps> = ({ 
   sources = [], 
   findings = [], 
   className, 
-  sessionId, 
-  isLoading 
+  sessionId 
 }) => {
   const [displaySources, setDisplaySources] = useState<string[]>(sources);
   const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings || []);

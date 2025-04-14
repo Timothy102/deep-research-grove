@@ -15,13 +15,11 @@ const queryClient = new QueryClient();
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="ui-theme">
+      <ThemeProvider defaultTheme="system" storageKey="ui-theme">
         <AuthProvider>
           <TooltipProvider>
             <BrowserRouter>
-              <div className="flex min-h-screen flex-col">
-                <AppRoutes />
-              </div>
+              <AppRoutes />
               <Toaster />
               <SonnerToaster 
                 position="top-center" 

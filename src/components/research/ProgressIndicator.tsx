@@ -2,21 +2,15 @@
 import { useState, useEffect } from "react";
 
 type ProgressIndicatorProps = {
-  isLoading?: boolean;
+  isLoading: boolean;
   currentStage?: string;
   events?: string[];
-  steps?: number;
-  sources?: number;
-  findings?: number;
 };
 
 export const ProgressIndicator = ({
-  isLoading = true,
+  isLoading,
   currentStage = "Initializing",
   events = [],
-  steps = 0,
-  sources = 0,
-  findings = 0,
 }: ProgressIndicatorProps) => {
   const [dots, setDots] = useState(0);
 

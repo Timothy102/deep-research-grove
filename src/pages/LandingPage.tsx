@@ -10,9 +10,16 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col font-sans">
-      <header className="border-b flex items-center justify-between px-4 h-14">
-        <div className="flex items-center">
-          <span className="text-lg font-semibold">deep research</span>
+      <header className="py-4 px-6 flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <a href="/" className="no-underline flex items-center">
+            <img 
+              src="/arcadia.png" 
+              alt="Deep Research" 
+              className="h-8 w-auto mr-2" 
+            />
+            <span className="text-lg font-light">deep research</span>
+          </a>
         </div>
         <div className="flex items-center space-x-4">
           <Button 
@@ -20,12 +27,12 @@ const LandingPage = () => {
             variant="outline"
             className="text-sm"
           >
-            Login
+            {user ? "Start Now" : "Login"}
           </Button>
           <ThemeToggle />
         </div>
       </header>
-      
+
       <main className="flex-1 max-w-2xl mx-auto px-4 py-16">
         <div className="space-y-6 text-left">
           

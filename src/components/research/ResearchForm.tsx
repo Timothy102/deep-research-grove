@@ -2,11 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Search } from "lucide-react";
+import { getUserModels } from "@/services/userModelService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronUp } from "lucide-react";
 
 interface ResearchFormProps {
   onSubmit: (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => Promise<void>;
@@ -22,8 +24,6 @@ interface ResearchFormProps {
   initialCognitiveStyle?: string;
   initialLLM?: string;
   onLLMChange?: React.Dispatch<React.SetStateAction<string>>;
-  userModels?: any[];
-  onModelSelect?: (modelId: string) => Promise<void> | void;
 }
 
 export const ResearchForm: React.FC<ResearchFormProps> = ({ 
@@ -39,9 +39,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   initialUserContext = '',
   initialCognitiveStyle = 'general',
   initialLLM,
-  onLLMChange,
-  userModels = [],
-  onModelSelect
+  onLLMChange
 }) => {
   const [query, setQuery] = useState(initialObjective || initialValue || '');
   const [userModelText, setUserModelText] = useState("");
@@ -109,40 +107,8 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 mt-10">
-      <div className="text-center mb-5">
-        <h1 className="text-3xl font-bold mb-2">Hey, Tim Cvetko</h1>
-        <p className="text-gray-600">Who are you today?</p>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
-        <div className="border rounded-lg p-4 text-center">
-          <p className="font-medium">student applying to masters</p>
-          <p className="text-sm text-gray-500">Style: systematic</p>
-        </div>
-        <div className="border rounded-lg p-4 text-center">
-          <p className="font-medium">perfumes</p>
-          <p className="text-sm text-gray-500">Style: general</p>
-        </div>
-        <div className="border rounded-lg p-4 text-center">
-          <p className="font-medium">fitness enthusiast</p>
-          <p className="text-sm text-gray-500">Style: practical</p>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-        <div className="border rounded-lg p-4 text-center">
-          <p className="font-medium">just an ai tinkerer</p>
-          <p className="text-sm text-gray-500">Style: general</p>
-        </div>
-        <div className="border rounded-lg p-4 text-center relative">
-          <p className="font-medium">computer vision researcher</p>
-          <p className="text-sm text-gray-500">Style: practical</p>
-          <span className="absolute right-2 top-2 text-xs bg-gray-100 px-2 py-0.5 rounded">Default</span>
-        </div>
-      </div>
-      
-      <form onSubmit={handleSubmit} className="flex items-center space-x-2">
+    <div className="space-y-4">
+      <form onSubmit={handleSubmit} className="flex items-center space-x-4">
         <Input
           type="text"
           placeholder="Enter your research objective"
@@ -152,11 +118,11 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
         />
         <Select 
           onValueChange={handleLLMChange} 
-          defaultValue={initialLLM || selectedLLM || "auto"}
+          defaultValue="auto"
           value={initialLLM || selectedLLM}
         >
-          <SelectTrigger className="w-[120px]">
-            <SelectValue placeholder="Auto" />
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Select LLM" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="auto">{getModelDisplayName('auto')}</SelectItem>
@@ -170,7 +136,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
             <SelectItem value="deepseek-ai/DeepSeek-R1">{getModelDisplayName('deepseek-ai/DeepSeek-R1')}</SelectItem>
           </SelectContent>
         </Select>
-        <Button type="submit" disabled={isLoading} className="bg-black text-white px-4 hover:bg-black/90">
+        <Button type="submit" disabled={isLoading}>
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -185,7 +151,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
         </Button>
       </form>
 
-      <Collapsible open={isAdvancedOpen} onOpenChange={setIsAdvancedOpen} className="mt-4">
+      <Collapsible open={isAdvancedOpen} onOpenChange={setIsAdvancedOpen} className="space-y-2">
         <CollapsibleTrigger asChild>
           <Button variant="outline" size="sm" className="flex items-center w-full justify-between">
             <span>Advanced options</span>
@@ -237,11 +203,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
           </div>
         </CollapsibleContent>
       </Collapsible>
-      
-      <div className="fixed bottom-10 right-10 bg-white rounded-lg border p-4 shadow-md w-80">
-        <p className="font-semibold">Signed in successfully</p>
-        <p className="text-sm text-gray-600">Welcome to Deep Research!</p>
-      </div>
     </div>
   );
 };
