@@ -13,7 +13,8 @@ import {
   saveResearchState, 
   updateResearchState, 
   getResearchState, 
-  getLatestSessionState 
+  getLatestSessionState,
+  subscribeToResearchState
 } from "@/services/researchStateService";
 import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted, getUserModels } from "@/services/userModelService";
 import { submitHumanFeedback } from "@/services/humanInteractionService";
@@ -444,7 +445,7 @@ const ResearchPage = () => {
       }
     }, 5000); // Poll every 5 seconds
     
-    // Store interval ID to clear it later
+    // Return interval ID to clear it later
     return checkInterval;
   };
 
