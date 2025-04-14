@@ -387,7 +387,7 @@ const ResearchPage = () => {
         
         if (sessionState.status === 'in_progress' || sessionState.status === 'awaiting_human_input') {
           setIsLoading(true);
-          pollResearchState(sessionState.research_id);
+          pollResearchState(sessionState.research_id, 5000, 20, 0);
         }
       }
     } catch (error) {
@@ -395,11 +395,11 @@ const ResearchPage = () => {
     }
   };
 
-  const pollResearchState = useCallback((researchId: string) => {
+  const pollResearchState = useCallback((researchId: string, interval = 5000, maxAttempts = 20, currentAttempt = 0) => {
     console.log(`[${new Date().toISOString()}] 🔄 Starting polling for research state:`, researchId);
     
     const checkInterval = setInterval(async () => {
-      if (!currentSessionIdRef.current) {
+      if (!currentSessionIdRef.current || currentAttempt >= maxAttempts) {
         clearInterval(checkInterval);
         return;
       }
@@ -443,7 +443,10 @@ const ResearchPage = () => {
       } catch (err) {
         console.error("Error polling research state:", err);
       }
-    }, 5000); // Poll every 5 seconds
+      
+      // Increment the attempt counter
+      currentAttempt++;
+    }, interval);
     
     return checkInterval;
   }, []);
@@ -1116,6 +1119,7 @@ const ResearchPage = () => {
                     path={reasoningPath}
                     isLoading={isLoading}
                     reportData={reportData}
+                    sessionId={sessionId}
                   />
                 </TabsContent>
               </Tabs>

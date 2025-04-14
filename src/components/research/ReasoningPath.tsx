@@ -30,13 +30,15 @@ interface SynthesisData {
 }
 
 interface ReasoningPathProps {
-  reasoningPath: string[];
+  path?: string[];
+  reasoningPath?: string[];
   sources?: string[];
   findings?: Finding[];
   isActive?: boolean;
   isLoading?: boolean;
   rawData?: Record<string, string>;
   sessionId?: string;
+  reportData?: any;
 }
 
 interface StepData {
@@ -50,15 +52,18 @@ interface StepData {
 }
 
 const ReasoningPath = ({ 
-  reasoningPath, 
+  path = [],
+  reasoningPath = [], 
   sources = [], 
   findings = [], 
   isActive = false, 
   isLoading = false, 
   rawData = {},
-  sessionId = "" 
+  sessionId = "",
+  reportData
 }: ReasoningPathProps) => {
-  const [displayReasoningPath, setDisplayReasoningPath] = useState<string[]>(reasoningPath);
+  const pathToUse = path.length > 0 ? path : reasoningPath;
+  const [displayReasoningPath, setDisplayReasoningPath] = useState<string[]>(pathToUse);
   const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings);
   const [displaySources, setDisplaySources] = useState<string[]>(sources);
   const [synthesesData, setSynthesesData] = useState<Record<string, any>>({});
@@ -70,7 +75,7 @@ const ReasoningPath = ({
   useEffect(() => {
     if (sessionId && sessionId !== lastSessionId) {
       console.log(`[${new Date().toISOString()}] 🔄 Session changed from ${lastSessionId} to ${sessionId}, resetting state`);
-      setDisplayReasoningPath(reasoningPath);
+      setDisplayReasoningPath(pathToUse);
       setDisplayFindings(findings);
       setDisplaySources(sources);
       setSynthesesData({});
@@ -103,10 +108,12 @@ const ReasoningPath = ({
         }
       });
     }
-  }, [sessionId, lastSessionId, reasoningPath, findings, sources]);
+  }, [sessionId, lastSessionId, pathToUse, findings, sources]);
   
   useEffect(() => {
-    if (reasoningPath.length > 0) {
+    if (path.length > 0) {
+      setDisplayReasoningPath(path);
+    } else if (reasoningPath.length > 0) {
       setDisplayReasoningPath(reasoningPath);
     }
     
@@ -117,7 +124,7 @@ const ReasoningPath = ({
     if (sources.length > 0) {
       setDisplaySources(sources);
     }
-  }, [reasoningPath, findings, sources]);
+  }, [path, reasoningPath, findings, sources]);
   
   const handleRealtimeUpdate = useCallback((event: CustomEvent) => {
     if (!sessionId) return;
@@ -357,7 +364,7 @@ const ReasoningPath = ({
         console.log(`[${new Date().toISOString()}] 📂 Loading session data for ${sessionId}`);
         
         if (sessionData.reasoningPath && Array.isArray(sessionData.reasoningPath)) {
-          if (reasoningPath.length === 0 || sessionData.reasoningPath.length > reasoningPath.length) {
+          if (path.length === 0 || sessionData.reasoningPath.length > path.length) {
             setDisplayReasoningPath(sessionData.reasoningPath);
             console.log(`[${new Date().toISOString()}] 📂 Loaded ${sessionData.reasoningPath.length} reasoning steps from session data`);
           }
@@ -406,7 +413,7 @@ const ReasoningPath = ({
       if (sessionPathCache) {
         const parsedPath = JSON.parse(sessionPathCache);
         if (Array.isArray(parsedPath) && parsedPath.length > 0) {
-          if (reasoningPath.length === 0 || parsedPath.length > reasoningPath.length) {
+          if (path.length === 0 || parsedPath.length > path.length) {
             setDisplayReasoningPath(parsedPath);
           }
         }
@@ -449,13 +456,13 @@ const ReasoningPath = ({
       console.error(`[${new Date().toISOString()}] Error loading data from session cache:`, e);
       toast.error("Failed to load previous session data. Some information may be missing.");
     }
-  }, [sessionId, reasoningPath, findings, sources]);
+  }, [sessionId, path, findings, sources]);
   
   useEffect(() => {
     if (sessionLoaded) return;
     
     try {
-      if (displayReasoningPath.length === 0 && reasoningPath.length === 0) {
+      if (displayReasoningPath.length === 0 && path.length === 0) {
         const pathCache = localStorage.getItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE);
         if (pathCache) {
           const parsedPath = JSON.parse(pathCache);
@@ -487,21 +494,21 @@ const ReasoningPath = ({
     } catch (e) {
       console.error("Error loading from global cache:", e);
     }
-  }, [sessionLoaded, displayReasoningPath.length, displayFindings.length, reasoningPath.length, findings.length, sources.length]);
+  }, [sessionLoaded, displayReasoningPath.length, displayFindings.length, path.length, findings.length, sources.length]);
   
   useEffect(() => {
-    if (reasoningPath.length > 0) {
-      setDisplayReasoningPath(reasoningPath);
+    if (path.length > 0) {
+      setDisplayReasoningPath(path);
       
       try {
-        localStorage.setItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, JSON.stringify(reasoningPath));
+        localStorage.setItem(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, JSON.stringify(path));
         
         if (sessionId) {
           const sessionPathKey = getSessionStorageKey(LOCAL_STORAGE_KEYS.REASONING_PATH_CACHE, sessionId);
-          localStorage.setItem(sessionPathKey, JSON.stringify(reasoningPath));
+          localStorage.setItem(sessionPathKey, JSON.stringify(path));
           
           saveSessionData(sessionId, {
-            reasoningPath: reasoningPath
+            reasoningPath: path
           });
         }
       } catch (e) {
@@ -586,7 +593,7 @@ const ReasoningPath = ({
         console.error("Error saving answers data to cache:", e);
       }
     }
-  }, [reasoningPath, findings, sources, sessionId, rawData, synthesesData, answersData]);
+  }, [path, findings, sources, sessionId, rawData, synthesesData, answersData]);
 
   if (displayReasoningPath.length === 0 && !isLoading) {
     return (
