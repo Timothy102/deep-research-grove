@@ -182,14 +182,14 @@ export const useResearchStream = ({
     const timestamp = new Date().toLocaleTimeString();
     if (data.data && data.data.message) {
       const progressEvent = `${timestamp}: ${data.data.message}`;
-      setProgressEvents(prev => [...prev.slice(-4), progressEvent]);
+      setProgressEvents((prev: string[]) => [...prev.slice(-4), progressEvent]);
     }
     
     if (data.data && data.data.node_id) {
       const nodeId = data.data.node_id;
       const rawEventData = JSON.stringify(data, null, 2);
       
-      setRawData(prevData => {
+      setRawData((prevData: Record<string, string>) => {
         const existing = prevData[nodeId] || '';
         return {
           ...prevData,
@@ -219,7 +219,7 @@ export const useResearchStream = ({
         break;
       case "update":
         const message = data.data.message || "";
-        setResearchOutput(prevOutput => prevOutput + message + "\n");
+        setResearchOutput((prevOutput: string) => prevOutput + message + "\n");
         setCurrentStage("Generating answer");
         
         if (sessionId) {
@@ -230,7 +230,7 @@ export const useResearchStream = ({
         break;
       case "source":
         const source = data.data.source || "";
-        setSources(prevSources => [...prevSources, source]);
+        setSources((prevSources: string[]) => [...prevSources, source]);
         setCurrentStage("Finding sources");
         
         if (sessionId) {
@@ -250,7 +250,7 @@ export const useResearchStream = ({
         
         console.log(`[${new Date().toISOString()}] 📑 Received finding:`, finding);
         
-        setFindings(prevFindings => [...prevFindings, finding]);
+        setFindings((prevFindings: any[]) => [...prevFindings, finding]);
         
         if (sessionId) {
           const updatedFindings = [...findings, finding];
@@ -279,7 +279,7 @@ export const useResearchStream = ({
           const nodeId = nodeIdMatch[1] || nodeIdMatch[2];
           const rawDataString = JSON.stringify(data, null, 2);
           
-          setRawData(prevData => {
+          setRawData((prevData: Record<string, string>) => {
             const existing = prevData[nodeId] || '';
             return {
               ...prevData,
@@ -299,7 +299,7 @@ export const useResearchStream = ({
           setHumanApprovalRequest(syntheticRequest);
         }
         
-        setReasoningPath(prevPath => [...prevPath, step]);
+        setReasoningPath((prevPath: string[]) => [...prevPath, step]);
         
         setActiveTab("reasoning");
         
@@ -321,7 +321,7 @@ export const useResearchStream = ({
           query: data.data.query
         };
         
-        setReportData(prevReportData => {
+        setReportData((prevReportData: any) => {
           const existingData = prevReportData || { sections: [] };
           
           const sectionIndex = existingData.sections.findIndex(
@@ -356,7 +356,7 @@ export const useResearchStream = ({
       case "final_report":
         console.log(`[${new Date().toISOString()}] 📝 Received final report:`, data.data);
         
-        setReportData(prevReportData => {
+        setReportData((prevReportData: any) => {
           const existingData = prevReportData || { sections: [] };
           
           const rootSection = {

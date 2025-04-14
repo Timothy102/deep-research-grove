@@ -43,7 +43,12 @@ export const useResearchState = () => {
   }, []);
 
   // Poll research state
-  const pollResearchState = useCallback((researchId: string, interval = 5000, maxAttempts = 20, currentAttempt = 0) => {
+  const pollResearchState = useCallback((
+    researchId: string, 
+    interval: number = 5000, 
+    maxAttempts: number = 20, 
+    currentAttempt: number = 0
+  ) => {
     console.log(`[${new Date().toISOString()}] 🔄 Starting polling for research state:`, researchId);
     
     const sessionId = localStorage.getItem('CURRENT_SESSION_ID');
