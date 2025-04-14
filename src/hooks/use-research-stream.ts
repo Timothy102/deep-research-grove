@@ -91,40 +91,36 @@ export const useResearchStream = ({
 
           if (json.type === 'progress') {
             console.log(`[${new Date().toISOString()}] Progress event:`, json.event);
-            const updatedEvents = [...progressEvents, json.event];
-            setProgressEvents(updatedEvents);
+            setProgressEvents((prevEvents) => [...prevEvents, json.event]);
           }
 
           if (json.type === 'reasoning') {
             console.log(`[${new Date().toISOString()}] Reasoning step:`, json.step);
-            const updatedReasoning = [...reasoningPath, json.step];
-            setReasoningPath(updatedReasoning);
+            setReasoningPath((prevReasoning) => [...prevReasoning, json.step]);
             await saveResearchState({
               research_id: researchId,
               session_id: userModelPayload.session_id,
-              reasoning_path: updatedReasoning
+              reasoning_path: [...reasoningPath, json.step]
             });
           }
 
           if (json.type === 'source') {
             console.log(`[${new Date().toISOString()}] New source found:`, json.source);
-            const updatedSources = [...sources, json.source];
-            setSources(updatedSources);
+            setSources((prevSources) => [...prevSources, json.source]);
             await saveResearchState({
               research_id: researchId,
               session_id: userModelPayload.session_id,
-              sources: updatedSources
+              sources: [...sources, json.source]
             });
           }
 
           if (json.type === 'finding') {
             console.log(`[${new Date().toISOString()}] New finding found:`, json.finding);
-            const updatedFindings = [...findings, json.finding];
-            setFindings(updatedFindings);
+            setFindings((prevFindings) => [...prevFindings, json.finding]);
             await saveResearchState({
               research_id: researchId,
               session_id: userModelPayload.session_id,
-              findings: updatedFindings
+              findings: [...findings, json.finding]
             });
           }
 
@@ -151,8 +147,7 @@ export const useResearchStream = ({
 
           if (json.type === 'raw_data') {
             console.log(`[${new Date().toISOString()}] Raw data update:`, json.data);
-            const updatedRawData = { ...rawData, ...json.data };
-            setRawData(updatedRawData);
+            setRawData((prevData) => ({ ...prevData, ...json.data }));
           }
         } catch (error) {
           console.error(`[${new Date().toISOString()}] Error parsing SSE message:`, error, event.data);
