@@ -647,7 +647,7 @@ const ResearchPage = () => {
       setIsLoading(false);
       
       if (researchId && currentSessionIdRef.current) {
-        pollResearchState(researchId);
+        pollResearchState(researchId, 5000, 20, 0);
       }
     });
   };
