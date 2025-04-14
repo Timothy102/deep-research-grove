@@ -438,6 +438,10 @@ const ResearchPage = () => {
             } else {
               toast.error("An error occurred during research");
             }
+            
+            if (researchId && currentSessionIdRef.current) {
+              pollResearchState(researchId, 5000, 20, 0);
+            }
           }
         }
       } catch (err) {
