@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -87,7 +86,6 @@ const ResearchPage = () => {
     setProgressEvents,
     setCurrentStage,
     setRawData,
-    setHumanApprovalRequest: () => {}, // Dummy function as we're removing human approval
     setReportData,
     sources,
     findings,
