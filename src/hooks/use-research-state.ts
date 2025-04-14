@@ -94,10 +94,6 @@ export const useResearchState = () => {
             } else {
               toast.error("An error occurred during research");
             }
-            
-            if (researchId && sessionId) {
-              pollResearchState(researchId, 5000, 20, 0);
-            }
           }
         }
       } catch (err) {

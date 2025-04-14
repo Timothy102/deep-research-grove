@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -17,7 +18,6 @@ import {
   subscribeToResearchState 
 } from "@/services/researchStateService";
 import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted, getUserModels } from "@/services/userModelService";
-import { submitHumanFeedback } from "@/services/humanInteractionService";
 import { submitFeedback } from '@/services/feedbackService';
 import { useToast } from "@/hooks/use-toast";
 import { ResearchForm } from "@/components/research/ResearchForm";
@@ -25,7 +25,6 @@ import ReasoningPath from "@/components/research/ReasoningPath";
 import SourcesList from "@/components/research/SourcesList";
 import ResearchOutput from "@/components/research/ResearchOutput";
 import ResearchHistorySidebar from "@/components/research/ResearchHistorySidebar";
-import HumanApprovalDialog from "@/components/research/HumanApprovalDialog";
 import UserModelOnboarding from "@/components/onboarding/UserModelOnboarding";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { v4 as uuidv4 } from 'uuid';
@@ -39,7 +38,6 @@ import { useAnalytics } from "@/hooks/use-analytics";
 import { captureEvent } from "@/integrations/posthog/client";
 import { ReportData, ReportSection } from "@/components/research/ResearchOutput";
 import { useResearchState } from "@/hooks/use-research-state";
-import { useHumanApproval } from "@/hooks/use-human-approval";
 import { useResearchStream } from "@/hooks/use-research-stream";
 import { ResearchTabs } from "@/components/research/ResearchTabs";
 
@@ -79,15 +77,6 @@ const ResearchPage = () => {
     pollResearchState
   } = useResearchState();
 
-  const {
-    showApprovalDialog, setShowApprovalDialog,
-    humanApprovalRequest, setHumanApprovalRequest,
-    handleApprovalAction
-  } = useHumanApproval({
-    currentSessionIdRef,
-    researchIdRef
-  });
-
   const { startResearchStream } = useResearchStream({
     setIsLoading,
     setSources,
@@ -98,7 +87,7 @@ const ResearchPage = () => {
     setProgressEvents,
     setCurrentStage,
     setRawData,
-    setHumanApprovalRequest,
+    setHumanApprovalRequest: () => {}, // Dummy function as we're removing human approval
     setReportData,
     sources,
     findings,
@@ -306,53 +295,17 @@ const ResearchPage = () => {
           setReportData(sessionState.report_data);
         }
         
-        if (sessionState.status === 'awaiting_human_input' && sessionState.human_interactions) {
-          let interactions: any[] = [];
-          
-          if (typeof sessionState.human_interactions === 'string') {
-            try {
-              interactions = JSON.parse(sessionState.human_interactions);
-            } catch (e) {
-              console.error("Error parsing human interactions:", e);
-              interactions = [];
-            }
-          } else if (Array.isArray(sessionState.human_interactions)) {
-            interactions = sessionState.human_interactions;
-          }
-                
-          const lastInteraction = interactions
-            .filter(interaction => interaction.type === 'interaction_request')
-            .pop();
-            
-          if (lastInteraction) {
-            const approvalRequest = {
-              call_id: lastInteraction.call_id,
-              node_id: lastInteraction.node_id,
-              query: lastInteraction.query || sessionState.query,
-              content: lastInteraction.content,
-              approval_type: lastInteraction.interaction_type
-            };
-            
-            setHumanApprovalRequest(approvalRequest);
-            setShowApprovalDialog(true);
-            
-            console.log(`[${new Date().toISOString()}] 🔄 Restored pending human interaction:`, approvalRequest);
-          }
-        }
-        
         if (sessionState.active_tab) {
           setActiveTab(sessionState.active_tab);
         } else {
-          if (sessionState.status === 'awaiting_human_input') {
-            setActiveTab('reasoning');
-          } else if (sessionState.status === 'in_progress') {
+          if (sessionState.status === 'in_progress') {
             setActiveTab('reasoning');
           } else {
             setActiveTab('output');
           }
         }
         
-        if (sessionState.status === 'in_progress' || sessionState.status === 'awaiting_human_input') {
+        if (sessionState.status === 'in_progress') {
           setIsLoading(true);
           pollResearchState(sessionState.research_id, 5000, 20, 0);
         }
@@ -580,15 +533,6 @@ const ResearchPage = () => {
           isOpen={showOnboarding} 
           onComplete={handleOnboardingComplete}
           onClose={() => setShowOnboarding(false)}
-        />
-      )}
-      
-      {showApprovalDialog && humanApprovalRequest && (
-        <HumanApprovalDialog
-          isOpen={showApprovalDialog}
-          request={humanApprovalRequest}
-          onAction={handleApprovalAction}
-          onClose={() => setShowApprovalDialog(false)}
         />
       )}
     </div>
