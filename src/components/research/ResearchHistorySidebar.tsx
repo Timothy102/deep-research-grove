@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import {
   Sheet,
@@ -13,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from "@/lib/constants";
 import { toast } from "sonner";
 import { supabase, syncSession, getClientId } from "@/integrations/supabase/client";
-import { getLatestSessionState } from "@/services/researchStateService";
+import { getLatestSessionState, subscribeToResearchState } from "@/services/researchStateService";
 
 interface ResearchHistorySidebarProps {
   isOpen: boolean;

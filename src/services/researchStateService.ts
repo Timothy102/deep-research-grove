@@ -19,18 +19,25 @@ export interface ResearchState {
   error?: string;
   human_interactions?: any;
   report_data?: any;
-  completed_nodes?: number; // Added to fix TypeScript errors
+  completed_nodes?: number; 
   created_at?: string;
   updated_at?: string;
+  user_id?: string; // Added user_id as optional to match database requirements
 }
 
 export async function saveResearchState(state: Partial<ResearchState>): Promise<ResearchState> {
   try {
     console.log(`[${new Date().toISOString()}] 💾 Saving research state for session:`, state.session_id);
     
+    // Make sure we have a user_id value, even if it's null
+    const stateWithUserId = {
+      ...state,
+      user_id: state.user_id || null
+    };
+    
     const { data, error } = await supabase
       .from('research_states')
-      .insert(state)
+      .insert(stateWithUserId)
       .select()
       .single();
     
