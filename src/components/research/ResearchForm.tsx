@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Loader2, Search } from "lucide-react";
-import { UserModel } from "@/services/userModelService";
+import { getUserModels } from "@/services/userModelService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -24,8 +24,6 @@ interface ResearchFormProps {
   initialCognitiveStyle?: string;
   initialLLM?: string;
   onLLMChange?: React.Dispatch<React.SetStateAction<string>>;
-  userModels?: UserModel[];
-  onModelSelect?: (modelId: string) => Promise<void>;
 }
 
 export const ResearchForm: React.FC<ResearchFormProps> = ({ 
@@ -41,9 +39,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   initialUserContext = '',
   initialCognitiveStyle = 'general',
   initialLLM,
-  onLLMChange,
-  userModels = [],
-  onModelSelect
+  onLLMChange
 }) => {
   const [query, setQuery] = useState(initialObjective || initialValue || '');
   const [userModelText, setUserModelText] = useState("");
@@ -163,24 +159,6 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-4 pt-2">
-          {userModels && userModels.length > 0 && (
-            <div className="space-y-2">
-              <Label htmlFor="user-model">User Model</Label>
-              <Select onValueChange={(modelId) => onModelSelect && onModelSelect(modelId)}>
-                <SelectTrigger id="user-model">
-                  <SelectValue placeholder="Select a user model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {userModels.map((model) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      {model.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="research-depth">Research Depth</Label>

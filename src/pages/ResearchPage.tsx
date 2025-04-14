@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,7 @@ import {
   saveResearchState, 
   updateResearchState, 
   getResearchState, 
-  getLatestSessionState,
-  subscribeToResearchState 
+  getLatestSessionState 
 } from "@/services/researchStateService";
 import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted, getUserModels } from "@/services/userModelService";
 import { submitHumanFeedback } from "@/services/humanInteractionService";
@@ -37,7 +36,6 @@ import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
 import { ProgressIndicator } from "@/components/research/ProgressIndicator";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { captureEvent } from "@/integrations/posthog/client";
-import { ReportData, ReportSection } from "@/components/research/ResearchOutput";
 
 interface ResearchHistory {
   id: string;
@@ -126,7 +124,6 @@ const ResearchPage = () => {
   const { toast: uiToast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
   const { trackEvent } = useAnalytics();
-  const [reportData, setReportData] = useState<ReportData | undefined>(undefined);
 
   useEffect(() => {
     if (!user) {
@@ -261,7 +258,6 @@ const ResearchPage = () => {
     initialEventReceivedRef.current = false;
     setProgressEvents([]);
     setCurrentStage("Initializing research");
-    setReportData(undefined);
     
     localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID);
@@ -335,10 +331,6 @@ const ResearchPage = () => {
           setReasoningPath(sessionState.reasoning_path);
         }
         
-        if (sessionState.report_data) {
-          setReportData(sessionState.report_data);
-        }
-        
         if (sessionState.status === 'awaiting_human_input' && sessionState.human_interactions) {
           let interactions: HumanInteraction[] = [];
           
@@ -387,74 +379,13 @@ const ResearchPage = () => {
         
         if (sessionState.status === 'in_progress' || sessionState.status === 'awaiting_human_input') {
           setIsLoading(true);
-          pollResearchState(sessionState.research_id, 5000, 20, 0);
+          pollResearchState(sessionState.research_id);
         }
       }
     } catch (error) {
       console.error(`[${new Date().toISOString()}] ❌ Error loading session data:`, error);
     }
   };
-
-  const pollResearchState = useCallback((researchId: string, interval = 5000, maxAttempts = 20, currentAttempt = 0) => {
-    console.log(`[${new Date().toISOString()}] 🔄 Starting polling for research state:`, researchId);
-    
-    const checkInterval = setInterval(async () => {
-      if (!currentSessionIdRef.current || currentAttempt >= maxAttempts) {
-        clearInterval(checkInterval);
-        return;
-      }
-      
-      try {
-        const state = await getResearchState(researchId, currentSessionIdRef.current);
-        
-        if (state) {
-          console.log(`[${new Date().toISOString()}] 📊 Polled state update:`, {
-            status: state.status,
-            hasAnswer: !!state.answer,
-            sourceCount: state.sources?.length || 0,
-            findingsCount: state.findings?.length || 0
-          });
-          
-          if (state.status === 'completed') {
-            console.log(`[${new Date().toISOString()}] ✅ Research completed according to polled state`);
-            setIsLoading(false);
-            clearInterval(checkInterval);
-            
-            // Update UI with final state
-            if (state.answer) setResearchOutput(state.answer);
-            if (state.sources) setSources(state.sources);
-            if (state.findings) setFindings(state.findings);
-            if (state.reasoning_path) setReasoningPath(state.reasoning_path);
-            if (state.report_data) setReportData(state.report_data);
-            
-            setActiveTab("output");
-          } else if (state.status === 'error') {
-            console.error(`[${new Date().toISOString()}] ❌ Research error according to polled state:`, state.error);
-            setIsLoading(false);
-            clearInterval(checkInterval);
-            
-            if (state.error) {
-              toast.error(state.error);
-            } else {
-              toast.error("An error occurred during research");
-            }
-            
-            if (researchId && currentSessionIdRef.current) {
-              // Provide all 4 arguments: researchId, interval, maxAttempts, currentAttempt
-              pollResearchState(researchId, 5000, 20, 0);
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Error polling research state:", err);
-      }
-      
-      // Increment the attempt counter
-      currentAttempt++;
-    }, interval);
-    
-    return checkInterval;
-  }, []);
 
   const handleResearch = async (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => {
     if (!query.trim()) {
@@ -638,7 +569,7 @@ const ResearchPage = () => {
         setIsLoading(false);
         
         if (researchId && currentSessionIdRef.current) {
-          pollResearchState(researchId, 5000, 20, 0);
+          pollResearchState(researchId);
         }
       });
     })
@@ -652,7 +583,7 @@ const ResearchPage = () => {
       setIsLoading(false);
       
       if (researchId && currentSessionIdRef.current) {
-        pollResearchState(researchId, 5000, 20, 0);
+        pollResearchState(researchId);
       }
     });
   };
@@ -705,11 +636,12 @@ const ResearchPage = () => {
       const rawEventData = JSON.stringify(data, null, 2);
       
       setRawData(prev => {
-        const existing = prev[nodeId] || '';
-        return {
-          ...prev,
-          [nodeId]: existing ? `${existing}\n${rawEventData}` : rawEventData
-        };
+        const existingData = prev[nodeId] || '';
+        const updatedData = existingData 
+          ? `${existingData}\n${rawEventData}`
+          : rawEventData;
+        
+        return { ...prev, [nodeId]: updatedData };
       });
     }
     
@@ -827,95 +759,6 @@ const ResearchPage = () => {
           }).catch(err => console.error("Error updating reasoning path:", err));
         }
         break;
-      case "report_update":
-        console.log(`[${new Date().toISOString()}] 📄 Received report update:`, data.data);
-        
-        const reportUpdate: ReportSection = {
-          node_id: data.data.node_id || '',
-          synthesis: data.data.synthesis || '',
-          confidence: data.data.confidence,
-          timestamp: data.data.timestamp,
-          query: data.data.query
-        };
-        
-        setReportData(prev => {
-          const existingData = prev || { sections: [] };
-          
-          const sectionIndex = existingData.sections.findIndex(
-            s => s.node_id === reportUpdate.node_id
-          );
-          
-          let updatedSections;
-          if (sectionIndex >= 0) {
-            updatedSections = [...existingData.sections];
-            updatedSections[sectionIndex] = {
-              ...updatedSections[sectionIndex],
-              ...reportUpdate
-            };
-          } else {
-            updatedSections = [...existingData.sections, reportUpdate];
-          }
-          
-          return {
-            ...existingData,
-            sections: updatedSections
-          };
-        });
-        
-        if (currentSessionIdRef.current) {
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            report_data: reportData
-          }).catch(err => console.error("Error updating report data:", err));
-        }
-        
-        setCurrentStage("Updating research report");
-        break;
-      case "final_report":
-        console.log(`[${new Date().toISOString()}] 📝 Received final report:`, data.data);
-        
-        setReportData(prev => {
-          const existingData = prev || { sections: [] };
-          
-          const rootSection = {
-            node_id: 'root',
-            synthesis: data.data.synthesis || '',
-            confidence: data.data.confidence,
-            query: data.data.query,
-            is_root: true
-          };
-          
-          const rootIndex = existingData.sections.findIndex(s => s.is_root);
-          
-          let updatedSections;
-          if (rootIndex >= 0) {
-            updatedSections = [...existingData.sections];
-            updatedSections[rootIndex] = {
-              ...updatedSections[rootIndex],
-              ...rootSection
-            };
-          } else {
-            updatedSections = [rootSection, ...existingData.sections];
-          }
-          
-          return {
-            sections: updatedSections,
-            finalSynthesis: data.data.synthesis,
-            confidence: data.data.confidence,
-            sources: data.data.sources || [],
-            findings: data.data.findings || []
-          };
-        });
-        
-        if (currentSessionIdRef.current) {
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            report_data: reportData,
-            answer: data.data.synthesis || ''
-          }).catch(err => console.error("Error updating final report:", err));
-        }
-        
-        setResearchOutput(data.data.synthesis || '');
-        setCurrentStage("Finalizing research report");
-        break;
       case "complete":
         const finalAnswer = data.data.answer || "";
         const finalSources = data.data.sources || [];
@@ -934,8 +777,7 @@ const ResearchPage = () => {
             answer: finalAnswer,
             sources: finalSources,
             findings: finalFindings,
-            reasoning_path: finalReasoningPath,
-            report_data: reportData
+            reasoning_path: finalReasoningPath
           }).catch(err => console.error("Error updating final state:", err));
         }
         
@@ -946,8 +788,7 @@ const ResearchPage = () => {
           session_id: currentSessionIdRef.current,
           sources_count: finalSources.length,
           findings_count: finalFindings.length,
-          answer_length: finalAnswer.length,
-          has_report: !!reportData
+          answer_length: finalAnswer.length
         });
         break;
       case "error":
@@ -958,199 +799,443 @@ const ResearchPage = () => {
         });
         setIsLoading(false);
         
-        if (researchId && currentSessionIdRef.current) {
-          pollResearchState(researchId, 5000, 20, 0);
+        if (currentSessionIdRef.current) {
+          updateResearchState(researchId, currentSessionIdRef.current, {
+            status: 'error',
+          }).catch(err => console.error("Error updating error state:", err));
         }
+        break;
+      case "human_interaction_request":
+        console.log(`[${new Date().toISOString()}] 🧠 Human interaction requested:`, data.data);
+        
+        const interactionRequest: HumanInteractionRequest = {
+          call_id: data.data.call_id,
+          node_id: data.data.node_id,
+          query: data.data.query || researchObjective,
+          content: data.data.content,
+          interaction_type: data.data.interaction_type
+        };
+        
+        const approvalRequest: HumanApprovalRequest = {
+          ...interactionRequest,
+          approval_type: interactionRequest.interaction_type
+        };
+        
+        setHumanApprovalRequest(approvalRequest);
+        setShowApprovalDialog(true);
+        
+        window.postMessage(
+          { 
+            type: "human_interaction_request", 
+            data: interactionRequest
+          }, 
+          window.location.origin
+        );
+        
+        if (currentSessionIdRef.current) {
+          const humanInteractions: HumanInteraction[] = [
+            ...findings.map(f => ({ 
+              type: 'finding', 
+              call_id: f.node_id || '', 
+              node_id: f.node_id || '',
+              content: f.content || '',
+              query: f.query || '',
+              interaction_type: 'finding',
+              status: 'completed' as const
+            })),
+            { 
+              type: 'interaction_request', 
+              call_id: interactionRequest.call_id,
+              node_id: interactionRequest.node_id,
+              query: interactionRequest.query,
+              content: interactionRequest.content,
+              interaction_type: interactionRequest.interaction_type,
+              status: 'pending' as const,
+              timestamp: new Date().toISOString()
+            }
+          ];
+          
+          updateResearchState(researchId, currentSessionIdRef.current, {
+            status: 'awaiting_human_input',
+            human_interactions: humanInteractions
+          }).catch(err => console.error("Error updating human interaction state:", err));
+        }
+        break;
+      case "human_interaction_result":
+        console.log(`[${new Date().toISOString()}] 🧠 Human interaction result received:`, data.data);
+        
+        if (humanApprovalRequest?.call_id === data.data.call_id) {
+          setHumanApprovalRequest(null);
+          setShowApprovalDialog(false);
+        }
+        
+        toast.dismiss(`interaction-${data.data.call_id}`);
+        
+        if (currentSessionIdRef.current) {
+          updateResearchState(researchId, currentSessionIdRef.current, {
+            status: 'in_progress',
+            custom_data: JSON.stringify({
+              ...data.data,
+              timestamp: new Date().toISOString(),
+              type: 'interaction_result'
+            })
+          }).catch(err => console.error("Error updating human interaction result:", err));
+        }
+        
+        const humanFeedbackStep = `Human feedback received for ${data.data.interaction_type}: ${data.data.approved ? 'Approved' : 'Rejected'}${data.data.comment ? ` - Comment: ${data.data.comment}` : ''}`;
+        setReasoningPath(prev => [...prev, humanFeedbackStep]);
         break;
     }
   };
-  
-  const handleSessionClick = (sessionId: string, query: string) => {
-    navigate(`/research/${sessionId}`);
-  };
 
-  const handleOnboardingComplete = async () => {
+  const pollResearchState = async (researchId: string) => {
     try {
-      await markOnboardingCompleted();
-      setShowOnboarding(false);
+      if (!currentSessionIdRef.current) {
+        console.error(`[${new Date().toISOString()}] ❌ No session ID available for polling`);
+        return;
+      }
       
-      trackEvent('onboarding_completed', {});
+      console.log(`[${new Date().toISOString()}] 🔄 Polling research state:`, { 
+        researchId,
+        sessionId: currentSessionIdRef.current,
+        clientId: clientIdRef.current.substring(0, 15)
+      });
       
-      toast.success("Onboarding completed!");
+      const data = await getResearchState(researchId, currentSessionIdRef.current);
+      
+      if (!data) {
+        console.log(`[${new Date().toISOString()}] ℹ️ No research state found, will retry...`);
+        setTimeout(() => pollResearchState(researchId), 3000);
+        return;
+      }
+      
+      console.log(`[${new Date().toISOString()}] ✅ Polled research state:`, { 
+        id: data.id,
+        status: data.status,
+        clientId: data.client_id?.substring(0, 15) || 'none'
+      });
+      
+      if (data.client_id && data.client_id !== clientIdRef.current) {
+        console.warn(`[${new Date().toISOString()}] 🚫 Rejected polling response for different client:`, {
+          stateClientId: data.client_id.substring(0, 15), 
+          currentClientId: clientIdRef.current.substring(0, 15)
+        });
+        return;
+      }
+      
+      if ((data?.session_id && data.session_id !== currentSessionIdRef.current) ||
+          (data?.research_id && data.research_id !== researchId)) {
+        console.warn(`[${new Date().toISOString()}] 🚫 Rejected polling response for different session/research`, {
+          stateSessionId: data.session_id,
+          currentSessionId: currentSessionIdRef.current,
+          stateResearchId: data.research_id,
+          currentResearchId: researchId
+        });
+        return;
+      }
+      
+      if (data.status === "completed") {
+        setResearchOutput(data.answer || "");
+        setSources(data.sources || []);
+        
+        if (data.findings) {
+          const parsedFindings = Array.isArray(data.findings) 
+            ? data.findings 
+            : (typeof data.findings === 'string' ? JSON.parse(data.findings) : []);
+          setFindings(parsedFindings);
+        }
+        
+        setReasoningPath(data.reasoning_path || []);
+        setIsLoading(false);
+        
+        if (data.active_tab) {
+          setActiveTab(data.active_tab);
+        } else if (activeTab === "reasoning") {
+          setActiveTab("output");
+        }
+      } else if (data.status === "in_progress") {
+        if (data.answer) setResearchOutput(data.answer);
+        if (data.sources) setSources(data.sources);
+        
+        if (data.findings) {
+          const parsedFindings = Array.isArray(data.findings) 
+            ? data.findings 
+            : (typeof data.findings === 'string' ? JSON.parse(data.findings) : []);
+          setFindings(parsedFindings);
+        }
+        
+        if (data.reasoning_path) setReasoningPath(data.reasoning_path);
+        
+        setTimeout(() => pollResearchState(researchId), 3000);
+      } else if (data.status === "error") {
+        uiToast({
+          title: "research error",
+          description: data.error || "An error occurred during research",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+      } else if (data.status === 'awaiting_human_input') {
+        console.log(`[${new Date().toISOString()}] ⏳ Awaiting human input, will retry...`);
+        setTimeout(() => pollResearchState(researchId), 3000);
+      }
     } catch (error) {
-      console.error("Error marking onboarding as completed:", error);
+      console.error(`[${new Date().toISOString()}] ❌ Polling error:`, error);
       uiToast({
-        title: "Error completing onboarding",
-        description: "Please try again later",
+        title: "Error",
+        description: "Failed to retrieve research results",
         variant: "destructive",
       });
+      setIsLoading(false);
     }
   };
 
-  const handleApprovalAction = async (approved: boolean, comment?: string) => {
-    if (!humanApprovalRequest || !currentSessionIdRef.current || !researchIdRef.current) return;
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate("/");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
+
+  const handleNewChat = () => {
+    const newSessionId = uuidv4();
+    
+    localStorage.setItem('newChatRequested', 'true');
+    
+    navigate(`/research/${newSessionId}`);
+  };
+
+  const loadHistoryItem = (item: ResearchHistoryEntry) => {
+    setResearchObjective(item.query);
     
     try {
-      await submitHumanFeedback({
-        call_id: humanApprovalRequest.call_id,
-        node_id: humanApprovalRequest.node_id,
-        approved,
-        comment,
-        query: humanApprovalRequest.query,
-        session_id: currentSessionIdRef.current,
-        research_id: researchIdRef.current,
-        approval_type: humanApprovalRequest.approval_type
-      });
+      const userModelData = JSON.parse(item.user_model || "{}");
+      if (userModelData.research_depth) setResearchDepth(userModelData.research_depth);
+      if (userModelData.userContext) setUserContext(userModelData.userContext);
       
+      if (userModelData.cognitiveStyle) {
+        setSelectedCognitiveStyle(userModelData.cognitiveStyle);
+      }
+      
+      if (userModelData.session_id && userModelData.session_id !== currentSessionIdRef.current) {
+        navigate(`/research/${userModelData.session_id}`);
+        return;
+      }
+    } catch (e) {
+      console.error("Error parsing user model from history:", e);
+    }
+  };
+
+  const handleApproveRequest = async (callId: string, nodeId: string) => {
+    try {
+      console.log(`[${new Date().toISOString()}] 👍 Sending approval for call ID:`, callId, "node ID:", nodeId);
+      
+      await submitFeedback(callId, true, '');
+      
+      toast.success("Feedback submitted successfully");
       setShowApprovalDialog(false);
       setHumanApprovalRequest(null);
       
-      if (approved) {
-        toast.success("Approved! Research will continue.");
-      } else {
-        toast.info("Research step rejected.");
-      }
-      
-      trackEvent('human_approval_action', {
-        approved,
-        has_comment: !!comment,
-        approval_type: humanApprovalRequest.approval_type
-      });
-      
+      return Promise.resolve();
     } catch (error) {
-      console.error("Error submitting approval action:", error);
-      uiToast({
-        title: "Error submitting approval",
-        description: "Please try again",
-        variant: "destructive",
-      });
+      console.error(`[${new Date().toISOString()}] ❌ Error submitting approval:`, error);
+      toast.error("Failed to submit feedback");
+      throw error;
     }
   };
 
-  const handleFeedbackSubmit = async (rating: number, comment: string) => {
-    if (!currentSessionIdRef.current || !researchIdRef.current) return;
-    
+  const handleRejectRequest = async (callId: string, nodeId: string, reason: string) => {
     try {
-      await submitFeedback({
-        rating,
-        comment,
-        session_id: currentSessionIdRef.current,
-        research_id: researchIdRef.current,
-        query: researchObjective
-      });
+      console.log(`[${new Date().toISOString()}] 👎 Sending rejection for call ID:`, callId, "node ID:", nodeId, "reason:", reason);
       
-      toast.success("Thank you for your feedback!");
+      await submitFeedback(callId, false, reason);
       
-      trackEvent('feedback_submitted', {
-        rating,
-        has_comment: !!comment
-      });
+      toast.success("Feedback submitted successfully");
+      setShowApprovalDialog(false);
+      setHumanApprovalRequest(null);
       
+      return Promise.resolve();
     } catch (error) {
-      console.error("Error submitting feedback:", error);
-      uiToast({
-        title: "Error submitting feedback",
-        description: "Please try again later",
-        variant: "destructive",
-      });
+      console.error(`[${new Date().toISOString()}] ❌ Error submitting rejection:`, error);
+      toast.error("Failed to submit feedback");
+      throw error;
     }
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <main className="flex-1 flex">
-        <ResearchHistorySidebar 
-          history={history}
-          onSessionClick={handleSessionClick}
-          currentSessionId={sessionId || ''}
-          isOpen={sidebarOpen}
-          onToggle={toggleSidebar}
-        />
-        
-        <div className={cn(
-          "flex-1 overflow-y-auto transition-all container py-4 md:px-8 max-w-[1200px] mx-auto",
-          { "xl:ml-64": sidebarOpen }
-        )}>
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <ResearchForm 
-                initialObjective={researchObjective}
-                onSubmit={handleResearch}
-                isLoading={isLoading}
-                userModels={userModels}
-                onModelSelect={selectUserModel}
-              />
-              
-              {isLoading && (
-                <ProgressIndicator
-                  currentStage={currentStage}
-                  steps={reasoningPath.length}
-                  sources={sources.length}
-                  findings={findings.length}
-                  isLoading={isLoading}
-                  events={progressEvents}
-                />
-              )}
-              
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid grid-cols-3 mb-4">
-                  <TabsTrigger value="output" disabled={isLoading && !reportData?.sections?.length}>Output</TabsTrigger>
-                  <TabsTrigger value="sources">
-                    Sources 
-                    {sources.length > 0 && <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-muted rounded-full">{sources.length}</span>}
-                  </TabsTrigger>
-                  <TabsTrigger value="reasoning">
-                    Reasoning
-                    {reasoningPath.length > 0 && <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-muted rounded-full">{reasoningPath.length}</span>}
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="output" className="space-y-4">
-                  <ResearchOutput 
-                    output={researchOutput} 
-                    isLoading={isLoading && !reportData?.sections?.length}
-                    reportData={reportData}
-                    sessionId={sessionId}
-                    showReport={true}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="sources" className="space-y-4">
-                  <SourcesList 
-                    sources={sources}
-                    findings={findings}
-                    isLoading={isLoading} 
-                  />
-                </TabsContent>
-                
-                <TabsContent value="reasoning" className="space-y-4">
-                  <ReasoningPath 
-                    path={reasoningPath}
-                    isLoading={isLoading}
-                    reportData={reportData}
-                    sessionId={sessionId}
-                  />
-                </TabsContent>
-              </Tabs>
-            </div>
+    <div className="flex flex-col min-h-screen max-h-screen">
+      <header className="border-b">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center space-x-2">
+            <img src="/arcadia.png" alt="Nexus Logo" className="h-6 w-6" />
+            <h1 className="text-lg font-semibold">nexus</h1>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => navigate("/models")}
+              className="flex items-center gap-1"
+            >
+              <User className="h-4 w-4" />
+              <span>user models</span>
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleNewChat}
+            >
+              <MessageSquarePlus className="h-4 w-4" />
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
-      </main>
-      
-      {showOnboarding && (
-        <UserModelOnboarding 
-          isOpen={showOnboarding} 
-          onComplete={handleOnboardingComplete}
-          onClose={() => setShowOnboarding(false)}
+      </header>
+
+      <div className="flex flex-1 overflow-hidden relative">
+        <ResearchHistorySidebar 
+          isOpen={sidebarOpen}
+          history={groupedHistory}
+          onHistoryItemClick={(item) => loadHistoryItem(item)}
+          onSelectItem={(item) => loadHistoryItem(item)}
+          onToggle={toggleSidebar}
         />
-      )}
+
+        <main className={cn(
+          "flex-1 flex flex-col overflow-hidden transition-all duration-200 ease-in-out",
+          sidebarOpen && "lg:ml-72",
+          !sidebarOpen && "ml-0"
+        )}>
+          {initialEventReceivedRef.current || researchObjective ? (
+            <>
+              <div className={cn(
+                "p-4 border-b transition-opacity duration-300",
+                isLoading && initialEventReceivedRef.current ? "opacity-50" : "opacity-100"
+              )}>
+                <ResearchForm 
+                  isLoading={isLoading}
+                  initialValue={researchObjective}
+                  initialResearchDepth={researchDepth}
+                  initialUserContext={userContext}
+                  initialCognitiveStyle={selectedCognitiveStyle}
+                  initialLLM={selectedLLM}
+                  onLLMChange={setSelectedLLM}
+                  onSubmit={handleResearch}
+                  setResearchObjective={setResearchObjective}
+                />
+              </div>
+              
+              <div className="flex-1 overflow-auto p-4">
+                {isLoading && (
+                  <div className="mb-4">
+                    <ProgressIndicator 
+                      isLoading={isLoading} 
+                      currentStage={currentStage}
+                      events={progressEvents}
+                    />
+                  </div>
+                )}
+                
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="reasoning" className="flex items-center space-x-1">
+                      <span>process ({reasoningPath.length})</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="output" className="flex items-center space-x-1">
+                      <span>output</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="sources" className="flex items-center space-x-1">
+                      <Search className="h-4 w-4" />
+                      <span>sources ({sources.length})</span>
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="reasoning" className="mt-0">
+                    <ReasoningPath 
+                      reasoningPath={reasoningPath} 
+                      sources={sources}
+                      findings={findings}
+                      isActive={activeTab === "reasoning"}
+                      isLoading={isLoading}
+                      rawData={rawData}
+                      sessionId={currentSessionIdRef.current || ""}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="output" className="mt-0">
+                    <ResearchOutput output={researchOutput} isLoading={isLoading} />
+                  </TabsContent>
+                  
+                  <TabsContent value="sources" className="mt-0">
+                    <SourcesList sources={sources} />
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center p-4">
+              <div className="max-w-4xl w-full">
+                <div className="mb-8">
+                  <ResearchOutput 
+                    output="" 
+                    userName={displayName || user?.email?.split('@')[0] || "researcher"}
+                    userModels={userModels}
+                    onSelectModel={selectUserModel}
+                  />
+                </div>
+                
+                <ResearchForm 
+                  isLoading={isLoading}
+                  initialValue={researchObjective}
+                  initialResearchDepth={researchDepth}
+                  initialUserContext={userContext}
+                  initialCognitiveStyle={selectedCognitiveStyle}
+                  initialLLM={selectedLLM}
+                  onLLMChange={setSelectedLLM}
+                  onSubmit={handleResearch}
+                  setResearchObjective={setResearchObjective}
+                />
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
       
       {showApprovalDialog && humanApprovalRequest && (
         <HumanApprovalDialog
           isOpen={showApprovalDialog}
-          request={humanApprovalRequest}
-          onAction={handleApprovalAction}
+          callId={humanApprovalRequest.call_id}
+          nodeId={humanApprovalRequest.node_id}
+          query={humanApprovalRequest.query}
+          content={humanApprovalRequest.content}
+          approvalType={humanApprovalRequest.approval_type}
+          onApprove={(callId, nodeId) => handleApproveRequest(callId, nodeId)}
+          onReject={(callId, nodeId, reason) => handleRejectRequest(callId, nodeId, reason)}
           onClose={() => setShowApprovalDialog(false)}
+        />
+      )}
+      
+      {showOnboarding && (
+        <UserModelOnboarding
+          isOpen={true}
+          onClose={() => setShowOnboarding(false)}
+          onCompleted={(model: any) => {
+            setShowOnboarding(false);
+            markOnboardingCompleted();
+            setResearchDepth(model.research_depth);
+            setSelectedCognitiveStyle(model.cognitive_style);
+            loadUserModels();
+          }}
         />
       )}
     </div>

@@ -15,23 +15,21 @@ import { supabase, syncSession, getClientId } from "@/integrations/supabase/clie
 import { getLatestSessionState, subscribeToResearchState } from "@/services/researchStateService";
 
 interface ResearchHistorySidebarProps {
-  isOpen?: boolean;
-  onToggle?: () => void;
+  isOpen: boolean;
+  onToggle: () => void;
   history: any[];
   onHistoryItemClick?: (item: any) => void;
   onSelectItem?: (item: any) => void;
   currentSessionId?: string;
-  onSessionClick?: (sessionId: string, query: string) => void;
 }
 
 const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({ 
-  isOpen = false,
-  onToggle = () => {},
+  isOpen, 
+  onToggle,
   history,
   onHistoryItemClick,
   onSelectItem,
-  currentSessionId,
-  onSessionClick
+  currentSessionId
 }) => {
   useEffect(() => {
     if (isOpen) {
@@ -201,12 +199,18 @@ const ResearchHistorySidebar: React.FC<ResearchHistorySidebarProps> = ({
         toast.error("Could not load complete session data. Trying with partial data.");
       }
       
-      if (onSessionClick) {
-        onSessionClick(sessionId, item.query);
-      } else {
-        onHistoryItemClick?.(item);
-        onSelectItem?.(item);
-      }
+      window.dispatchEvent(new CustomEvent('session-selected', { 
+        detail: { 
+          sessionId: sessionId,
+          query: item.query,
+          isNew: false,
+          historyItem: item,
+          timestamp: new Date().toISOString()
+        }
+      }));
+      
+      onHistoryItemClick?.(item);
+      onSelectItem?.(item);
       
       onToggle();
       

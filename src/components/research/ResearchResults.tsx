@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -35,7 +34,7 @@ export type ResearchResult = {
   syntheses?: Record<string, any>;
 };
 
-const SourcesList = ({ sources = [], findings = [] }: { sources: string[]; findings?: Finding[] }) => {
+const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Finding[] }) => {
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
   
   const findingsBySource = (findings || []).reduce((acc: Record<string, Finding[]>, finding) => {
@@ -152,7 +151,7 @@ const SourcesList = ({ sources = [], findings = [] }: { sources: string[]; findi
   );
 };
 
-const ReasoningPath = ({ path = [], syntheses = {} }: { path: string[]; syntheses?: Record<string, any> }) => {
+const ReasoningPath = ({ path, syntheses }: { path: string[]; syntheses?: Record<string, any> }) => {
   const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
   
   const stepTypes = [
@@ -649,7 +648,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         <TabsList className="mb-4">
           <TabsTrigger value="answer">Answer</TabsTrigger>
           <TabsTrigger value="sources">
-            Sources ({currentResult.sources ? currentResult.sources.length : 0})
+            Sources ({currentResult.sources.length})
             {currentResult.findings && currentResult.findings.length > 0 && (
               <Badge variant="outline" className="ml-2 text-xs">
                 {currentResult.findings.length}
@@ -660,26 +659,26 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         </TabsList>
         
         <TabsContent value="answer">
-          <ResearchAnswer answer={currentResult.answer || ""} />
+          <ResearchAnswer answer={currentResult.answer} />
         </TabsContent>
         
         <TabsContent value="sources">
           <SourcesList 
-            sources={currentResult.sources || []} 
+            sources={currentResult.sources} 
             findings={currentResult.findings} 
           />
         </TabsContent>
         
         <TabsContent value="reasoning">
           <ReasoningPath 
-            path={currentResult.reasoning_path || []} 
+            path={currentResult.reasoning_path} 
             syntheses={currentResult.syntheses}
           />
         </TabsContent>
       </Tabs>
       
       <div className="mt-6 text-sm text-right text-muted-foreground">
-        <span>Confidence score: {((currentResult.confidence || 0) * 100).toFixed(1)}%</span>
+        <span>Confidence score: {(currentResult.confidence * 100).toFixed(1)}%</span>
       </div>
     </div>
   );

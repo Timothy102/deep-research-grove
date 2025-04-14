@@ -28,15 +28,13 @@ interface SourcesListProps {
   findings?: Finding[];
   className?: string;
   sessionId?: string;
-  isLoading?: boolean;
 }
 
 const SourcesList: React.FC<SourcesListProps> = ({ 
   sources = [], 
   findings = [], 
   className, 
-  sessionId,
-  isLoading = false
+  sessionId 
 }) => {
   const [displaySources, setDisplaySources] = useState<string[]>(sources);
   const [displayFindings, setDisplayFindings] = useState<Finding[]>(findings || []);

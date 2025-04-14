@@ -18,7 +18,7 @@ interface UserModelOnboardingProps {
 
 const UserModelOnboarding: React.FC<UserModelOnboardingProps> = ({ 
   isOpen, 
-  onClose = () => {},
+  onClose,
   onCompleted,
   onComplete
 }) => {
