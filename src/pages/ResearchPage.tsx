@@ -36,6 +36,8 @@ import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
 import { ProgressIndicator } from "@/components/research/ProgressIndicator";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { captureEvent } from "@/integrations/posthog/client";
+import ResearchReport from "@/components/research/ResearchReport";
+import { ReportSynthesis, FinalReport } from "@/components/research/ReportBuildupDialog";
 
 interface ResearchHistory {
   id: string;
@@ -116,6 +118,13 @@ const ResearchPage = () => {
   const [displayName, setDisplayName] = useState<string>("");
   const [progressEvents, setProgressEvents] = useState<string[]>([]);
   const [currentStage, setCurrentStage] = useState("Initializing research");
+  
+  // Add new state for report buildup
+  const [reportSyntheses, setReportSyntheses] = useState<ReportSynthesis[]>([]);
+  const [finalReport, setFinalReport] = useState<FinalReport | null>(null);
+  const [isReportComplete, setIsReportComplete] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
@@ -258,6 +267,12 @@ const ResearchPage = () => {
     initialEventReceivedRef.current = false;
     setProgressEvents([]);
     setCurrentStage("Initializing research");
+    
+    // Reset report state
+    setReportSyntheses([]);
+    setFinalReport(null);
+    setIsReportComplete(false);
+    setShowReportDialog(false);
     
     localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
     localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID);
@@ -643,6 +658,69 @@ const ResearchPage = () => {
         
         return { ...prev, [nodeId]: updatedData };
       });
+    }
+    
+    // Handle report_update events
+    if (eventType === "report_update" && data.data) {
+      console.log(`[${new Date().toISOString()}] 📊 Received report update:`, data.data);
+      
+      const newSynthesis: ReportSynthesis = {
+        synthesis: data.data.synthesis || "",
+        confidence: data.data.confidence || 0,
+        timestamp: data.data.timestamp || new Date().toISOString(),
+        node_id: data.data.node_id || "",
+        query: data.data.query || researchObjective
+      };
+      
+      setReportSyntheses(prev => [...prev, newSynthesis]);
+      
+      if (currentSessionIdRef.current) {
+        updateResearchState(researchId, currentSessionIdRef.current, {
+          custom_data: JSON.stringify({
+            type: 'report_update',
+            synthesis: newSynthesis
+          })
+        }).catch(err => console.error("Error updating report synthesis:", err));
+      }
+      
+      return;
+    }
+    
+    // Handle final_report events
+    if (eventType === "final_report" && data.data) {
+      console.log(`[${new Date().toISOString()}] 📊 Received final report:`, data.data);
+      
+      const report: FinalReport = {
+        query: data.data.query || researchObjective,
+        synthesis: data.data.synthesis || "",
+        confidence: data.data.confidence || 0,
+        reasoning_path: data.data.reasoning_path || [],
+        findings: data.data.findings || [],
+        sources: data.data.sources || [],
+        timestamp: data.data.timestamp || new Date().toISOString()
+      };
+      
+      setFinalReport(report);
+      setIsReportComplete(true);
+      
+      toast.success("Research report is ready", {
+        description: "View the complete report with sources and findings",
+        action: {
+          label: "View",
+          onClick: () => setShowReportDialog(true)
+        }
+      });
+      
+      if (currentSessionIdRef.current) {
+        updateResearchState(researchId, currentSessionIdRef.current, {
+          custom_data: JSON.stringify({
+            type: 'final_report',
+            report: report
+          })
+        }).catch(err => console.error("Error updating final report:", err));
+      }
+      
+      return;
     }
     
     switch (eventType) {
@@ -1142,6 +1220,8 @@ const ResearchPage = () => {
                       isLoading={isLoading} 
                       currentStage={currentStage}
                       events={progressEvents}
+                      onShowReport={reportSyntheses.length > 0 ? () => setShowReportDialog(true) : undefined}
+                      hasReportUpdates={reportSyntheses.length > 0}
                     />
                   </div>
                 )}
@@ -1210,6 +1290,18 @@ const ResearchPage = () => {
           )}
         </main>
       </div>
+      
+      {/* Report Dialog */}
+      {(reportSyntheses.length > 0 || finalReport) && (
+        <ResearchReport 
+          isOpen={showReportDialog}
+          onClose={() => setShowReportDialog(false)}
+          syntheses={reportSyntheses}
+          finalReport={finalReport}
+          isComplete={isReportComplete}
+          sessionId={currentSessionIdRef.current}
+        />
+      )}
       
       {showApprovalDialog && humanApprovalRequest && (
         <HumanApprovalDialog

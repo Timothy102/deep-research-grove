@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ExternalLink, Copy, CheckCircle2, MessageSquare, Lightbulb } from "lucide-react";
+import { ExternalLink, Copy, CheckCircle2, MessageSquare, Lightbulb, FileText } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData } from "@/lib/constants";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { getLatestSessionState } from "@/services/researchStateService";
+import ResearchReport from "./ResearchReport";
 
 export type Finding = {
   content?: string;
@@ -278,12 +279,36 @@ const ResearchAnswer = ({ answer }: { answer: string }) => {
   );
 };
 
+export type ReportSynthesis = {
+  synthesis: string;
+  confidence: number;
+  timestamp: string;
+  node_id: string;
+  query: string;
+};
+
+export type FinalReport = {
+  query: string;
+  synthesis: string;
+  confidence: number;
+  reasoning_path: string[];
+  findings: Finding[];
+  sources: string[];
+  timestamp: string;
+};
+
 const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const resultRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [currentResult, setCurrentResult] = useState<ResearchResult | null>(result);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // New state for report buildup
+  const [reportSyntheses, setReportSyntheses] = useState<ReportSynthesis[]>([]);
+  const [finalReport, setFinalReport] = useState<FinalReport | null>(null);
+  const [isReportComplete, setIsReportComplete] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
   
   useEffect(() => {
     if (result) {
@@ -303,6 +328,12 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         if (result.session_id) {
           setCurrentSessionId(result.session_id);
         }
+        
+        // Reset report state on new session
+        setReportSyntheses([]);
+        setFinalReport(null);
+        setIsReportComplete(false);
+        setShowReportDialog(false);
       }
     }
   }, [result, currentResult]);
@@ -462,7 +493,53 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
     if (!currentResult?.session_id) return;
     
     const payload = event.detail?.payload;
-    if (!payload || payload.table !== 'research_states') return;
+    if (!payload) return;
+    
+    // Handle report_update events
+    if (payload.event_type === "report_update" && payload.data) {
+      console.log(`[${new Date().toISOString()}] 📊 Received report update:`, payload.data);
+      
+      const newSynthesis: ReportSynthesis = {
+        synthesis: payload.data.synthesis || "",
+        confidence: payload.data.confidence || 0,
+        timestamp: payload.data.timestamp || new Date().toISOString(),
+        node_id: payload.data.node_id || "",
+        query: payload.data.query || currentResult.query
+      };
+      
+      setReportSyntheses(prev => [...prev, newSynthesis]);
+      
+      // Show report dialog on first synthesis if not already showing
+      if (!showReportDialog && reportSyntheses.length === 0) {
+        setShowReportDialog(true);
+      }
+      
+      return;
+    }
+    
+    // Handle final_report events
+    if (payload.event === "final_report" && payload.data) {
+      console.log(`[${new Date().toISOString()}] 📊 Received final report:`, payload.data);
+      
+      const report: FinalReport = {
+        query: payload.data.query || currentResult.query,
+        synthesis: payload.data.synthesis || "",
+        confidence: payload.data.confidence || 0,
+        reasoning_path: payload.data.reasoning_path || [],
+        findings: payload.data.findings || [],
+        sources: payload.data.sources || [],
+        timestamp: payload.data.timestamp || new Date().toISOString()
+      };
+      
+      setFinalReport(report);
+      setIsReportComplete(true);
+      setShowReportDialog(true);
+      
+      return;
+    }
+    
+    // Continue handling existing update types
+    if (payload.table !== 'research_states') return;
     
     if (payload.new && payload.new.session_id === currentResult.session_id) {
       console.log(`[${new Date().toISOString()}] 🔄 Processing result update for session ${currentResult.session_id}`);
@@ -541,7 +618,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         }
       }
     }
-  }, [currentResult]);
+  }, [currentResult, showReportDialog, reportSyntheses.length]);
   
   useEffect(() => {
     window.addEventListener('research_state_update', handleRealtimeUpdate as EventListener);
@@ -629,17 +706,31 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold mb-1">Research Results</h2>
-          {currentResult.session_id && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="flex items-center gap-1 text-primary"
-              onClick={handleSessionClick}
-            >
-              <MessageSquare className="h-4 w-4" />
-              <span>View Session</span>
-            </Button>
-          )}
+          <div className="flex items-center space-x-2">
+            {(reportSyntheses.length > 0 || finalReport) && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-1 text-primary"
+                onClick={() => setShowReportDialog(true)}
+              >
+                <FileText className="h-4 w-4" />
+                <span>View Report</span>
+              </Button>
+            )}
+            
+            {currentResult.session_id && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex items-center gap-1 text-primary"
+                onClick={handleSessionClick}
+              >
+                <MessageSquare className="h-4 w-4" />
+                <span>View Session</span>
+              </Button>
+            )}
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">Query: {currentResult.query}</p>
       </div>
@@ -680,8 +771,15 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       <div className="mt-6 text-sm text-right text-muted-foreground">
         <span>Confidence score: {(currentResult.confidence * 100).toFixed(1)}%</span>
       </div>
-    </div>
-  );
-};
-
-export default ResearchResults;
+      
+      {/* Report Dialog */}
+      {(reportSyntheses.length > 0 || finalReport) && (
+        <div className="hidden">
+          <ResearchReport 
+            isOpen={showReportDialog}
+            onClose={() => setShowReportDialog(false)}
+            syntheses={reportSyntheses}
+            finalReport={finalReport}
+            isComplete={isReportComplete}
+            sessionId={currentSessionId}
+          />
