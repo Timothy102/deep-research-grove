@@ -1,14 +1,35 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { FileText, Copy, Download, CheckCircle2 } from "lucide-react";
+import { FileText, Copy, Download, CheckCircle2, FileDown, Newspaper, ChevronDown, ChevronUp } from "lucide-react";
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
-import { Document, Packer, Paragraph, TextRun } from 'docx';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
 import { captureEvent } from '@/integrations/posthog/client';
+
+export interface ReportSection {
+  node_id: string;
+  synthesis: string;
+  confidence?: number;
+  timestamp?: string;
+  depth?: number;
+  query?: string;
+  parent_id?: string;
+  is_root?: boolean;
+  findings?: any[];
+}
+
+export interface ReportData {
+  sections: ReportSection[];
+  finalSynthesis?: string;
+  confidence?: number;
+  sources?: string[];
+  findings?: any[];
+}
 
 export interface ResearchOutputProps {
   output: string;
@@ -16,6 +37,8 @@ export interface ResearchOutputProps {
   userName?: string;
   userModels?: any[];
   onSelectModel?: (modelId: string) => void;
+  reportData?: ReportData;
+  sessionId?: string;
 }
 
 const ResearchOutput: React.FC<ResearchOutputProps> = ({ 
@@ -23,10 +46,30 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
   isLoading = false, 
   userName,
   userModels = [],
-  onSelectModel
+  onSelectModel,
+  reportData,
+  sessionId
 }) => {
   const navigate = useNavigate();
   const [isCopied, setIsCopied] = useState(false);
+  const [expandedReport, setExpandedReport] = useState(false);
+  const [startTime] = useState<number>(Date.now());
+
+  useEffect(() => {
+    if (output && !isLoading && sessionId) {
+      // Calculate the duration from start time to now
+      const duration = Date.now() - startTime;
+      
+      // Capture research completed event with metrics
+      captureEvent('research_completed', {
+        session_id: sessionId,
+        time_taken_ms: duration,
+        output_length: output.length,
+        has_report_data: !!reportData,
+        section_count: reportData?.sections?.length || 0
+      });
+    }
+  }, [output, isLoading, sessionId, reportData, startTime]);
 
   if (isLoading) {
     return (
@@ -108,14 +151,16 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
       setTimeout(() => setIsCopied(false), 2000);
       
       captureEvent('research_output_copied', { 
-        output_length: output.length 
+        output_length: output.length,
+        session_id: sessionId
       });
     } catch (err) {
       console.error("Failed to copy text:", err);
       toast.error("Failed to copy text");
       
       captureEvent('research_output_copy_error', {
-        error: err instanceof Error ? err.message : String(err)
+        error: err instanceof Error ? err.message : String(err),
+        session_id: sessionId
       });
     }
   };
@@ -138,7 +183,9 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
       
       captureEvent('research_output_exported', { 
         format: 'pdf',
-        output_length: output.length
+        output_length: output.length,
+        session_id: sessionId,
+        completion_method: 'pdf'
       });
     } catch (err) {
       console.error("Failed to export as PDF:", err);
@@ -146,25 +193,67 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
       
       captureEvent('research_output_export_error', {
         format: 'pdf',
-        error: err instanceof Error ? err.message : String(err)
+        error: err instanceof Error ? err.message : String(err),
+        session_id: sessionId
       });
     }
   };
 
   const exportToDocx = async () => {
     try {
+      // Create document with sections if report data exists
       const doc = new Document({
         sections: [{
           properties: {},
           children: [
             new Paragraph({
-              children: [
-                new TextRun({ text: "Research Results", bold: true, size: 28 }),
-              ],
+              text: "Research Results",
+              heading: HeadingLevel.HEADING_1,
+              alignment: AlignmentType.CENTER
             }),
             new Paragraph({
-              text: output,
+              text: "",
             }),
+            ...(reportData && reportData.sections && reportData.sections.length > 0 
+              ? [
+                  ...reportData.sections.map(section => [
+                    new Paragraph({
+                      text: section.synthesis ? `${section.query || "Research Section"}` : "",
+                      heading: HeadingLevel.HEADING_2,
+                    }),
+                    new Paragraph({
+                      text: section.synthesis || "",
+                    }),
+                    new Paragraph({
+                      text: section.confidence ? `Confidence: ${(section.confidence * 100).toFixed(0)}%` : "",
+                      italics: true,
+                    }),
+                    new Paragraph({ text: "" }),
+                  ]).flat()
+                ]
+              : [
+                  new Paragraph({
+                    text: output,
+                  }),
+                ]
+            ),
+            ...(reportData && reportData.sources && reportData.sources.length > 0
+              ? [
+                  new Paragraph({
+                    text: "Sources",
+                    heading: HeadingLevel.HEADING_2,
+                  }),
+                  ...reportData.sources.map(source => 
+                    new Paragraph({
+                      text: source,
+                      bullet: {
+                        level: 0
+                      }
+                    })
+                  )
+                ]
+              : []
+            )
           ],
         }],
       });
@@ -175,7 +264,11 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
       
       captureEvent('research_output_exported', { 
         format: 'docx',
-        output_length: output.length
+        output_length: output.length,
+        section_count: reportData?.sections?.length || 0,
+        has_structured_data: !!reportData,
+        session_id: sessionId,
+        completion_method: 'docx'
       });
     } catch (err) {
       console.error("Failed to export as DOCX:", err);
@@ -183,9 +276,116 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
       
       captureEvent('research_output_export_error', {
         format: 'docx',
-        error: err instanceof Error ? err.message : String(err)
+        error: err instanceof Error ? err.message : String(err),
+        session_id: sessionId
       });
     }
+  };
+
+  const exportToMarkdown = () => {
+    try {
+      let markdownContent = "# Research Results\n\n";
+      
+      if (reportData && reportData.sections && reportData.sections.length > 0) {
+        reportData.sections.forEach((section) => {
+          if (section.synthesis) {
+            markdownContent += `## ${section.query || "Research Section"}\n\n`;
+            markdownContent += `${section.synthesis}\n\n`;
+            if (section.confidence) {
+              markdownContent += `*Confidence: ${(section.confidence * 100).toFixed(0)}%*\n\n`;
+            }
+          }
+        });
+        
+        if (reportData.sources && reportData.sources.length > 0) {
+          markdownContent += "## Sources\n\n";
+          reportData.sources.forEach((source) => {
+            markdownContent += `- ${source}\n`;
+          });
+        }
+      } else {
+        markdownContent += output;
+      }
+      
+      const blob = new Blob([markdownContent], { type: "text/markdown;charset=utf-8" });
+      saveAs(blob, "research-output.md");
+      toast.success("Markdown file downloaded successfully");
+      
+      captureEvent('research_output_exported', { 
+        format: 'markdown',
+        output_length: markdownContent.length,
+        section_count: reportData?.sections?.length || 0,
+        has_structured_data: !!reportData,
+        session_id: sessionId,
+        completion_method: 'markdown'
+      });
+    } catch (err) {
+      console.error("Failed to export as Markdown:", err);
+      toast.error("Failed to export as Markdown");
+      
+      captureEvent('research_output_export_error', {
+        format: 'markdown',
+        error: err instanceof Error ? err.message : String(err),
+        session_id: sessionId
+      });
+    }
+  };
+
+  const renderReportSections = () => {
+    if (!reportData || !reportData.sections || reportData.sections.length === 0) {
+      return null;
+    }
+    
+    return (
+      <div className="mt-4 space-y-4">
+        <div 
+          className="flex items-center justify-between cursor-pointer p-2 hover:bg-muted rounded-md"
+          onClick={() => setExpandedReport(!expandedReport)}
+        >
+          <h3 className="text-lg font-medium flex items-center">
+            <Newspaper className="h-5 w-5 mr-2" />
+            Detailed Research Report 
+            {reportData.sections.length > 0 && (
+              <Badge variant="outline" className="ml-2">
+                {reportData.sections.length} sections
+              </Badge>
+            )}
+          </h3>
+          {expandedReport ? (
+            <ChevronUp className="h-5 w-5" />
+          ) : (
+            <ChevronDown className="h-5 w-5" />
+          )}
+        </div>
+        
+        {expandedReport && (
+          <div className="space-y-4 pl-2 border-l-2 border-muted">
+            {reportData.sections.map((section, index) => (
+              <div key={section.node_id || index} className="p-3 border rounded-md">
+                {section.query && (
+                  <h4 className="font-medium mb-2">{section.query}</h4>
+                )}
+                {section.synthesis && (
+                  <div className="whitespace-pre-wrap text-sm">{section.synthesis}</div>
+                )}
+                {section.confidence !== undefined && (
+                  <div className="mt-2 text-xs text-muted-foreground flex items-center">
+                    <span>Confidence: </span>
+                    <div className="ml-1 w-32 h-2 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-green-500"
+                        style={{ width: `${section.confidence * 100}%` }}
+                      />
+                    </div>
+                    <span className="ml-1">{(section.confidence * 100).toFixed(0)}%</span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -218,9 +418,20 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
           <Download size={16} />
           <span>DOCX</span>
         </Button>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1" 
+          onClick={exportToMarkdown}
+        >
+          <FileDown size={16} />
+          <span>MD</span>
+        </Button>
       </div>
       
       <div className="whitespace-pre-wrap">{output}</div>
+      
+      {renderReportSections()}
     </div>
   );
 };

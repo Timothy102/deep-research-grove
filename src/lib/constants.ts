@@ -1,3 +1,4 @@
+
 // Local storage keys for better state persistence
 export const LOCAL_STORAGE_KEYS = {
   CURRENT_RESEARCH_ID: "deepresearch.current_research_id",
@@ -14,7 +15,8 @@ export const LOCAL_STORAGE_KEYS = {
   RAW_DATA_CACHE: "deepresearch.raw_data_cache",
   SESSION_HISTORY: "deepresearch.session_history",
   SYNTHESIS_CACHE: "deepresearch.synthesis_cache",
-  ANSWERS_CACHE: "deepresearch.answers_cache"
+  ANSWERS_CACHE: "deepresearch.answers_cache",
+  REPORT_DATA_CACHE: "deepresearch.report_data_cache"
 };
 
 // Session-specific keys
@@ -36,7 +38,8 @@ export const getAllSessionKeys = (sessionId: string) => {
     rawDataKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.RAW_DATA_CACHE, sessionId),
     objectiveKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.RESEARCH_OBJECTIVE, sessionId),
     synthesisKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.SYNTHESIS_CACHE, sessionId),
-    answersKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWERS_CACHE, sessionId)
+    answersKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.ANSWERS_CACHE, sessionId),
+    reportDataKey: getSessionStorageKey(LOCAL_STORAGE_KEYS.REPORT_DATA_CACHE, sessionId)
   };
 };
 
@@ -129,6 +132,11 @@ export const saveSessionData = (sessionId: string, data: Record<string, any>) =>
     if (data.answers) {
       localStorage.setItem(keys.answersKey, JSON.stringify(data.answers));
       localStorage.setItem(LOCAL_STORAGE_KEYS.ANSWERS_CACHE, JSON.stringify(data.answers));
+    }
+    
+    if (data.reportData) {
+      localStorage.setItem(keys.reportDataKey, JSON.stringify(data.reportData));
+      localStorage.setItem(LOCAL_STORAGE_KEYS.REPORT_DATA_CACHE, JSON.stringify(data.reportData));
     }
     
     // Save current session ID

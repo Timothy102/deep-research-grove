@@ -7,10 +7,20 @@ import HumanApprovalDialog from './components/research/HumanApprovalDialog.tsx';
 import { submitFeedback } from './services/feedbackService.ts';
 import { supabase } from './integrations/supabase/client';
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey } from './lib/constants.ts';
-import { initPostHog } from './integrations/posthog/client';
+import { initPostHog, captureEvent } from './integrations/posthog/client';
 
 // Initialize PostHog if not already initialized by the inline script
 initPostHog();
+
+// Capture initial visit with attribution data
+captureEvent('initial_visit', {
+  referrer: document.referrer,
+  utm_source: new URLSearchParams(window.location.search).get('utm_source'),
+  utm_medium: new URLSearchParams(window.location.search).get('utm_medium'),
+  utm_campaign: new URLSearchParams(window.location.search).get('utm_campaign'),
+  landing_page: window.location.pathname,
+  time: new Date().toISOString()
+});
 
 // Track the current active session ID
 let currentSessionId = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_SESSION_ID) || '';
