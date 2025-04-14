@@ -24,9 +24,18 @@ export interface ResearchState {
   user_id?: string; // Added user_id as optional to match database requirements
 }
 
-export async function saveResearchState(state: Partial<ResearchState>): Promise<ResearchState> {
+export async function saveResearchState(state: ResearchState): Promise<ResearchState> {
   try {
     console.log(`[${new Date().toISOString()}] 💾 Saving research state for session:`, state.session_id);
+    
+    // Make sure we have all required fields
+    if (!state.research_id) {
+      throw new Error('research_id is required');
+    }
+    
+    if (!state.session_id) {
+      throw new Error('session_id is required');
+    }
     
     // Make sure we have a user_id value, even if it's null
     // Also ensure query has a default value if not provided to satisfy the database requirement
