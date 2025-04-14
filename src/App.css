@@ -124,7 +124,7 @@ textarea:placeholder-shown {
   border-left: 3px solid hsl(var(--primary));
 }
 
-/* Restore the search button styling */
+/* Style buttons to match the design */
 form button[type="submit"] {
   background-color: #1A1F2C;
   color: white;
@@ -133,6 +133,35 @@ form button[type="submit"] {
 form button[type="submit"]:hover {
   background-color: #1A1F2C;
   opacity: 0.9;
+}
+
+/* Add header styling to match design */
+header {
+  border-bottom: 1px solid #eee;
+  height: 56px;
+  display: flex;
+  align-items: center;
+}
+
+header span {
+  font-weight: 600;
+}
+
+/* Style user models button */
+header button {
+  font-size: 14px;
+  color: #333;
+}
+
+/* Style the research cards */
+.border {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+}
+
+/* Style notification toast */
+.fixed.bottom-10.right-10 {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 /* Mobile-specific adjustments */

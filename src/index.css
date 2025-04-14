@@ -59,6 +59,33 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: 'Inter', sans-serif;
+  }
+  
+  /* Header styling */
+  header {
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* Customize button styling */
+  button[type="submit"] {
+    background-color: #000;
+    color: white;
+  }
+  
+  /* Research form styling */
+  form {
+    display: flex;
+    gap: 8px;
+  }
+  
+  /* Style the card elements */
+  .border.rounded-lg {
+    transition: all 0.2s ease;
+  }
+  
+  .border.rounded-lg:hover {
+    border-color: #000;
   }
 }
 

@@ -19,7 +19,19 @@ function App() {
         <AuthProvider>
           <TooltipProvider>
             <BrowserRouter>
-              <AppRoutes />
+              <div className="flex min-h-screen flex-col">
+                <header className="border-b flex items-center px-4 h-14">
+                  <div className="flex items-center">
+                    <span className="text-lg font-semibold ml-2">nexus</span>
+                  </div>
+                  <div className="ml-auto flex items-center space-x-4">
+                    <button className="text-sm font-medium">user models</button>
+                  </div>
+                </header>
+                <main className="flex-1">
+                  <AppRoutes />
+                </main>
+              </div>
               <Toaster />
               <SonnerToaster 
                 position="top-center" 
