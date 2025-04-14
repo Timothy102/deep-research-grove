@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -766,7 +766,6 @@ const ResearchPage = () => {
           }).catch(err => console.error("Error updating reasoning path:", err));
         }
         break;
-      // Add new case for report_update events
       case "report_update":
         console.log(`[${new Date().toISOString()}] 📄 Received report update:`, data.data);
         
@@ -778,25 +777,21 @@ const ResearchPage = () => {
           query: data.data.query
         };
         
-        // Update report data with new section
         setReportData(prev => {
           const existingData = prev || { sections: [] };
           
-          // Check if we already have this section
           const sectionIndex = existingData.sections.findIndex(
             s => s.node_id === reportUpdate.node_id
           );
           
           let updatedSections;
           if (sectionIndex >= 0) {
-            // Update existing section
             updatedSections = [...existingData.sections];
             updatedSections[sectionIndex] = {
               ...updatedSections[sectionIndex],
               ...reportUpdate
             };
           } else {
-            // Add new section
             updatedSections = [...existingData.sections, reportUpdate];
           }
           
@@ -814,15 +809,12 @@ const ResearchPage = () => {
         
         setCurrentStage("Updating research report");
         break;
-
-      // Add new case for final_report events
       case "final_report":
         console.log(`[${new Date().toISOString()}] 📝 Received final report:`, data.data);
         
         setReportData(prev => {
           const existingData = prev || { sections: [] };
           
-          // Create a root section if it doesn't exist
           const rootSection = {
             node_id: 'root',
             synthesis: data.data.synthesis || '',
@@ -831,19 +823,16 @@ const ResearchPage = () => {
             is_root: true
           };
           
-          // Check if we already have a root section
           const rootIndex = existingData.sections.findIndex(s => s.is_root);
           
           let updatedSections;
           if (rootIndex >= 0) {
-            // Update existing root section
             updatedSections = [...existingData.sections];
             updatedSections[rootIndex] = {
               ...updatedSections[rootIndex],
               ...rootSection
             };
           } else {
-            // Add root section to the beginning
             updatedSections = [rootSection, ...existingData.sections];
           }
           
@@ -866,7 +855,6 @@ const ResearchPage = () => {
         setResearchOutput(data.data.synthesis || '');
         setCurrentStage("Finalizing research report");
         break;
-
       case "complete":
         const finalAnswer = data.data.answer || "";
         const finalSources = data.data.sources || [];
@@ -908,3 +896,15 @@ const ResearchPage = () => {
           variant: "destructive",
         });
         setIsLoading(false);
+        break;
+    }
+  };
+
+  return (
+    <div>
+      {/* Component JSX */}
+    </div>
+  );
+};
+
+export default ResearchPage;
