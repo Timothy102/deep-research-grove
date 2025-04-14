@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -389,11 +389,64 @@ const ResearchPage = () => {
           pollResearchState(sessionState.research_id);
         }
       }
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] ❌ Error loading session data:`, error);
     }
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error loading session data:`, error);
-  }
-};
+  };
+
+  const pollResearchState = (researchId: string) => {
+    console.log(`[${new Date().toISOString()}] 🔄 Starting polling for research state:`, researchId);
+    
+    const checkInterval = setInterval(async () => {
+      if (!currentSessionIdRef.current) {
+        clearInterval(checkInterval);
+        return;
+      }
+      
+      try {
+        const state = await getResearchState(researchId, currentSessionIdRef.current);
+        
+        if (state) {
+          console.log(`[${new Date().toISOString()}] 📊 Polled state update:`, {
+            status: state.status,
+            hasAnswer: !!state.answer,
+            sourceCount: state.sources?.length || 0,
+            findingsCount: state.findings?.length || 0
+          });
+          
+          if (state.status === 'completed') {
+            console.log(`[${new Date().toISOString()}] ✅ Research completed according to polled state`);
+            setIsLoading(false);
+            clearInterval(checkInterval);
+            
+            // Update UI with final state
+            if (state.answer) setResearchOutput(state.answer);
+            if (state.sources) setSources(state.sources);
+            if (state.findings) setFindings(state.findings);
+            if (state.reasoning_path) setReasoningPath(state.reasoning_path);
+            if (state.report_data) setReportData(state.report_data);
+            
+            setActiveTab("output");
+          } else if (state.status === 'error') {
+            console.error(`[${new Date().toISOString()}] ❌ Research error according to polled state:`, state.error);
+            setIsLoading(false);
+            clearInterval(checkInterval);
+            
+            if (state.error) {
+              toast.error(state.error);
+            } else {
+              toast.error("An error occurred during research");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error polling research state:", err);
+      }
+    }, 5000); // Poll every 5 seconds
+    
+    // Store interval ID to clear it later
+    return checkInterval;
+  };
 
   const handleResearch = async (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => {
     if (!query.trim()) {
@@ -767,7 +820,6 @@ const ResearchPage = () => {
           }).catch(err => console.error("Error updating reasoning path:", err));
         }
         break;
-      // Add new case for report_update events
       case "report_update":
         console.log(`[${new Date().toISOString()}] 📄 Received report update:`, data.data);
         
@@ -779,25 +831,21 @@ const ResearchPage = () => {
           query: data.data.query
         };
         
-        // Update report data with new section
         setReportData(prev => {
           const existingData = prev || { sections: [] };
           
-          // Check if we already have this section
           const sectionIndex = existingData.sections.findIndex(
             s => s.node_id === reportUpdate.node_id
           );
           
           let updatedSections;
           if (sectionIndex >= 0) {
-            // Update existing section
             updatedSections = [...existingData.sections];
             updatedSections[sectionIndex] = {
               ...updatedSections[sectionIndex],
               ...reportUpdate
             };
           } else {
-            // Add new section
             updatedSections = [...existingData.sections, reportUpdate];
           }
           
@@ -815,15 +863,12 @@ const ResearchPage = () => {
         
         setCurrentStage("Updating research report");
         break;
-
-      // Add new case for final_report events
       case "final_report":
         console.log(`[${new Date().toISOString()}] 📝 Received final report:`, data.data);
         
         setReportData(prev => {
           const existingData = prev || { sections: [] };
           
-          // Create a root section if it doesn't exist
           const rootSection = {
             node_id: 'root',
             synthesis: data.data.synthesis || '',
@@ -832,19 +877,16 @@ const ResearchPage = () => {
             is_root: true
           };
           
-          // Check if we already have a root section
           const rootIndex = existingData.sections.findIndex(s => s.is_root);
           
           let updatedSections;
           if (rootIndex >= 0) {
-            // Update existing root section
             updatedSections = [...existingData.sections];
             updatedSections[rootIndex] = {
               ...updatedSections[rootIndex],
               ...rootSection
             };
           } else {
-            // Add root section to the beginning
             updatedSections = [rootSection, ...existingData.sections];
           }
           
@@ -867,7 +909,6 @@ const ResearchPage = () => {
         setResearchOutput(data.data.synthesis || '');
         setCurrentStage("Finalizing research report");
         break;
-
       case "complete":
         const finalAnswer = data.data.answer || "";
         const finalSources = data.data.sources || [];
@@ -908,4 +949,16 @@ const ResearchPage = () => {
           description: data.data.error || "Unknown error",
           variant: "destructive",
         });
-        setIsLoading
+        setIsLoading(false);
+        break;
+    }
+  };
+
+  return (
+    <div>
+      {/* Component JSX */}
+    </div>
+  );
+};
+
+export default ResearchPage;
