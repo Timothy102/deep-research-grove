@@ -4,7 +4,7 @@ import { Json } from "@/integrations/supabase/types";
 
 export interface ResearchState {
   id?: string;
-  research_id: string;
+  research_id: string; // Making this required to match database requirements
   session_id: string;
   status: 'in_progress' | 'completed' | 'error' | 'awaiting_human_input';
   query?: string;
