@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -13,7 +14,8 @@ import {
   saveResearchState, 
   updateResearchState, 
   getResearchState, 
-  getLatestSessionState 
+  getLatestSessionState,
+  subscribeToResearchState 
 } from "@/services/researchStateService";
 import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted, getUserModels } from "@/services/userModelService";
 import { submitHumanFeedback } from "@/services/humanInteractionService";
@@ -953,10 +955,189 @@ const ResearchPage = () => {
         break;
     }
   };
+  
+  const handleSessionClick = (sessionId: string, query: string) => {
+    navigate(`/research/${sessionId}`);
+  };
+
+  const handleOnboardingComplete = async () => {
+    try {
+      await markOnboardingCompleted();
+      setShowOnboarding(false);
+      
+      trackEvent('onboarding_completed', {});
+      
+      toast.success("Onboarding completed!");
+    } catch (error) {
+      console.error("Error marking onboarding as completed:", error);
+      uiToast({
+        title: "Error completing onboarding",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleApprovalAction = async (approved: boolean, comment?: string) => {
+    if (!humanApprovalRequest || !currentSessionIdRef.current || !researchIdRef.current) return;
+    
+    try {
+      await submitHumanFeedback({
+        call_id: humanApprovalRequest.call_id,
+        node_id: humanApprovalRequest.node_id,
+        approved,
+        comment,
+        query: humanApprovalRequest.query,
+        session_id: currentSessionIdRef.current,
+        research_id: researchIdRef.current,
+        approval_type: humanApprovalRequest.approval_type
+      });
+      
+      setShowApprovalDialog(false);
+      setHumanApprovalRequest(null);
+      
+      if (approved) {
+        toast.success("Approved! Research will continue.");
+      } else {
+        toast.info("Research step rejected.");
+      }
+      
+      trackEvent('human_approval_action', {
+        approved,
+        has_comment: !!comment,
+        approval_type: humanApprovalRequest.approval_type
+      });
+      
+    } catch (error) {
+      console.error("Error submitting approval action:", error);
+      uiToast({
+        title: "Error submitting approval",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleFeedbackSubmit = async (rating: number, comment: string) => {
+    if (!currentSessionIdRef.current || !researchIdRef.current) return;
+    
+    try {
+      await submitFeedback({
+        rating,
+        comment,
+        session_id: currentSessionIdRef.current,
+        research_id: researchIdRef.current,
+        query: researchObjective
+      });
+      
+      toast.success("Thank you for your feedback!");
+      
+      trackEvent('feedback_submitted', {
+        rating,
+        has_comment: !!comment
+      });
+      
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      uiToast({
+        title: "Error submitting feedback",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
-    <div>
-      {/* Component JSX */}
+    <div className="flex flex-col min-h-screen bg-background">
+      <main className="flex-1 flex">
+        <ResearchHistorySidebar 
+          history={history}
+          onSessionClick={handleSessionClick}
+          currentSessionId={sessionId || ''}
+        />
+        
+        <div className={cn(
+          "flex-1 overflow-y-auto transition-all container py-4 md:px-8 max-w-[1200px] mx-auto",
+          { "xl:ml-64": sidebarOpen }
+        )}>
+          <div className="space-y-6">
+            <div className="space-y-4">
+              <ResearchForm 
+                initialObjective={researchObjective}
+                onSubmit={handleResearch}
+                isLoading={isLoading}
+                userModels={userModels}
+                onModelSelect={selectUserModel}
+              />
+              
+              {isLoading && (
+                <ProgressIndicator
+                  currentStage={currentStage}
+                  steps={reasoningPath.length}
+                  sources={sources.length}
+                  findings={findings.length}
+                />
+              )}
+              
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid grid-cols-3 mb-4">
+                  <TabsTrigger value="output" disabled={isLoading && !reportData?.sections?.length}>Output</TabsTrigger>
+                  <TabsTrigger value="sources">
+                    Sources 
+                    {sources.length > 0 && <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-muted rounded-full">{sources.length}</span>}
+                  </TabsTrigger>
+                  <TabsTrigger value="reasoning">
+                    Reasoning
+                    {reasoningPath.length > 0 && <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-muted rounded-full">{reasoningPath.length}</span>}
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="output" className="space-y-4">
+                  <ResearchOutput 
+                    output={researchOutput} 
+                    isLoading={isLoading && !reportData?.sections?.length}
+                    reportData={reportData}
+                    sessionId={sessionId}
+                    showReport={true}
+                  />
+                </TabsContent>
+                
+                <TabsContent value="sources" className="space-y-4">
+                  <SourcesList 
+                    sources={sources}
+                    findings={findings}
+                    isLoading={isLoading} 
+                  />
+                </TabsContent>
+                
+                <TabsContent value="reasoning" className="space-y-4">
+                  <ReasoningPath 
+                    path={reasoningPath}
+                    isLoading={isLoading}
+                    reportData={reportData}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
+          </div>
+        </div>
+      </main>
+      
+      {showOnboarding && (
+        <UserModelOnboarding 
+          isOpen={showOnboarding} 
+          onComplete={handleOnboardingComplete}
+        />
+      )}
+      
+      {showApprovalDialog && humanApprovalRequest && (
+        <HumanApprovalDialog
+          isOpen={showApprovalDialog}
+          request={humanApprovalRequest}
+          onAction={handleApprovalAction}
+          onClose={() => setShowApprovalDialog(false)}
+        />
+      )}
     </div>
   );
 };
