@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -38,7 +39,12 @@ import { ProgressIndicator } from "@/components/research/ProgressIndicator";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { captureEvent } from "@/integrations/posthog/client";
 import { ReportData, ReportSection } from "@/components/research/ResearchOutput";
+import { useResearchState } from "@/hooks/use-research-state";
+import { useHumanApproval } from "@/hooks/use-human-approval";
+import { useResearchStream } from "@/hooks/use-research-stream";
+import { ResearchTabs } from "@/components/research/ResearchTabs";
 
+// Move to types file later
 interface ResearchHistory {
   id: string;
   query: string;
@@ -47,58 +53,61 @@ interface ResearchHistory {
   created_at: string;
 }
 
-interface HumanApprovalRequest {
-  call_id: string;
-  node_id: string;
-  query: string;
-  content: string;
-  approval_type: string;
-  interaction_type?: "planning" | "searching" | "synthesizing";
-}
-
-interface Finding {
-  source: string;
-  content?: string;
-  node_id?: string;
-  query?: string;
-  finding?: any;
-}
-
-interface HumanInteraction {
-  call_id: string;
-  node_id: string;
-  query: string;
-  content: string;
-  interaction_type: string;
-  status: "completed" | "pending";
-  response?: {
-    approved: boolean;
-    comment?: string;
-    timestamp: string;
-  };
-  type?: string;
-  timestamp?: string;
-}
-
-interface HumanInteractionRequest {
-  call_id: string;
-  node_id: string;
-  query: string;
-  content: string;
-  interaction_type: "planning" | "searching" | "synthesizing";
-  approval_type?: string;
-}
-
 const ResearchPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
-  const [isLoading, setIsLoading] = useState(false);
-  const [researchOutput, setResearchOutput] = useState("");
-  const [sources, setSources] = useState<string[]>([]);
-  const [findings, setFindings] = useState<Finding[]>([]);
-  const [reasoningPath, setReasoningPath] = useState<string[]>([]);
-  const [activeTab, setActiveTab] = useState("reasoning");
+  
+  // Use our new custom hooks
+  const { 
+    isLoading, setIsLoading,
+    researchOutput, setResearchOutput,
+    sources, setSources,
+    findings, setFindings,
+    reasoningPath, setReasoningPath,
+    activeTab, setActiveTab,
+    researchObjective, setResearchObjective,
+    researchDepth, setResearchDepth,
+    userContext, setUserContext,
+    selectedCognitiveStyle, setSelectedCognitiveStyle,
+    selectedLLM, setSelectedLLM,
+    rawData, setRawData,
+    userModels, setUserModels,
+    progressEvents, setProgressEvents,
+    currentStage, setCurrentStage,
+    reportData, setReportData,
+    resetResearchState,
+    pollResearchState
+  } = useResearchState();
+
+  const {
+    showApprovalDialog, setShowApprovalDialog,
+    humanApprovalRequest, setHumanApprovalRequest,
+    handleApprovalAction
+  } = useHumanApproval({
+    currentSessionIdRef: useRef<string | null>(sessionId || null),
+    researchIdRef: useRef<string | null>(null)
+  });
+
+  const { startResearchStream } = useResearchStream({
+    setIsLoading,
+    setSources,
+    setFindings,
+    setReasoningPath,
+    setResearchOutput,
+    setActiveTab,
+    setProgressEvents,
+    setCurrentStage,
+    setRawData,
+    setHumanApprovalRequest,
+    setReportData,
+    sources,
+    findings,
+    reasoningPath,
+    researchObjective,
+    reportData
+  });
+  
   const [history, setHistory] = useState<ResearchHistoryEntry[]>([]);
   const [groupedHistory, setGroupedHistory] = useState<any[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
@@ -106,18 +115,8 @@ const ResearchPage = () => {
     return savedState !== null ? savedState === 'true' : false;
   });
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [showApprovalDialog, setShowApprovalDialog] = useState(false);
-  const [humanApprovalRequest, setHumanApprovalRequest] = useState<HumanApprovalRequest | null>(null);
-  const [researchObjective, setResearchObjective] = useState("");
-  const [researchDepth, setResearchDepth] = useState("");
-  const [userContext, setUserContext] = useState("");
-  const [selectedCognitiveStyle, setSelectedCognitiveStyle] = useState("");
-  const [selectedLLM, setSelectedLLM] = useState("auto");
-  const [rawData, setRawData] = useState<Record<string, string>>({});
-  const [userModels, setUserModels] = useState<UserModel[]>([]);
   const [displayName, setDisplayName] = useState<string>("");
-  const [progressEvents, setProgressEvents] = useState<string[]>([]);
-  const [currentStage, setCurrentStage] = useState("Initializing research");
+  
   const eventSourceRef = useRef<EventSource | null>(null);
   const researchIdRef = useRef<string | null>(null);
   const currentSessionIdRef = useRef<string | null>(sessionId || null);
@@ -126,7 +125,6 @@ const ResearchPage = () => {
   const { toast: uiToast } = useToast();
   const isMobile = useMediaQuery("(max-width: 768px)");
   const { trackEvent } = useAnalytics();
-  const [reportData, setReportData] = useState<ReportData | undefined>(undefined);
 
   useEffect(() => {
     if (!user) {
@@ -195,7 +193,7 @@ const ResearchPage = () => {
       window.removeEventListener('sidebar-toggle', handleSidebarToggle as EventListener);
       window.removeEventListener('new-chat-requested', handleNewChatRequest as EventListener);
     };
-  }, [user, navigate, sessionId]);
+  }, [user, navigate, sessionId, resetResearchState]);
 
   const loadUserModels = async () => {
     try {
@@ -242,33 +240,6 @@ const ResearchPage = () => {
       }
     } catch (error) {
       console.error("Error checking onboarding status:", error);
-    }
-  };
-
-  const resetResearchState = () => {
-    console.log(`[${new Date().toISOString()}] 🔄 Resetting research state completely`);
-    
-    setResearchOutput("");
-    setSources([]);
-    setFindings([]);
-    setReasoningPath([]);
-    setActiveTab("reasoning");
-    setResearchObjective("");
-    setResearchDepth("");
-    setUserContext("");
-    setSelectedCognitiveStyle("");
-    researchIdRef.current = null;
-    initialEventReceivedRef.current = false;
-    setProgressEvents([]);
-    setCurrentStage("Initializing research");
-    setReportData(undefined);
-    
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
-    localStorage.removeItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID);
-    
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
     }
   };
 
@@ -340,7 +311,7 @@ const ResearchPage = () => {
         }
         
         if (sessionState.status === 'awaiting_human_input' && sessionState.human_interactions) {
-          let interactions: HumanInteraction[] = [];
+          let interactions: any[] = [];
           
           if (typeof sessionState.human_interactions === 'string') {
             try {
@@ -350,7 +321,7 @@ const ResearchPage = () => {
               interactions = [];
             }
           } else if (Array.isArray(sessionState.human_interactions)) {
-            interactions = sessionState.human_interactions as HumanInteraction[];
+            interactions = sessionState.human_interactions;
           }
                 
           const lastInteraction = interactions
@@ -358,7 +329,7 @@ const ResearchPage = () => {
             .pop();
             
           if (lastInteraction) {
-            const approvalRequest: HumanApprovalRequest = {
+            const approvalRequest = {
               call_id: lastInteraction.call_id,
               node_id: lastInteraction.node_id,
               query: lastInteraction.query || sessionState.query,
@@ -394,67 +365,6 @@ const ResearchPage = () => {
       console.error(`[${new Date().toISOString()}] ❌ Error loading session data:`, error);
     }
   };
-
-  const pollResearchState = useCallback((researchId: string, interval = 5000, maxAttempts = 20, currentAttempt = 0) => {
-    console.log(`[${new Date().toISOString()}] 🔄 Starting polling for research state:`, researchId);
-    
-    const checkInterval = setInterval(async () => {
-      if (!currentSessionIdRef.current || currentAttempt >= maxAttempts) {
-        clearInterval(checkInterval);
-        return;
-      }
-      
-      try {
-        const state = await getResearchState(researchId, currentSessionIdRef.current);
-        
-        if (state) {
-          console.log(`[${new Date().toISOString()}] 📊 Polled state update:`, {
-            status: state.status,
-            hasAnswer: !!state.answer,
-            sourceCount: state.sources?.length || 0,
-            findingsCount: state.findings?.length || 0
-          });
-          
-          if (state.status === 'completed') {
-            console.log(`[${new Date().toISOString()}] ✅ Research completed according to polled state`);
-            setIsLoading(false);
-            clearInterval(checkInterval);
-            
-            // Update UI with final state
-            if (state.answer) setResearchOutput(state.answer);
-            if (state.sources) setSources(state.sources);
-            if (state.findings) setFindings(state.findings);
-            if (state.reasoning_path) setReasoningPath(state.reasoning_path);
-            if (state.report_data) setReportData(state.report_data);
-            
-            setActiveTab("output");
-          } else if (state.status === 'error') {
-            console.error(`[${new Date().toISOString()}] ❌ Research error according to polled state:`, state.error);
-            setIsLoading(false);
-            clearInterval(checkInterval);
-            
-            if (state.error) {
-              toast.error(state.error);
-            } else {
-              toast.error("An error occurred during research");
-            }
-            
-            if (researchId && currentSessionIdRef.current) {
-              // Provide all 4 arguments: researchId, interval, maxAttempts, currentAttempt
-              pollResearchState(researchId, 5000, 20, 0);
-            }
-          }
-        }
-      } catch (err) {
-        console.error("Error polling research state:", err);
-      }
-      
-      // Increment the attempt counter
-      currentAttempt++;
-    }, interval);
-    
-    return checkInterval;
-  }, []);
 
   const handleResearch = async (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => {
     if (!query.trim()) {
@@ -561,410 +471,6 @@ const ResearchPage = () => {
     }
   };
 
-  const startResearchStream = (userModelData: any, researchId: string, query: string, modelToUse: string = 'claude-3.5-sonnet') => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
-    
-    const streamUrl = `https://timothy102--vertical-deep-research-stream-research.modal.run`;
-    
-    console.log(`[${new Date().toISOString()}] 🔄 Setting up POST connection to research stream`);
-    
-    const requestBody = {
-      research_objective: query,
-      user_model: userModelData,
-      model: modelToUse,
-      session_id: currentSessionIdRef.current,
-      research_id: researchId,
-      user_id: user?.id || 'anonymous',
-      client_id: clientIdRef.current
-    };
-    
-    fetch(streamUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody)
-    })
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('Response body reader could not be created');
-      }
-      
-      console.log(`[${new Date().toISOString()}] 🔄 Connection established to research stream (POST)`);
-      
-      const processStreamChunks = async () => {
-        let partialData = '';
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          
-          if (done) {
-            console.log(`[${new Date().toISOString()}] 🔄 Stream completed`);
-            setIsLoading(false);
-            break;
-          }
-          
-          const chunk = new TextDecoder().decode(value);
-          const lines = (partialData + chunk).split('\n');
-          partialData = lines.pop() || '';
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const data = JSON.parse(line.substring(6));
-                processEventData(data, userModelData, researchId);
-              } catch (e) {
-                console.error(`[${new Date().toISOString()}] ❌ Error parsing event data:`, e);
-              }
-            }
-          }
-        }
-      };
-      
-      processStreamChunks().catch(error => {
-        console.error(`[${new Date().toISOString()}] ❌ Error processing stream:`, error);
-        uiToast({
-          title: "connection error",
-          description: "lost connection to research service",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        
-        if (researchId && currentSessionIdRef.current) {
-          pollResearchState(researchId, 5000, 20, 0);
-        }
-      });
-    })
-    .catch(error => {
-      console.error(`[${new Date().toISOString()}] ❌ Fetch error:`, error);
-      uiToast({
-        title: "connection error",
-        description: "failed to connect to research service. Please try again later.",
-        variant: "destructive",
-      });
-      setIsLoading(false);
-      
-      if (researchId && currentSessionIdRef.current) {
-        pollResearchState(researchId, 5000, 20, 0);
-      }
-    });
-  };
-
-  const processEventData = (data: any, userModelData: any, researchId: string) => {
-    if (!initialEventReceivedRef.current) {
-      initialEventReceivedRef.current = true;
-      console.log(`[${new Date().toISOString()}] 🎬 First event received, research is active`);
-    }
-    
-    const eventClientId = data.client_id || userModelData.client_id;
-    const eventSessionId = data.session_id || currentSessionIdRef.current;
-    const eventResearchId = data.research_id || researchId;
-    
-    if (eventClientId !== clientIdRef.current) {
-      console.warn(`[${new Date().toISOString()}] 🚫 Rejected event for different client:`, { 
-        eventClientId: eventClientId?.substring(0, 15), 
-        currentClientId: clientIdRef.current.substring(0, 15),
-        eventType: data.event || data.type
-      });
-      return;
-    }
-    
-    if (eventSessionId !== currentSessionIdRef.current || 
-        eventResearchId !== researchId) {
-      console.warn(`[${new Date().toISOString()}] 🚫 Rejected event for different session/research:`, { 
-        eventSessionId,
-        currentSessionId: currentSessionIdRef.current,
-        eventResearchId,
-        currentResearchId: researchId,
-        eventType: data.event || data.type
-      });
-      return;
-    }
-    
-    const eventType = data.event || data.type;
-    console.log(`[${new Date().toISOString()}] 📊 Processing event:`, { 
-      type: eventType, 
-      clientId: clientIdRef.current.substring(0, 15)
-    });
-    
-    const timestamp = new Date().toLocaleTimeString();
-    if (data.data && data.data.message) {
-      const progressEvent = `${timestamp}: ${data.data.message}`;
-      setProgressEvents(prev => [...prev.slice(-4), progressEvent]);
-    }
-    
-    if (data.data && data.data.node_id) {
-      const nodeId = data.data.node_id;
-      const rawEventData = JSON.stringify(data, null, 2);
-      
-      setRawData(prev => {
-        const existing = prev[nodeId] || '';
-        return {
-          ...prev,
-          [nodeId]: existing ? `${existing}\n${rawEventData}` : rawEventData
-        };
-      });
-    }
-    
-    switch (eventType) {
-      case "start":
-        console.log("Research started");
-        setActiveTab("reasoning");
-        setCurrentStage("Starting research");
-        
-        window.dispatchEvent(new CustomEvent('research_state_update', { 
-          detail: { 
-            payload: {
-              new: {
-                session_id: currentSessionIdRef.current,
-                reasoning_path: reasoningPath,
-                status: 'in_progress'
-              }
-            },
-            timestamp: new Date().toISOString()
-          }
-        }));
-        break;
-      case "update":
-        const message = data.data.message || "";
-        setResearchOutput(prev => prev + message + "\n");
-        setCurrentStage("Generating answer");
-        
-        if (currentSessionIdRef.current) {
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            answer: data.data.answer || ""
-          }).catch(err => console.error("Error updating research state:", err));
-        }
-        break;
-      case "source":
-        const source = data.data.source || "";
-        setSources(prev => [...prev, source]);
-        setCurrentStage("Finding sources");
-        
-        if (currentSessionIdRef.current) {
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            sources: [...sources, source]
-          }).catch(err => console.error("Error updating sources:", err));
-        }
-        break;
-      case "finding":
-        const finding: Finding = { 
-          source: data.data.source || "",
-          content: data.data.content || undefined,
-          node_id: data.data.node_id || undefined,
-          query: data.data.query || undefined,
-          finding: data.data.finding || undefined
-        };
-        
-        console.log(`[${new Date().toISOString()}] 📑 Received finding:`, finding);
-        
-        setFindings(prev => [...prev, finding]);
-        
-        if (currentSessionIdRef.current) {
-          const updatedFindings = [...findings, finding];
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            findings: updatedFindings
-          }).catch(err => console.error("Error updating findings:", err));
-        }
-        break;
-      case "reasoning":
-        const step = data.data.step || "";
-        setCurrentStage("Analyzing information");
-        
-        if (step.toLowerCase().includes("planning")) {
-          setCurrentStage("Planning research approach");
-        } else if (step.toLowerCase().includes("search")) {
-          setCurrentStage("Searching for information");
-        } else if (step.toLowerCase().includes("read")) {
-          setCurrentStage("Reading sources");
-        } else if (step.toLowerCase().includes("synthe")) {
-          setCurrentStage("Synthesizing information");
-        }
-        
-        const nodeIdMatch = step.match(/Node ID:?\s*([a-zA-Z0-9_-]+)/i) || 
-                          step.match(/node\s+(\d+)|#(\d+)/i);
-        if (nodeIdMatch) {
-          const nodeId = nodeIdMatch[1] || nodeIdMatch[2];
-          const rawDataString = JSON.stringify(data, null, 2);
-          
-          setRawData(prev => {
-            const existing = prev[nodeId] || '';
-            return {
-              ...prev,
-              [nodeId]: existing ? `${existing}\n${rawDataString}` : rawDataString
-            };
-          });
-        }
-        
-        if (step.toLowerCase().includes("synthesizing") && reasoningPath.length > 0 && reasoningPath.length % 5 === 0) {
-          const syntheticRequest = {
-            call_id: `synthetic-${researchId}-${reasoningPath.length}`,
-            node_id: `${reasoningPath.length}`,
-            query: researchObjective,
-            content: `This is a synthetic approval request at step ${reasoningPath.length}. This would normally contain synthesized content based on the research so far.`,
-            approval_type: "synthesis"
-          };
-          setHumanApprovalRequest(syntheticRequest);
-        }
-        
-        setReasoningPath(prev => [...prev, step]);
-        
-        if (isLoading) {
-          setActiveTab("reasoning");
-        }
-        
-        if (currentSessionIdRef.current) {
-          const updatedPath = [...reasoningPath, step];
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            reasoning_path: updatedPath
-          }).catch(err => console.error("Error updating reasoning path:", err));
-        }
-        break;
-      case "report_update":
-        console.log(`[${new Date().toISOString()}] 📄 Received report update:`, data.data);
-        
-        const reportUpdate: ReportSection = {
-          node_id: data.data.node_id || '',
-          synthesis: data.data.synthesis || '',
-          confidence: data.data.confidence,
-          timestamp: data.data.timestamp,
-          query: data.data.query
-        };
-        
-        setReportData(prev => {
-          const existingData = prev || { sections: [] };
-          
-          const sectionIndex = existingData.sections.findIndex(
-            s => s.node_id === reportUpdate.node_id
-          );
-          
-          let updatedSections;
-          if (sectionIndex >= 0) {
-            updatedSections = [...existingData.sections];
-            updatedSections[sectionIndex] = {
-              ...updatedSections[sectionIndex],
-              ...reportUpdate
-            };
-          } else {
-            updatedSections = [...existingData.sections, reportUpdate];
-          }
-          
-          return {
-            ...existingData,
-            sections: updatedSections
-          };
-        });
-        
-        if (currentSessionIdRef.current) {
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            report_data: reportData
-          }).catch(err => console.error("Error updating report data:", err));
-        }
-        
-        setCurrentStage("Updating research report");
-        break;
-      case "final_report":
-        console.log(`[${new Date().toISOString()}] 📝 Received final report:`, data.data);
-        
-        setReportData(prev => {
-          const existingData = prev || { sections: [] };
-          
-          const rootSection = {
-            node_id: 'root',
-            synthesis: data.data.synthesis || '',
-            confidence: data.data.confidence,
-            query: data.data.query,
-            is_root: true
-          };
-          
-          const rootIndex = existingData.sections.findIndex(s => s.is_root);
-          
-          let updatedSections;
-          if (rootIndex >= 0) {
-            updatedSections = [...existingData.sections];
-            updatedSections[rootIndex] = {
-              ...updatedSections[rootIndex],
-              ...rootSection
-            };
-          } else {
-            updatedSections = [rootSection, ...existingData.sections];
-          }
-          
-          return {
-            sections: updatedSections,
-            finalSynthesis: data.data.synthesis,
-            confidence: data.data.confidence,
-            sources: data.data.sources || [],
-            findings: data.data.findings || []
-          };
-        });
-        
-        if (currentSessionIdRef.current) {
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            report_data: reportData,
-            answer: data.data.synthesis || ''
-          }).catch(err => console.error("Error updating final report:", err));
-        }
-        
-        setResearchOutput(data.data.synthesis || '');
-        setCurrentStage("Finalizing research report");
-        break;
-      case "complete":
-        const finalAnswer = data.data.answer || "";
-        const finalSources = data.data.sources || [];
-        const finalFindings = data.data.findings || [];
-        const finalReasoningPath = data.data.reasoning_path || [];
-        
-        setResearchOutput(finalAnswer);
-        setSources(finalSources);
-        setFindings(finalFindings);
-        setReasoningPath(finalReasoningPath);
-        setIsLoading(false);
-        
-        if (currentSessionIdRef.current) {
-          updateResearchState(researchId, currentSessionIdRef.current, {
-            status: 'completed',
-            answer: finalAnswer,
-            sources: finalSources,
-            findings: finalFindings,
-            reasoning_path: finalReasoningPath,
-            report_data: reportData
-          }).catch(err => console.error("Error updating final state:", err));
-        }
-        
-        setActiveTab("output");
-        
-        trackEvent('research_completed', {
-          research_id: researchId,
-          session_id: currentSessionIdRef.current,
-          sources_count: finalSources.length,
-          findings_count: finalFindings.length,
-          answer_length: finalAnswer.length,
-          has_report: !!reportData
-        });
-        break;
-      case "error":
-        uiToast({
-          title: "research error",
-          description: data.data.error || "Unknown error",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        
-        if (researchId && currentSessionIdRef.current) {
-          pollResearchState(researchId, 5000, 20, 0);
-        }
-        break;
-    }
-  };
-  
   const handleSessionClick = (sessionId: string, query: string) => {
     navigate(`/research/${sessionId}`);
   };
@@ -982,46 +488,6 @@ const ResearchPage = () => {
       uiToast({
         title: "Error completing onboarding",
         description: "Please try again later",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleApprovalAction = async (approved: boolean, comment?: string) => {
-    if (!humanApprovalRequest || !currentSessionIdRef.current || !researchIdRef.current) return;
-    
-    try {
-      await submitHumanFeedback({
-        call_id: humanApprovalRequest.call_id,
-        node_id: humanApprovalRequest.node_id,
-        approved,
-        comment,
-        query: humanApprovalRequest.query,
-        session_id: currentSessionIdRef.current,
-        research_id: researchIdRef.current,
-        approval_type: humanApprovalRequest.approval_type
-      });
-      
-      setShowApprovalDialog(false);
-      setHumanApprovalRequest(null);
-      
-      if (approved) {
-        toast.success("Approved! Research will continue.");
-      } else {
-        toast.info("Research step rejected.");
-      }
-      
-      trackEvent('human_approval_action', {
-        approved,
-        has_comment: !!comment,
-        approval_type: humanApprovalRequest.approval_type
-      });
-      
-    } catch (error) {
-      console.error("Error submitting approval action:", error);
-      uiToast({
-        title: "Error submitting approval",
-        description: "Please try again",
         variant: "destructive",
       });
     }
@@ -1092,46 +558,17 @@ const ResearchPage = () => {
                 />
               )}
               
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid grid-cols-3 mb-4">
-                  <TabsTrigger value="output" disabled={isLoading && !reportData?.sections?.length}>Output</TabsTrigger>
-                  <TabsTrigger value="sources">
-                    Sources 
-                    {sources.length > 0 && <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-muted rounded-full">{sources.length}</span>}
-                  </TabsTrigger>
-                  <TabsTrigger value="reasoning">
-                    Reasoning
-                    {reasoningPath.length > 0 && <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-muted rounded-full">{reasoningPath.length}</span>}
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="output" className="space-y-4">
-                  <ResearchOutput 
-                    output={researchOutput} 
-                    isLoading={isLoading && !reportData?.sections?.length}
-                    reportData={reportData}
-                    sessionId={sessionId}
-                    showReport={true}
-                  />
-                </TabsContent>
-                
-                <TabsContent value="sources" className="space-y-4">
-                  <SourcesList 
-                    sources={sources}
-                    findings={findings}
-                    isLoading={isLoading} 
-                  />
-                </TabsContent>
-                
-                <TabsContent value="reasoning" className="space-y-4">
-                  <ReasoningPath 
-                    path={reasoningPath}
-                    isLoading={isLoading}
-                    reportData={reportData}
-                    sessionId={sessionId}
-                  />
-                </TabsContent>
-              </Tabs>
+              <ResearchTabs
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                isLoading={isLoading}
+                reportData={reportData}
+                researchOutput={researchOutput}
+                sources={sources}
+                findings={findings}
+                reasoningPath={reasoningPath}
+                sessionId={sessionId || ''}
+              />
             </div>
           </div>
         </div>
