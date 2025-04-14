@@ -10,6 +10,22 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen flex flex-col font-sans">
+      <header className="border-b flex items-center justify-between px-4 h-14">
+        <div className="flex items-center">
+          <span className="text-lg font-semibold">deep research</span>
+        </div>
+        <div className="flex items-center space-x-4">
+          <Button 
+            onClick={() => navigate("/auth")} 
+            variant="outline"
+            className="text-sm"
+          >
+            Login
+          </Button>
+          <ThemeToggle />
+        </div>
+      </header>
+      
       <main className="flex-1 max-w-2xl mx-auto px-4 py-16">
         <div className="space-y-6 text-left">
           

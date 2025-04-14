@@ -20,17 +20,7 @@ function App() {
           <TooltipProvider>
             <BrowserRouter>
               <div className="flex min-h-screen flex-col">
-                <header className="border-b flex items-center justify-between px-4 h-14">
-                  <div className="flex items-center">
-                    <span className="text-lg font-semibold">nexus</span>
-                  </div>
-                  <div className="flex items-center">
-                    <a href="/models" className="text-sm font-medium">user models</a>
-                  </div>
-                </header>
-                <main className="flex-1">
-                  <AppRoutes />
-                </main>
+                <AppRoutes />
               </div>
               <Toaster />
               <SonnerToaster 
