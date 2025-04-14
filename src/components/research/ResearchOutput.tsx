@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,10 +56,8 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
 
   useEffect(() => {
     if (output && !isLoading && sessionId) {
-      // Calculate the duration from start time to now
       const duration = Date.now() - startTime;
       
-      // Capture research completed event with metrics
       captureEvent('research_completed', {
         session_id: sessionId,
         time_taken_ms: duration,
@@ -201,7 +198,6 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
 
   const exportToDocx = async () => {
     try {
-      // Create document with sections if report data exists
       const doc = new Document({
         sections: [{
           properties: {},
@@ -218,24 +214,35 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
               ? [
                   ...reportData.sections.map(section => [
                     new Paragraph({
-                      text: section.synthesis ? `${section.query || "Research Section"}` : "",
+                      text: section.query || "Research Section",
                       heading: HeadingLevel.HEADING_2,
                     }),
                     new Paragraph({
-                      text: section.synthesis || "",
+                      children: [
+                        new TextRun({
+                          text: section.synthesis || "",
+                          italics: true
+                        })
+                      ]
                     }),
                     new Paragraph({
-                      text: section.confidence ? `Confidence: ${(section.confidence * 100).toFixed(0)}%` : "",
-                      italics: true,
+                      children: section.confidence !== undefined 
+                        ? [
+                            new TextRun({
+                              text: `Confidence: ${(section.confidence * 100).toFixed(0)}%`,
+                              italics: true
+                            })
+                          ]
+                        : []
                     }),
                     new Paragraph({ text: "" }),
                   ]).flat()
                 ]
               : [
-                  new Paragraph({
-                    text: output,
-                  }),
-                ]
+                new Paragraph({
+                  text: output,
+                }),
+              ]
             ),
             ...(reportData && reportData.sources && reportData.sources.length > 0
               ? [
