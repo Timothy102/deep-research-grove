@@ -959,7 +959,6 @@ const ResearchPage = () => {
         setIsLoading(false);
         
         if (researchId && currentSessionIdRef.current) {
-          // Provide all 4 arguments: researchId, interval, maxAttempts, currentAttempt
           pollResearchState(researchId, 5000, 20, 0);
         }
         break;
