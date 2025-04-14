@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -44,7 +43,6 @@ import { useHumanApproval } from "@/hooks/use-human-approval";
 import { useResearchStream } from "@/hooks/use-research-stream";
 import { ResearchTabs } from "@/components/research/ResearchTabs";
 
-// Move to types file later
 interface ResearchHistory {
   id: string;
   query: string;
@@ -58,7 +56,6 @@ const ResearchPage = () => {
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
   
-  // Use our new custom hooks
   const { 
     isLoading, setIsLoading,
     researchOutput, setResearchOutput,
@@ -457,6 +454,10 @@ const ResearchPage = () => {
       
       const modelToUse = selectedLLM === 'auto' ? 'claude-3.5-sonnet' : selectedLLM;
       startResearchStream(userModelPayload, newResearchId, query, modelToUse);
+      
+      if (researchIdRef.current && currentSessionIdRef.current) {
+        pollResearchState(researchIdRef.current, 5000, 20, 0);
+      }
       
       loadHistory().catch(err => console.error("Error loading history after research start:", err));
       

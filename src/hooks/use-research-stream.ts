@@ -189,10 +189,10 @@ export const useResearchStream = ({
       const nodeId = data.data.node_id;
       const rawEventData = JSON.stringify(data, null, 2);
       
-      setRawData(prev => {
-        const existing = prev[nodeId] || '';
+      setRawData(prevData => {
+        const existing = prevData[nodeId] || '';
         return {
-          ...prev,
+          ...prevData,
           [nodeId]: existing ? `${existing}\n${rawEventData}` : rawEventData
         };
       });
@@ -219,7 +219,7 @@ export const useResearchStream = ({
         break;
       case "update":
         const message = data.data.message || "";
-        setResearchOutput(prev => prev + message + "\n");
+        setResearchOutput(prevOutput => prevOutput + message + "\n");
         setCurrentStage("Generating answer");
         
         if (sessionId) {
@@ -230,7 +230,7 @@ export const useResearchStream = ({
         break;
       case "source":
         const source = data.data.source || "";
-        setSources(prev => [...prev, source]);
+        setSources(prevSources => [...prevSources, source]);
         setCurrentStage("Finding sources");
         
         if (sessionId) {
@@ -250,7 +250,7 @@ export const useResearchStream = ({
         
         console.log(`[${new Date().toISOString()}] 📑 Received finding:`, finding);
         
-        setFindings(prev => [...prev, finding]);
+        setFindings(prevFindings => [...prevFindings, finding]);
         
         if (sessionId) {
           const updatedFindings = [...findings, finding];
@@ -279,10 +279,10 @@ export const useResearchStream = ({
           const nodeId = nodeIdMatch[1] || nodeIdMatch[2];
           const rawDataString = JSON.stringify(data, null, 2);
           
-          setRawData(prev => {
-            const existing = prev[nodeId] || '';
+          setRawData(prevData => {
+            const existing = prevData[nodeId] || '';
             return {
-              ...prev,
+              ...prevData,
               [nodeId]: existing ? `${existing}\n${rawDataString}` : rawDataString
             };
           });
@@ -299,7 +299,7 @@ export const useResearchStream = ({
           setHumanApprovalRequest(syntheticRequest);
         }
         
-        setReasoningPath(prev => [...prev, step]);
+        setReasoningPath(prevPath => [...prevPath, step]);
         
         setActiveTab("reasoning");
         
@@ -321,8 +321,8 @@ export const useResearchStream = ({
           query: data.data.query
         };
         
-        setReportData(prev => {
-          const existingData = prev || { sections: [] };
+        setReportData(prevReportData => {
+          const existingData = prevReportData || { sections: [] };
           
           const sectionIndex = existingData.sections.findIndex(
             (s: any) => s.node_id === reportUpdate.node_id
@@ -356,8 +356,8 @@ export const useResearchStream = ({
       case "final_report":
         console.log(`[${new Date().toISOString()}] 📝 Received final report:`, data.data);
         
-        setReportData(prev => {
-          const existingData = prev || { sections: [] };
+        setReportData(prevReportData => {
+          const existingData = prevReportData || { sections: [] };
           
           const rootSection = {
             node_id: 'root',
