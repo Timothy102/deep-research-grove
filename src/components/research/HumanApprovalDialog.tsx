@@ -12,20 +12,32 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ThumbsUp, ThumbsDown, Loader2 } from "lucide-react";
 
-export interface HumanApprovalDialogProps {
-  isOpen: boolean;
-  callId: string;
-  nodeId: string;
+export interface HumanApprovalRequest {
+  call_id: string;
+  node_id: string;
   query: string;
   content: string;
+  approval_type: string;
+  interaction_type?: "planning" | "searching" | "synthesizing";
+}
+
+export interface HumanApprovalDialogProps {
+  isOpen: boolean;
+  request?: HumanApprovalRequest;
+  callId?: string;
+  nodeId?: string;
+  query?: string;
+  content?: string;
   approvalType?: string;
-  onApprove: (callId: string, nodeId: string) => Promise<void>;
-  onReject: (callId: string, nodeId: string, reason: string) => Promise<void>;
+  onApprove?: (callId: string, nodeId: string) => Promise<void>;
+  onReject?: (callId: string, nodeId: string, reason: string) => Promise<void>;
+  onAction?: (approved: boolean, comment?: string) => Promise<void>;
   onClose: () => void;
 }
 
 const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
   isOpen,
+  request,
   callId,
   nodeId,
   query,
@@ -33,16 +45,28 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
   approvalType = 'approval',
   onApprove,
   onReject,
+  onAction,
   onClose
 }) => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRejectionInput, setShowRejectionInput] = useState(false);
 
+  // Use request object if provided, otherwise use individual props
+  const effectiveCallId = request?.call_id || callId || '';
+  const effectiveNodeId = request?.node_id || nodeId || '';
+  const effectiveQuery = request?.query || query || '';
+  const effectiveContent = request?.content || content || '';
+  const effectiveApprovalType = request?.approval_type || approvalType;
+
   const handleApprove = async () => {
     setIsSubmitting(true);
     try {
-      await onApprove(callId, nodeId);
+      if (onAction) {
+        await onAction(true);
+      } else if (onApprove) {
+        await onApprove(effectiveCallId, effectiveNodeId);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -52,7 +76,11 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
     if (showRejectionInput) {
       setIsSubmitting(true);
       try {
-        await onReject(callId, nodeId, rejectionReason);
+        if (onAction) {
+          await onAction(false, rejectionReason);
+        } else if (onReject) {
+          await onReject(effectiveCallId, effectiveNodeId, rejectionReason);
+        }
       } finally {
         setIsSubmitting(false);
       }
@@ -75,15 +103,15 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {approvalType === 'planning' ? 'Research Planning' : 
-             approvalType === 'searching' ? 'Search Strategy' : 
-             approvalType === 'synthesizing' ? 'Research Synthesis' : 
+            {effectiveApprovalType === 'planning' ? 'Research Planning' : 
+             effectiveApprovalType === 'searching' ? 'Search Strategy' : 
+             effectiveApprovalType === 'synthesizing' ? 'Research Synthesis' : 
              'Human Approval Needed'}
           </DialogTitle>
           <DialogDescription>
-            {approvalType === 'planning' ? 'Review the research plan and provide feedback' : 
-             approvalType === 'searching' ? 'Review the search strategy and provide feedback' : 
-             approvalType === 'synthesizing' ? 'Review the synthesis and provide feedback' : 
+            {effectiveApprovalType === 'planning' ? 'Review the research plan and provide feedback' : 
+             effectiveApprovalType === 'searching' ? 'Review the search strategy and provide feedback' : 
+             effectiveApprovalType === 'synthesizing' ? 'Review the synthesis and provide feedback' : 
              'Please review the AI\'s work and provide feedback'}
           </DialogDescription>
         </DialogHeader>
@@ -91,17 +119,17 @@ const HumanApprovalDialog: React.FC<HumanApprovalDialogProps> = ({
         <div className="space-y-4 my-4">
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Research Objective</h4>
-            <div className="rounded-md bg-muted p-3 text-sm">{query}</div>
+            <div className="rounded-md bg-muted p-3 text-sm">{effectiveQuery}</div>
           </div>
           
           <div className="space-y-2">
             <h4 className="text-sm font-medium">
-              {approvalType === 'planning' ? 'Proposed Research Plan' : 
-               approvalType === 'searching' ? 'Search Strategy' : 
-               approvalType === 'synthesizing' ? 'Initial Synthesis' : 
+              {effectiveApprovalType === 'planning' ? 'Proposed Research Plan' : 
+               effectiveApprovalType === 'searching' ? 'Search Strategy' : 
+               effectiveApprovalType === 'synthesizing' ? 'Initial Synthesis' : 
                'Content for Review'}
             </h4>
-            <div className="rounded-md bg-muted p-3 text-sm whitespace-pre-wrap">{content}</div>
+            <div className="rounded-md bg-muted p-3 text-sm whitespace-pre-wrap">{effectiveContent}</div>
           </div>
           
           {showRejectionInput && (

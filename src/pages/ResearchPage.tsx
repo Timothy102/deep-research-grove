@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -396,7 +395,7 @@ const ResearchPage = () => {
     }
   };
 
-  const pollResearchState = (researchId: string) => {
+  const pollResearchState = useCallback((researchId: string) => {
     console.log(`[${new Date().toISOString()}] 🔄 Starting polling for research state:`, researchId);
     
     const checkInterval = setInterval(async () => {
@@ -446,9 +445,8 @@ const ResearchPage = () => {
       }
     }, 5000); // Poll every 5 seconds
     
-    // Store interval ID to clear it later
     return checkInterval;
-  };
+  }, []);
 
   const handleResearch = async (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => {
     if (!query.trim()) {
@@ -699,12 +697,11 @@ const ResearchPage = () => {
       const rawEventData = JSON.stringify(data, null, 2);
       
       setRawData(prev => {
-        const existingData = prev[nodeId] || '';
-        const updatedData = existingData 
-          ? `${existingData}\n${rawEventData}`
-          : rawEventData;
-        
-        return { ...prev, [nodeId]: updatedData };
+        const existing = prev[nodeId] || '';
+        return {
+          ...prev,
+          [nodeId]: existing ? `${existing}\n${rawEventData}` : rawEventData
+        };
       });
     }
     
@@ -1054,6 +1051,8 @@ const ResearchPage = () => {
           history={history}
           onSessionClick={handleSessionClick}
           currentSessionId={sessionId || ''}
+          isOpen={sidebarOpen}
+          onToggle={toggleSidebar}
         />
         
         <div className={cn(
@@ -1076,6 +1075,8 @@ const ResearchPage = () => {
                   steps={reasoningPath.length}
                   sources={sources.length}
                   findings={findings.length}
+                  isLoading={isLoading}
+                  events={progressEvents}
                 />
               )}
               
@@ -1127,6 +1128,7 @@ const ResearchPage = () => {
         <UserModelOnboarding 
           isOpen={showOnboarding} 
           onComplete={handleOnboardingComplete}
+          onClose={() => setShowOnboarding(false)}
         />
       )}
       

@@ -2,15 +2,21 @@
 import { useState, useEffect } from "react";
 
 type ProgressIndicatorProps = {
-  isLoading: boolean;
   currentStage?: string;
   events?: string[];
+  isLoading?: boolean;
+  steps?: number;
+  sources?: number;
+  findings?: number;
 };
 
 export const ProgressIndicator = ({
-  isLoading,
+  isLoading = true,
   currentStage = "Initializing",
   events = [],
+  steps = 0,
+  sources = 0,
+  findings = 0,
 }: ProgressIndicatorProps) => {
   const [dots, setDots] = useState(0);
 
@@ -37,6 +43,12 @@ export const ProgressIndicator = ({
           <span className="loading-dot w-2 h-2 bg-primary/60 rounded-full animate-pulse delay-150"></span>
         </div>
         <p className="text-sm font-medium">{loadingText}</p>
+      </div>
+      
+      <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+        <span>Steps: {steps}</span>
+        <span>Sources: {sources}</span>
+        <span>Findings: {findings}</span>
       </div>
       
       {events.length > 0 && (
