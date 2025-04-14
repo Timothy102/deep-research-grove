@@ -1,7 +1,6 @@
 
-// If this file doesn't exist yet, we need to create it with the necessary functions
-
 import { supabase } from "@/integrations/supabase/client";
+import { Json } from "@/integrations/supabase/types";
 
 export interface ResearchState {
   id?: string;
@@ -30,14 +29,16 @@ export async function saveResearchState(state: Partial<ResearchState>): Promise<
     console.log(`[${new Date().toISOString()}] 💾 Saving research state for session:`, state.session_id);
     
     // Make sure we have a user_id value, even if it's null
-    const stateWithUserId = {
+    // Also ensure query has a default value if not provided to satisfy the database requirement
+    const stateWithRequiredFields = {
       ...state,
-      user_id: state.user_id || null
+      user_id: state.user_id || null,
+      query: state.query || 'No query provided' // Provide a default value for query
     };
     
     const { data, error } = await supabase
       .from('research_states')
-      .insert(stateWithUserId)
+      .insert(stateWithRequiredFields)
       .select()
       .single();
     
