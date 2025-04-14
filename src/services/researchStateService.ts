@@ -1,4 +1,3 @@
-
 import { LOCAL_STORAGE_KEYS } from "@/lib/constants";
 import { ReportData } from "@/components/research/ResearchOutput";
 
@@ -20,27 +19,24 @@ export interface ResearchState {
   findings?: any[];
   report_data?: ReportData;
   user_model?: string;
+  completed_nodes?: number;
 }
 
 export const saveResearchState = async (data: Partial<ResearchState>): Promise<void> => {
   try {
-    // Create a storage key that combines session and research IDs
     const storageKey = `${data.session_id}_${data.research_id}_state`;
     
-    // Save the state to localStorage
     const timestamp = new Date().toISOString();
     const stateData = { ...data, updated_at: timestamp };
     
     localStorage.setItem(storageKey, JSON.stringify(stateData));
     localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_STATE, storageKey);
     
-    // Store report data separately for better performance
     if (data.report_data) {
       const reportStorageKey = `${data.session_id}_${data.research_id}_report_data`;
       localStorage.setItem(reportStorageKey, JSON.stringify(data.report_data));
     }
     
-    // For current research/session tracking
     if (data.research_id) {
       localStorage.setItem(LOCAL_STORAGE_KEYS.CURRENT_RESEARCH_ID, data.research_id);
     }
@@ -58,14 +54,11 @@ export const updateResearchState = async (
   updates: Partial<ResearchState>
 ): Promise<void> => {
   try {
-    // Create a storage key that combines session and research IDs
     const storageKey = `${sessionId}_${researchId}_state`;
     
-    // Retrieve existing state
     const existingStateStr = localStorage.getItem(storageKey);
     const existingState = existingStateStr ? JSON.parse(existingStateStr) : {};
     
-    // Update the state with new values
     const timestamp = new Date().toISOString();
     const updatedState = { 
       ...existingState,
@@ -73,10 +66,8 @@ export const updateResearchState = async (
       updated_at: timestamp
     };
     
-    // Save back to localStorage
     localStorage.setItem(storageKey, JSON.stringify(updatedState));
     
-    // Also store report data separately for better performance
     if (updates.report_data) {
       const reportStorageKey = `${sessionId}_${researchId}_report_data`;
       localStorage.setItem(reportStorageKey, JSON.stringify(updates.report_data));
@@ -98,19 +89,15 @@ export const getResearchState = (
       return null;
     }
     
-    // Create a storage key that combines session and research IDs
     const storageKey = `${sessionId}_${researchId}_state`;
     
-    // Try to retrieve the state
     const stateStr = localStorage.getItem(storageKey);
     if (!stateStr) {
       return null;
     }
     
-    // Parse the state
     const state = JSON.parse(stateStr);
     
-    // Check for report data in the separate storage
     const reportStorageKey = `${sessionId}_${researchId}_report_data`;
     const reportDataStr = localStorage.getItem(reportStorageKey);
     
@@ -131,8 +118,6 @@ export const getResearchState = (
 
 export const getLatestSessionState = async (sessionId: string): Promise<ResearchState | null> => {
   try {
-    // Try to retrieve the latest state from localStorage
-    // First, check if we have a current research ID for this session
     const storageKey = localStorage.getItem(LOCAL_STORAGE_KEYS.CURRENT_STATE);
     
     if (storageKey && storageKey.startsWith(`${sessionId}_`)) {
@@ -140,7 +125,6 @@ export const getLatestSessionState = async (sessionId: string): Promise<Research
       if (stateStr) {
         const state = JSON.parse(stateStr);
         
-        // Check for report data in the separate storage
         if (state.research_id) {
           const reportStorageKey = `${sessionId}_${state.research_id}_report_data`;
           const reportDataStr = localStorage.getItem(reportStorageKey);
@@ -158,7 +142,6 @@ export const getLatestSessionState = async (sessionId: string): Promise<Research
       }
     }
     
-    // If no current state, try to find any state for this session
     const allKeys = Object.keys(localStorage);
     const sessionKeys = allKeys.filter(key => key.startsWith(`${sessionId}_`) && key.endsWith('_state'));
     
@@ -166,7 +149,6 @@ export const getLatestSessionState = async (sessionId: string): Promise<Research
       return null;
     }
     
-    // Sort by timestamp, get the latest
     let latestState: ResearchState | null = null;
     let latestTimestamp = '';
     
@@ -181,7 +163,6 @@ export const getLatestSessionState = async (sessionId: string): Promise<Research
       }
     }
     
-    // Check for report data in the separate storage for the latest state
     if (latestState && latestState.research_id) {
       const reportStorageKey = `${sessionId}_${latestState.research_id}_report_data`;
       const reportDataStr = localStorage.getItem(reportStorageKey);
@@ -198,6 +179,43 @@ export const getLatestSessionState = async (sessionId: string): Promise<Research
     return latestState;
   } catch (error) {
     console.error("Error getting latest session state:", error);
+    return null;
+  }
+};
+
+export const subscribeToResearchState = (researchId: string, sessionId: string, callback: (payload: any) => void) => {
+  console.log(`[${new Date().toISOString()}] 🔄 Setting up realtime subscription for research state:`, { researchId, sessionId });
+  
+  try {
+    const { supabase } = require('@/integrations/supabase/client');
+    
+    const channel = supabase
+      .channel('research_state_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'research_states',
+          filter: `research_id=eq.${researchId}`
+        },
+        (payload: any) => {
+          console.log(`[${new Date().toISOString()}] 📊 Received realtime update for research state:`, {
+            event: payload.eventType,
+            researchId,
+            sessionId
+          });
+          
+          if (callback && typeof callback === 'function') {
+            callback(payload);
+          }
+        }
+      )
+      .subscribe();
+      
+    return channel;
+  } catch (error) {
+    console.error("Error setting up realtime subscription:", error);
     return null;
   }
 };

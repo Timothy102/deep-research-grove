@@ -394,6 +394,60 @@ const ResearchPage = () => {
     }
   };
 
+  const pollResearchState = (researchId: string) => {
+    console.log(`[${new Date().toISOString()}] 🔄 Starting polling for research state:`, researchId);
+    
+    const checkInterval = setInterval(async () => {
+      if (!currentSessionIdRef.current) {
+        clearInterval(checkInterval);
+        return;
+      }
+      
+      try {
+        const state = await getResearchState(researchId, currentSessionIdRef.current);
+        
+        if (state) {
+          console.log(`[${new Date().toISOString()}] 📊 Polled state update:`, {
+            status: state.status,
+            hasAnswer: !!state.answer,
+            sourceCount: state.sources?.length || 0,
+            findingsCount: state.findings?.length || 0
+          });
+          
+          if (state.status === 'completed') {
+            console.log(`[${new Date().toISOString()}] ✅ Research completed according to polled state`);
+            setIsLoading(false);
+            clearInterval(checkInterval);
+            
+            // Update UI with final state
+            if (state.answer) setResearchOutput(state.answer);
+            if (state.sources) setSources(state.sources);
+            if (state.findings) setFindings(state.findings);
+            if (state.reasoning_path) setReasoningPath(state.reasoning_path);
+            if (state.report_data) setReportData(state.report_data);
+            
+            setActiveTab("output");
+          } else if (state.status === 'error') {
+            console.error(`[${new Date().toISOString()}] ❌ Research error according to polled state:`, state.error);
+            setIsLoading(false);
+            clearInterval(checkInterval);
+            
+            if (state.error) {
+              toast.error(state.error);
+            } else {
+              toast.error("An error occurred during research");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error polling research state:", err);
+      }
+    }, 5000); // Poll every 5 seconds
+    
+    // Store interval ID to clear it later
+    return checkInterval;
+  };
+
   const handleResearch = async (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => {
     if (!query.trim()) {
       uiToast({
