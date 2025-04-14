@@ -5,14 +5,14 @@ import { saveResearchState, updateResearchState } from "@/services/researchState
 
 interface ResearchStreamProps {
   setIsLoading: (isLoading: boolean) => void;
-  setSources: (sources: string[]) => void;
-  setFindings: (findings: any[]) => void;
-  setReasoningPath: (reasoningPath: string[]) => void;
+  setSources: (sources: string[] | ((prev: string[]) => string[])) => void;
+  setFindings: (findings: any[] | ((prev: any[]) => any[])) => void;
+  setReasoningPath: (reasoningPath: string[] | ((prev: string[]) => string[])) => void;
   setResearchOutput: (researchOutput: string) => void;
   setActiveTab: (activeTab: string) => void;
-  setProgressEvents: (progressEvents: string[]) => void;
+  setProgressEvents: (progressEvents: string[] | ((prev: string[]) => string[])) => void;
   setCurrentStage: (currentStage: string) => void;
-  setRawData: (rawData: Record<string, string>) => void;
+  setRawData: (rawData: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void;
   setReportData: (reportData: any) => void;
   sources: string[];
   findings: any[];
@@ -91,12 +91,12 @@ export const useResearchStream = ({
 
           if (json.type === 'progress') {
             console.log(`[${new Date().toISOString()}] Progress event:`, json.event);
-            setProgressEvents((prevEvents) => [...prevEvents, json.event]);
+            setProgressEvents((prevEvents: string[]) => [...prevEvents, json.event]);
           }
 
           if (json.type === 'reasoning') {
             console.log(`[${new Date().toISOString()}] Reasoning step:`, json.step);
-            setReasoningPath((prevReasoning) => [...prevReasoning, json.step]);
+            setReasoningPath((prevReasoning: string[]) => [...prevReasoning, json.step]);
             await saveResearchState({
               research_id: researchId,
               session_id: userModelPayload.session_id,
@@ -106,7 +106,7 @@ export const useResearchStream = ({
 
           if (json.type === 'source') {
             console.log(`[${new Date().toISOString()}] New source found:`, json.source);
-            setSources((prevSources) => [...prevSources, json.source]);
+            setSources((prevSources: string[]) => [...prevSources, json.source]);
             await saveResearchState({
               research_id: researchId,
               session_id: userModelPayload.session_id,
@@ -116,7 +116,7 @@ export const useResearchStream = ({
 
           if (json.type === 'finding') {
             console.log(`[${new Date().toISOString()}] New finding found:`, json.finding);
-            setFindings((prevFindings) => [...prevFindings, json.finding]);
+            setFindings((prevFindings: any[]) => [...prevFindings, json.finding]);
             await saveResearchState({
               research_id: researchId,
               session_id: userModelPayload.session_id,
@@ -147,7 +147,7 @@ export const useResearchStream = ({
 
           if (json.type === 'raw_data') {
             console.log(`[${new Date().toISOString()}] Raw data update:`, json.data);
-            setRawData((prevData) => ({ ...prevData, ...json.data }));
+            setRawData((prevData: Record<string, string>) => ({ ...prevData, ...json.data }));
           }
         } catch (error) {
           console.error(`[${new Date().toISOString()}] Error parsing SSE message:`, error, event.data);

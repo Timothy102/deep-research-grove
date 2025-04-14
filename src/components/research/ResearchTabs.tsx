@@ -24,15 +24,18 @@ export const ResearchTabs: React.FC<ResearchTabsProps> = ({
   isLoading,
   reportData,
   researchOutput,
-  sources,
-  findings,
-  reasoningPath,
+  sources = [],
+  findings = [],
+  reasoningPath = [],
   sessionId
 }) => {
+  // Add safety check to prevent undefined.map errors
+  const hasReportSections = reportData && reportData.sections && Array.isArray(reportData.sections);
+
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="grid grid-cols-3 mb-4">
-        <TabsTrigger value="output" disabled={isLoading && !reportData?.sections?.length}>Output</TabsTrigger>
+        <TabsTrigger value="output" disabled={isLoading && !(hasReportSections && reportData.sections.length > 0)}>Output</TabsTrigger>
         <TabsTrigger value="sources">
           Sources 
           {sources.length > 0 && <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-muted rounded-full">{sources.length}</span>}
@@ -46,7 +49,7 @@ export const ResearchTabs: React.FC<ResearchTabsProps> = ({
       <TabsContent value="output" className="space-y-4">
         <ResearchOutput 
           output={researchOutput} 
-          isLoading={isLoading && !reportData?.sections?.length}
+          isLoading={isLoading && !(hasReportSections && reportData.sections.length > 0)}
           reportData={reportData}
           sessionId={sessionId}
           showReport={true}
