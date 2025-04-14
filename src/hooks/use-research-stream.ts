@@ -57,7 +57,7 @@ export const useResearchStream = ({
       eventSource.addEventListener('open', () => {
         console.log(`[${new Date().toISOString()}] SSE stream opened`);
         setIsLoading(true);
-        setProgressEvents([]);
+        setProgressEvents([]); // Reset with empty array instead of using updater function
         setCurrentStage("Initializing research");
       });
 
@@ -91,36 +91,44 @@ export const useResearchStream = ({
 
           if (json.type === 'progress') {
             console.log(`[${new Date().toISOString()}] Progress event:`, json.event);
-            setProgressEvents((prevEvents: string[]) => [...prevEvents, json.event]);
+            // Use the direct value setter pattern to avoid TypeScript errors
+            const currentEvents = Array.isArray(progressEvents) ? progressEvents : [];
+            setProgressEvents([...currentEvents, json.event]);
           }
 
           if (json.type === 'reasoning') {
             console.log(`[${new Date().toISOString()}] Reasoning step:`, json.step);
-            setReasoningPath((prevReasoning: string[]) => [...prevReasoning, json.step]);
+            // Use the direct value setter pattern to avoid TypeScript errors
+            const currentReasoning = Array.isArray(reasoningPath) ? reasoningPath : [];
+            setReasoningPath([...currentReasoning, json.step]);
             await saveResearchState({
               research_id: researchId,
               session_id: userModelPayload.session_id,
-              reasoning_path: [...reasoningPath, json.step]
+              reasoning_path: [...currentReasoning, json.step]
             });
           }
 
           if (json.type === 'source') {
             console.log(`[${new Date().toISOString()}] New source found:`, json.source);
-            setSources((prevSources: string[]) => [...prevSources, json.source]);
+            // Use the direct value setter pattern to avoid TypeScript errors
+            const currentSources = Array.isArray(sources) ? sources : [];
+            setSources([...currentSources, json.source]);
             await saveResearchState({
               research_id: researchId,
               session_id: userModelPayload.session_id,
-              sources: [...sources, json.source]
+              sources: [...currentSources, json.source]
             });
           }
 
           if (json.type === 'finding') {
             console.log(`[${new Date().toISOString()}] New finding found:`, json.finding);
-            setFindings((prevFindings: any[]) => [...prevFindings, json.finding]);
+            // Use the direct value setter pattern to avoid TypeScript errors
+            const currentFindings = Array.isArray(findings) ? findings : [];
+            setFindings([...currentFindings, json.finding]);
             await saveResearchState({
               research_id: researchId,
               session_id: userModelPayload.session_id,
-              findings: [...findings, json.finding]
+              findings: [...currentFindings, json.finding]
             });
           }
 
@@ -147,7 +155,9 @@ export const useResearchStream = ({
 
           if (json.type === 'raw_data') {
             console.log(`[${new Date().toISOString()}] Raw data update:`, json.data);
-            setRawData((prevData: Record<string, string>) => ({ ...prevData, ...json.data }));
+            // Use the direct value setter pattern to avoid TypeScript errors
+            const currentRawData = typeof rawData === 'object' && rawData !== null ? rawData : {};
+            setRawData({ ...currentRawData, ...json.data });
           }
         } catch (error) {
           console.error(`[${new Date().toISOString()}] Error parsing SSE message:`, error, event.data);
