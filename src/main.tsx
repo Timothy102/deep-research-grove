@@ -59,20 +59,28 @@ supabase.channel('research_states_changes')
         }
         
         // Special handling for report update events
-        if (payload.new && payload.new.data && 
-            (payload.new.event_type === "report_update" || payload.new.event === "final_report")) {
-          console.log(`[${new Date().toISOString()}] 📝 Report event detected:`, payload.new.event_type || payload.new.event);
+        if (payload.new && typeof payload.new === 'object' && payload.new.data) {
+          // Check for report_update event
+          const isReportUpdate = 
+            (typeof payload.new.event_type === 'string' && payload.new.event_type === "report_update") || 
+            (typeof payload.new.event === 'string' && payload.new.event === "final_report");
           
-          // Dispatch a dedicated event for report updates
-          window.dispatchEvent(new CustomEvent('research_report_update', { 
-            detail: { 
-              payload: payload.new,
-              timestamp: new Date().toISOString(),
-              sessionId: payloadSessionId
-            },
-            bubbles: true,
-            composed: true
-          }));
+          if (isReportUpdate) {
+            console.log(`[${new Date().toISOString()}] 📝 Report event detected:`, 
+              typeof payload.new.event_type === 'string' ? payload.new.event_type : 
+              typeof payload.new.event === 'string' ? payload.new.event : 'unknown');
+            
+            // Dispatch a dedicated event for report updates
+            window.dispatchEvent(new CustomEvent('research_report_update', { 
+              detail: { 
+                payload: payload.new,
+                timestamp: new Date().toISOString(),
+                sessionId: payloadSessionId
+              },
+              bubbles: true,
+              composed: true
+            }));
+          }
         }
         
         // Dispatch a custom event so components can react to it immediately
