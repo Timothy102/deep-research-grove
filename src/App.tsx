@@ -25,7 +25,7 @@ function App() {
                     <span className="text-lg font-semibold">nexus</span>
                   </div>
                   <div className="flex items-center">
-                    <button className="text-sm font-medium">user models</button>
+                    <a href="/models" className="text-sm font-medium">user models</a>
                   </div>
                 </header>
                 <main className="flex-1">
