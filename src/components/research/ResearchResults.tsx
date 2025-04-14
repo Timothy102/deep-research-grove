@@ -304,7 +304,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  // New state for report buildup
   const [reportSyntheses, setReportSyntheses] = useState<ReportSynthesis[]>([]);
   const [finalReport, setFinalReport] = useState<FinalReport | null>(null);
   const [isReportComplete, setIsReportComplete] = useState(false);
@@ -329,7 +328,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
           setCurrentSessionId(result.session_id);
         }
         
-        // Reset report state on new session
         setReportSyntheses([]);
         setFinalReport(null);
         setIsReportComplete(false);
@@ -495,7 +493,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
     const payload = event.detail?.payload;
     if (!payload) return;
     
-    // Handle report_update events
     if (payload.event_type === "report_update" && payload.data) {
       console.log(`[${new Date().toISOString()}] 📊 Received report update:`, payload.data);
       
@@ -509,7 +506,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       
       setReportSyntheses(prev => [...prev, newSynthesis]);
       
-      // Show report dialog on first synthesis if not already showing
       if (!showReportDialog && reportSyntheses.length === 0) {
         setShowReportDialog(true);
       }
@@ -517,7 +513,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       return;
     }
     
-    // Handle final_report events
     if (payload.event === "final_report" && payload.data) {
       console.log(`[${new Date().toISOString()}] 📊 Received final report:`, payload.data);
       
@@ -538,7 +533,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       return;
     }
     
-    // Continue handling existing update types
     if (payload.table !== 'research_states') return;
     
     if (payload.new && payload.new.session_id === currentResult.session_id) {
@@ -772,14 +766,18 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         <span>Confidence score: {(currentResult.confidence * 100).toFixed(1)}%</span>
       </div>
       
-      {/* Report Dialog */}
       {(reportSyntheses.length > 0 || finalReport) && (
-        <div className="hidden">
-          <ResearchReport 
-            isOpen={showReportDialog}
-            onClose={() => setShowReportDialog(false)}
-            syntheses={reportSyntheses}
-            finalReport={finalReport}
-            isComplete={isReportComplete}
-            sessionId={currentSessionId}
-          />
+        <ResearchReport 
+          isOpen={showReportDialog}
+          onClose={() => setShowReportDialog(false)}
+          syntheses={reportSyntheses}
+          finalReport={finalReport}
+          isComplete={isReportComplete}
+          sessionId={currentSessionId}
+        />
+      )}
+    </div>
+  );
+};
+
+export default ResearchResults;
