@@ -110,7 +110,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 mt-32">
+    <div className="max-w-4xl mx-auto px-4 mt-10">
       <div className="text-center mb-5">
         <h1 className="text-3xl font-bold mb-2">Hey, Tim Cvetko</h1>
         <p className="text-gray-600">Who are you today?</p>
@@ -153,7 +153,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
         />
         <Select 
           onValueChange={handleLLMChange} 
-          defaultValue="auto"
+          defaultValue={initialLLM || selectedLLM || "auto"}
           value={initialLLM || selectedLLM}
         >
           <SelectTrigger className="w-[120px]">

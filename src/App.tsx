@@ -20,11 +20,11 @@ function App() {
           <TooltipProvider>
             <BrowserRouter>
               <div className="flex min-h-screen flex-col">
-                <header className="border-b flex items-center px-4 h-14">
+                <header className="border-b flex items-center justify-between px-4 h-14">
                   <div className="flex items-center">
-                    <span className="text-lg font-semibold ml-2">nexus</span>
+                    <span className="text-lg font-semibold">nexus</span>
                   </div>
-                  <div className="ml-auto flex items-center space-x-4">
+                  <div className="flex items-center">
                     <button className="text-sm font-medium">user models</button>
                   </div>
                 </header>
