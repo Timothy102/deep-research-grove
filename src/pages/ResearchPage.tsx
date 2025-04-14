@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -15,7 +14,6 @@ import {
   updateResearchState, 
   getResearchState, 
   getLatestSessionState,
-  subscribeToResearchState
 } from "@/services/researchStateService";
 import { getUserOnboardingStatus, UserModel, getUserModelById, markOnboardingCompleted, getUserModels } from "@/services/userModelService";
 import { submitHumanFeedback } from "@/services/humanInteractionService";
@@ -699,12 +697,11 @@ const ResearchPage = () => {
       const rawEventData = JSON.stringify(data, null, 2);
       
       setRawData(prev => {
-        const existingData = prev[nodeId] || '';
-        const updatedData = existingData 
-          ? `${existingData}\n${rawEventData}`
-          : rawEventData;
-        
-        return { ...prev, [nodeId]: updatedData };
+        const existing = prev[nodeId] || '';
+        return {
+          ...prev,
+          [nodeId]: existing ? `${existing}\n${rawEventData}` : rawEventData
+        };
       });
     }
     
@@ -956,6 +953,13 @@ const ResearchPage = () => {
     }
   };
 
+  const handleOnboardingComplete = async (model: any) => {
+    setShowOnboarding(false);
+    await markOnboardingCompleted();
+    loadUserModels();
+    return Promise.resolve();
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 flex flex-col lg:flex-row">
       {/* Sidebar */}
@@ -978,6 +982,11 @@ const ResearchPage = () => {
             }
           }} 
           currentSessionId={sessionId}
+          isOpen={sidebarOpen}
+          onToggle={toggleSidebar}
+          onHistoryItemClick={(item) => {
+            console.log("History item clicked:", item);
+          }}
         />
       </div>
 
@@ -1062,6 +1071,8 @@ const ResearchPage = () => {
               steps={reasoningPath.length}
               sources={sources.length}
               findings={findings.length}
+              events={progressEvents}
+              isLoading={isLoading}
             />
           </div>
         )}
@@ -1155,15 +1166,11 @@ const ResearchPage = () => {
         {/* Onboarding Dialog */}
         <UserModelOnboarding
           isOpen={showOnboarding}
-          onClose={() => {
+          onClose={async () => {
             setShowOnboarding(false);
-            markOnboardingCompleted().catch(console.error);
+            await markOnboardingCompleted();
           }}
-          onComplete={(model) => {
-            setShowOnboarding(false);
-            markOnboardingCompleted().catch(console.error);
-            loadUserModels();
-          }}
+          onComplete={handleOnboardingComplete}
         />
       </div>
     </div>

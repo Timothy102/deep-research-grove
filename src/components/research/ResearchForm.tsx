@@ -24,6 +24,8 @@ interface ResearchFormProps {
   initialCognitiveStyle?: string;
   initialLLM?: string;
   onLLMChange?: React.Dispatch<React.SetStateAction<string>>;
+  userModels?: any[];
+  onModelSelect?: (modelId: string) => Promise<void> | void;
 }
 
 export const ResearchForm: React.FC<ResearchFormProps> = ({ 
@@ -39,7 +41,9 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   initialUserContext = '',
   initialCognitiveStyle = 'general',
   initialLLM,
-  onLLMChange
+  onLLMChange,
+  userModels = [],
+  onModelSelect
 }) => {
   const [query, setQuery] = useState(initialObjective || initialValue || '');
   const [userModelText, setUserModelText] = useState("");
