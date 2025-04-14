@@ -389,11 +389,10 @@ const ResearchPage = () => {
           pollResearchState(sessionState.research_id);
         }
       }
+    } catch (error) {
+      console.error(`[${new Date().toISOString()}] ❌ Error loading session data:`, error);
     }
-  } catch (error) {
-    console.error(`[${new Date().toISOString()}] ❌ Error loading session data:`, error);
-  }
-};
+  };
 
   const handleResearch = async (query: string, userModelText: string, useCase: string, selectedModelId?: string, currentUnderstanding?: string) => {
     if (!query.trim()) {
@@ -908,4 +907,4 @@ const ResearchPage = () => {
           description: data.data.error || "Unknown error",
           variant: "destructive",
         });
-        setIsLoading
+        setIsLoading(false);
