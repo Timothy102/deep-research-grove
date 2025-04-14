@@ -20,7 +20,6 @@ interface ResearchHistorySidebarProps {
   history: any[];
   onHistoryItemClick?: (item: any) => void;
   onSelectItem?: (item: any) => void;
-  onSessionClick?: (sessionId: any, query: any) => void;
   currentSessionId?: string;
 }
 
