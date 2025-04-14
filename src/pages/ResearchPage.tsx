@@ -952,6 +952,10 @@ const ResearchPage = () => {
           variant: "destructive",
         });
         setIsLoading(false);
+        
+        if (researchId && currentSessionIdRef.current) {
+          pollResearchState(researchId, 5000, 20, 0);
+        }
         break;
     }
   };
