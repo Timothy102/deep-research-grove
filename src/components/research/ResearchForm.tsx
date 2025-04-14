@@ -110,8 +110,8 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
   };
 
   return (
-    <div className="space-y-4">
-      <form onSubmit={handleSubmit} className="flex items-center space-x-4">
+    <div className="space-y-4 max-w-3xl mx-auto">
+      <form onSubmit={handleSubmit} className="flex items-center space-x-2">
         <Input
           type="text"
           placeholder="Enter your research objective"
@@ -124,7 +124,7 @@ export const ResearchForm: React.FC<ResearchFormProps> = ({
           defaultValue="auto"
           value={initialLLM || selectedLLM}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[150px]">
             <SelectValue placeholder="Select LLM" />
           </SelectTrigger>
           <SelectContent>
