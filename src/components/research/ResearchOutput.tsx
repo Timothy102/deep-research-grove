@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { FileText, Copy, Download, CheckCircle2, FileDown, Newspaper, ChevronDown, ChevronUp } from "lucide-react";
+import { FileText, Copy, Download, CheckCircle2, FileDown, Newspaper, ChevronDown, ChevronUp, BookOpen } from "lucide-react";
 import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from 'docx';
@@ -39,6 +39,7 @@ export interface ResearchOutputProps {
   onSelectModel?: (modelId: string) => void;
   reportData?: ReportData;
   sessionId?: string;
+  showReport?: boolean;
 }
 
 const ResearchOutput: React.FC<ResearchOutputProps> = ({ 
@@ -48,19 +49,19 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
   userModels = [],
   onSelectModel,
   reportData,
-  sessionId
+  sessionId,
+  showReport = false
 }) => {
   const navigate = useNavigate();
   const [isCopied, setIsCopied] = useState(false);
   const [expandedReport, setExpandedReport] = useState(false);
   const [startTime] = useState<number>(Date.now());
+  const [selectedTab, setSelectedTab] = useState<'report' | 'sources' | 'findings'>('report');
 
   useEffect(() => {
     if (output && !isLoading && sessionId) {
-      // Calculate the duration from start time to now
       const duration = Date.now() - startTime;
       
-      // Capture research completed event with metrics
       captureEvent('research_completed', {
         session_id: sessionId,
         time_taken_ms: duration,
@@ -71,7 +72,7 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
     }
   }, [output, isLoading, sessionId, reportData, startTime]);
 
-  if (isLoading) {
+  if (isLoading && !reportData?.sections?.length) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-4 w-3/4" />
@@ -83,7 +84,7 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
     );
   }
 
-  if (!output.trim()) {
+  if (!output.trim() && !reportData?.sections?.length) {
     return (
       <div className="text-center space-y-6">
         {userName ? (
@@ -201,7 +202,6 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
 
   const exportToDocx = async () => {
     try {
-      // Create document with sections if report data exists
       const doc = new Document({
         sections: [{
           properties: {},
@@ -218,24 +218,35 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
               ? [
                   ...reportData.sections.map(section => [
                     new Paragraph({
-                      text: section.synthesis ? `${section.query || "Research Section"}` : "",
+                      text: section.query || "Research Section",
                       heading: HeadingLevel.HEADING_2,
                     }),
                     new Paragraph({
-                      text: section.synthesis || "",
+                      children: [
+                        new TextRun({
+                          text: section.synthesis || "",
+                          italics: true
+                        })
+                      ]
                     }),
                     new Paragraph({
-                      text: section.confidence ? `Confidence: ${(section.confidence * 100).toFixed(0)}%` : "",
-                      italics: true,
+                      children: section.confidence !== undefined 
+                        ? [
+                            new TextRun({
+                              text: `Confidence: ${(section.confidence * 100).toFixed(0)}%`,
+                              italics: true
+                            })
+                          ]
+                        : []
                     }),
                     new Paragraph({ text: "" }),
                   ]).flat()
                 ]
               : [
-                  new Paragraph({
-                    text: output,
-                  }),
-                ]
+                new Paragraph({
+                  text: output,
+                }),
+              ]
             ),
             ...(reportData && reportData.sources && reportData.sources.length > 0
               ? [
@@ -388,6 +399,90 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
     );
   };
 
+  // New Research Report component that displays in a structured document format
+  const renderStructuredReport = () => {
+    if (!reportData || !reportData.sections || reportData.sections.length === 0) {
+      return (
+        <div className="p-6 text-center">
+          <p className="text-muted-foreground">No report data available yet.</p>
+        </div>
+      );
+    }
+
+    if (selectedTab === 'report') {
+      // Title section from the first section that has is_root flag or the first section
+      const titleSection = reportData.sections.find(s => s.is_root) || reportData.sections[0];
+      
+      return (
+        <div className="p-4 space-y-6 max-w-4xl mx-auto">
+          <h1 className="text-2xl font-bold">{titleSection.query || 'Research Report'}</h1>
+          
+          {reportData.sections.map((section, index) => {
+            // Skip the title section as we already displayed it
+            if (section.is_root && index > 0) return null;
+            
+            return (
+              <div key={section.node_id || index} className="space-y-2">
+                {!section.is_root && section.query && (
+                  <h2 className="text-xl font-semibold mt-8">{index}. {section.query}</h2>
+                )}
+                
+                {section.synthesis && (
+                  <div className="text-base whitespace-pre-wrap">{section.synthesis}</div>
+                )}
+                
+                {section.confidence !== undefined && (
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Confidence: {(section.confidence * 100).toFixed(0)}%
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      );
+    } else if (selectedTab === 'sources') {
+      return (
+        <div className="p-4 space-y-4 max-w-4xl mx-auto">
+          <h2 className="text-xl font-semibold">Sources</h2>
+          
+          {reportData.sources && reportData.sources.length > 0 ? (
+            <ul className="list-disc list-inside space-y-2">
+              {reportData.sources.map((source, index) => (
+                <li key={index} className="text-base">
+                  {source}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground">No sources available.</p>
+          )}
+        </div>
+      );
+    } else if (selectedTab === 'findings') {
+      return (
+        <div className="p-4 space-y-4 max-w-4xl mx-auto">
+          <h2 className="text-xl font-semibold">Findings</h2>
+          
+          {reportData.findings && reportData.findings.length > 0 ? (
+            <div className="space-y-4">
+              {reportData.findings.map((finding, index) => (
+                <div key={index} className="p-3 border rounded-md">
+                  <p className="font-medium">{finding.source || 'Finding'}</p>
+                  <p className="text-sm mt-1">{finding.content || JSON.stringify(finding)}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">No findings available.</p>
+          )}
+        </div>
+      );
+    }
+    
+    return null;
+  };
+
   return (
     <div className="prose prose-sm max-w-none dark:prose-invert">
       <div className="flex flex-wrap items-center justify-end gap-2 mb-4">
@@ -429,9 +524,60 @@ const ResearchOutput: React.FC<ResearchOutputProps> = ({
         </Button>
       </div>
       
-      <div className="whitespace-pre-wrap">{output}</div>
-      
-      {renderReportSections()}
+      {showReport && reportData && reportData.sections && reportData.sections.length > 0 ? (
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Left column - traditional output */}
+          <div className="lg:w-1/2 lg:border-r lg:pr-6">
+            <div className="whitespace-pre-wrap">{output}</div>
+            {renderReportSections()}
+          </div>
+          
+          {/* Right column - structured report */}
+          <div className="lg:w-1/2">
+            <div className="border rounded-md shadow-sm">
+              <div className="border-b flex items-center p-2 bg-muted/40">
+                <div className="flex items-center space-x-2 ml-2">
+                  <Button 
+                    variant={selectedTab === 'report' ? 'default' : 'ghost'} 
+                    size="sm"
+                    onClick={() => setSelectedTab('report')}
+                    className="text-xs"
+                  >
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    Report
+                  </Button>
+                  <Button 
+                    variant={selectedTab === 'sources' ? 'default' : 'ghost'} 
+                    size="sm"
+                    onClick={() => setSelectedTab('sources')}
+                    className="text-xs"
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    Sources ({reportData.sources?.length || 0})
+                  </Button>
+                  <Button 
+                    variant={selectedTab === 'findings' ? 'default' : 'ghost'} 
+                    size="sm"
+                    onClick={() => setSelectedTab('findings')}
+                    className="text-xs"
+                  >
+                    <Newspaper className="h-4 w-4 mr-1" />
+                    Findings ({reportData.findings?.length || 0})
+                  </Button>
+                </div>
+              </div>
+              <div className="overflow-y-auto max-h-[600px]">
+                {renderStructuredReport()}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="whitespace-pre-wrap">{output}</div>
+          {renderReportSections()}
+        </>
+      )}
     </div>
   );
 };
