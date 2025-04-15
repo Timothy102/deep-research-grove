@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -19,11 +18,15 @@ const AuthPage = () => {
   useAnalytics();
 
   useEffect(() => {
-    // Only redirect if user is authenticated and loading is complete
-    if (user && !loading) {
+    const hashParams = new URLSearchParams(location.hash.substring(1));
+    const accessToken = hashParams.get('access_token');
+    
+    if (accessToken && user) {
+      navigate("/research");
+    } else if (user) {
       navigate("/research");
     }
-  }, [user, loading, navigate, location]);
+  }, [user, navigate, location]);
 
   const handleGoogleSignIn = async () => {
     try {
