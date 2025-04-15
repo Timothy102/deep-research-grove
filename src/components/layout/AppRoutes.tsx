@@ -11,12 +11,14 @@ import UserModelsPage from '@/pages/UserModelsPage';
 import NotFound from '@/pages/NotFound';
 import SidebarButtons from './SidebarButtons';
 import { configureModalApi } from '@/utils/apiConfig';
+import { useAuth } from '@/components/auth/AuthContext';
 
 export const AppRoutes = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [shouldRedirect, setShouldRedirect] = useState(false);
   const [lastPath, setLastPath] = useState<string | null>(null);
   const location = useLocation();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     // Configure CORS proxy
@@ -67,7 +69,7 @@ export const AppRoutes = () => {
   }, []);
 
   // Show nothing while we're determining the redirect
-  if (isLoading) {
+  if (isLoading || loading) {
     return null;
   }
 

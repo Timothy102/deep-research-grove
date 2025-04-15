@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { Session } from "@supabase/supabase-js";
 import { useToast } from "@/components/ui/use-toast";
@@ -30,47 +31,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // Get initial session
     const getInitialSession = async () => {
       try {
+        // Set up auth state listener FIRST to avoid missing auth events
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            console.log(`Auth event: ${event}`, session);
+            setSession(session);
+            setUser(session?.user || null);
+            setLoading(false);
+            
+            if (event === 'SIGNED_IN') {
+              toast({
+                title: "Signed in successfully",
+                description: "Welcome to Deep Research!",
+              });
+            } else if (event === 'SIGNED_OUT') {
+              toast({
+                title: "Signed out successfully",
+              });
+            }
+          }
+        );
+
+        // THEN check for existing session
         const { data, error } = await supabase.auth.getSession();
         if (error) {
           console.error("Error getting session:", error);
+          setLoading(false);
           return;
         }
         
         setSession(data?.session || null);
         setUser(data?.session?.user || null);
+        setLoading(false);
+
+        return () => {
+          subscription.unsubscribe();
+        };
       } catch (error) {
         console.error("Unexpected error during getSession:", error);
-      } finally {
         setLoading(false);
       }
     };
 
     getInitialSession();
-
-    // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log(`Auth event: ${event}`, session);
-        setSession(session);
-        setUser(session?.user || null);
-        setLoading(false);
-        
-        if (event === 'SIGNED_IN') {
-          toast({
-            title: "Signed in successfully",
-            description: "Welcome to Deep Research!",
-          });
-        } else if (event === 'SIGNED_OUT') {
-          toast({
-            title: "Signed out successfully",
-          });
-        }
-      }
-    );
-
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
   }, [toast]);
 
   // Sign in
