@@ -27,14 +27,314 @@ type ResearchResult = {
 
 const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Finding[] }) => {
   // ... keep existing code (SourcesList component)
+  const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const newExpandedState = { ...expandedSources };
+    let hasChanges = false;
+    
+    sources.forEach(source => {
+      if (expandedSources[source] === undefined) {
+        newExpandedState[source] = true;
+        hasChanges = true;
+      }
+    });
+    
+    if (hasChanges) {
+      setExpandedSources(newExpandedState);
+    }
+  }, [sources, expandedSources]);
+
+  const toggleSourceExpanded = (source: string) => {
+    setExpandedSources(prev => ({
+      ...prev,
+      [source]: !prev[source]
+    }));
+  };
+
+  const isSourceUrl = (source: string) => {
+    return source.startsWith('http') || source.startsWith('www.');
+  };
+
+  const getSourceDomain = (source: string) => {
+    try {
+      if (isSourceUrl(source)) {
+        const url = new URL(source.startsWith('www.') ? `https://${source}` : source);
+        return url.hostname.replace('www.', '');
+      }
+    } catch (e) {}
+    
+    return source;
+  };
+
+  const findingsBySource = findings ? findings.reduce((acc: Record<string, Finding[]>, finding) => {
+    if (!finding || !finding.source) return acc;
+    
+    if (!acc[finding.source]) {
+      acc[finding.source] = [];
+    }
+    
+    if (!acc[finding.source].some(f => 
+      f.finding?.title === finding.finding?.title && 
+      f.finding?.summary === finding.finding?.summary
+    )) {
+      acc[finding.source].push(finding);
+    }
+    
+    return acc;
+  }, {}) : {};
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold mb-4">Sources</h2>
+      
+      {sources.length === 0 ? (
+        <div className="text-muted-foreground text-center py-6">
+          <Search className="h-12 w-12 mx-auto mb-2 opacity-20" />
+          <p>No sources available yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {sources.map((source, index) => (
+            <Collapsible 
+              key={index} 
+              open={expandedSources[source]} 
+              onOpenChange={() => toggleSourceExpanded(source)}
+              className="border rounded-lg p-3"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-start space-x-2 flex-1">
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="p-0 h-6 w-6 rounded-full">
+                      {expandedSources[source] ? (
+                        <ChevronDown className="h-4 w-4" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </CollapsibleTrigger>
+                  
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      {isSourceUrl(source) ? (
+                        <a 
+                          href={source.startsWith('http') ? source : `https://${source}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="flex items-center text-blue-600 hover:underline truncate"
+                        >
+                          <span className="truncate">{getSourceDomain(source)}</span>
+                          <ExternalLink className="h-3 w-3 ml-1 flex-shrink-0" />
+                        </a>
+                      ) : (
+                        <span className="text-sm font-medium truncate">
+                          {source}
+                        </span>
+                      )}
+                      
+                      <Badge variant="outline" className="text-xs">
+                        {findingsBySource[source]?.length || 0} findings
+                      </Badge>
+                    </div>
+                    
+                    {isSourceUrl(source) && (
+                      <p className="text-xs text-muted-foreground truncate mt-1">
+                        {source}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <CollapsibleContent className="mt-3 space-y-2">
+                {findingsBySource[source] && findingsBySource[source].length > 0 ? (
+                  findingsBySource[source].map((finding, findingIndex) => (
+                    <div key={findingIndex} className="pl-6 border-l-2 border-gray-200">
+                      <div className="p-2 bg-gray-50 rounded">
+                        {finding.finding?.title && (
+                          <div className="text-sm font-medium mb-1 flex items-center">
+                            <Lightbulb className="h-4 w-4 mr-1 text-amber-500" />
+                            {finding.finding.title}
+                          </div>
+                        )}
+                        
+                        {finding.finding?.summary && (
+                          <p className="text-sm text-gray-700">
+                            {finding.finding.summary}
+                          </p>
+                        )}
+                        
+                        {!finding.finding?.summary && finding.content && (
+                          <p className="text-sm text-gray-700">
+                            {finding.content}
+                          </p>
+                        )}
+                        
+                        {finding.finding?.confidence_score !== undefined && (
+                          <div className="flex items-center mt-1">
+                            <span className="text-xs text-gray-500">Confidence:</span>
+                            <div className="w-16 h-2 bg-gray-200 rounded ml-2">
+                              <div 
+                                className="h-full bg-green-500 rounded" 
+                                style={{ width: `${Math.min(100, Math.max(0, finding.finding.confidence_score * 100))}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="pl-6 text-sm text-gray-500">
+                    <div className="flex items-center">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Source referenced, but no specific findings extracted.
+                    </div>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const ReasoningPath = ({ path, syntheses }: { path: string[]; syntheses?: Record<string, any> }) => {
-  // ... keep existing code (ReasoningPath component)
+  const [expandedSteps, setExpandedSteps] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const newExpandedState = { ...expandedSteps };
+    let hasChanges = false;
+    
+    path.forEach((step, index) => {
+      if (expandedSteps[index.toString()] === undefined) {
+        newExpandedState[index.toString()] = index === path.length - 1;
+        hasChanges = true;
+      }
+    });
+    
+    if (hasChanges) {
+      setExpandedSteps(newExpandedState);
+    }
+  }, [path, expandedSteps]);
+
+  const toggleStepExpanded = (stepIndex: string) => {
+    setExpandedSteps(prev => ({
+      ...prev,
+      [stepIndex]: !prev[stepIndex]
+    }));
+  };
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-semibold mb-4">Reasoning Path</h2>
+      
+      {path.length === 0 ? (
+        <div className="text-muted-foreground text-center py-6">
+          <Lightbulb className="h-12 w-12 mx-auto mb-2 opacity-20" />
+          <p>No reasoning path available yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {path.map((step, index) => {
+            const stepKey = index.toString();
+            const synthesis = syntheses && syntheses[step] ? syntheses[step] : null;
+            
+            return (
+              <Collapsible 
+                key={index} 
+                open={expandedSteps[stepKey]} 
+                onOpenChange={() => toggleStepExpanded(stepKey)}
+                className="border rounded-lg"
+              >
+                <div className="p-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-2 flex-1">
+                      <CollapsibleTrigger asChild>
+                        <Button variant="ghost" size="sm" className="p-0 h-6 w-6 rounded-full">
+                          {expandedSteps[stepKey] ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </CollapsibleTrigger>
+                      
+                      <div className="flex-1">
+                        <div className="flex items-center">
+                          <Badge variant="outline" className="mr-2">
+                            Step {index + 1}
+                          </Badge>
+                          <span className="text-sm font-medium">{step}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <CollapsibleContent className="mt-3 pl-8">
+                    {synthesis ? (
+                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                          {synthesis.synthesis || synthesis.content || synthesis}
+                        </p>
+                        
+                        {synthesis.confidence && (
+                          <div className="mt-2">
+                            <Badge variant="outline">
+                              Confidence: {Math.round(synthesis.confidence * 100)}%
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No detailed information available for this step.
+                      </p>
+                    )}
+                  </CollapsibleContent>
+                </div>
+              </Collapsible>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 };
 
 const ResearchAnswer = ({ answer }: { answer: string }) => {
-  // ... keep existing code (ResearchAnswer component)
+  const [copied, setCopied] = useState(false);
+  
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(answer).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+  
+  return (
+    <div className="relative">
+      <div className="absolute top-0 right-0">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={copyToClipboard}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          {copied ? (
+            <CheckCircle2 className="h-4 w-4" />
+          ) : (
+            <Copy className="h-4 w-4" />
+          )}
+        </Button>
+      </div>
+      <div className="prose prose-sm dark:prose-invert max-w-none">
+        <p className="whitespace-pre-wrap leading-relaxed">{answer}</p>
+      </div>
+    </div>
+  );
 };
 
 export type LocalReportSynthesis = {
