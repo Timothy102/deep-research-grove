@@ -11,7 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { getLatestSessionState } from "@/services/researchStateService";
 import LiveReportView from "./LiveReportView";
-import type { Finding, FinalReport, ReportSynthesis } from "@/types/research";
+import type { Finding, ReportSynthesis as ApiReportSynthesis, FinalReport as ApiFinalReport } from "@/types/research";
 
 type FindingCompat = {
   content?: string;
@@ -36,10 +36,10 @@ export type ResearchResult = {
   syntheses?: Record<string, any>;
 };
 
-const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Finding[] }) => {
+const SourcesList = ({ sources, findings }: { sources: string[]; findings?: FindingCompat[] }) => {
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
   
-  const findingsBySource = (findings || []).reduce((acc: Record<string, Finding[]>, finding) => {
+  const findingsBySource = (findings || []).reduce((acc: Record<string, FindingCompat[]>, finding) => {
     if (!finding.source) return acc;
     
     if (!acc[finding.source]) {
@@ -280,7 +280,7 @@ const ResearchAnswer = ({ answer }: { answer: string }) => {
   );
 };
 
-export type ReportSynthesis = {
+export type LocalReportSynthesis = {
   synthesis: string;
   confidence: number;
   timestamp: string;
@@ -288,7 +288,7 @@ export type ReportSynthesis = {
   query: string;
 };
 
-export type FinalReport = {
+export type LocalFinalReport = {
   query: string;
   synthesis: string;
   confidence: number;
@@ -305,8 +305,8 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  const [reportSyntheses, setReportSyntheses] = useState<ReportSynthesis[]>([]);
-  const [finalReport, setFinalReport] = useState<FinalReport | null>(null);
+  const [reportSyntheses, setReportSyntheses] = useState<ApiReportSynthesis[]>([]);
+  const [finalReport, setFinalReport] = useState<ApiFinalReport | null>(null);
   const [isReportComplete, setIsReportComplete] = useState(false);
   
   useEffect(() => {
@@ -498,7 +498,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       
       console.log(`[${new Date().toISOString()}] 📊 Received report update:`, data);
       
-      const newSynthesis: ReportSynthesis = {
+      const newSynthesis: ApiReportSynthesis = {
         synthesis: data.synthesis || "",
         confidence: data.confidence || 0,
         timestamp: data.timestamp || new Date().toISOString(),
@@ -524,7 +524,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         depth: finding.depth || 0
       }));
       
-      const report: FinalReport = {
+      const report: ApiFinalReport = {
         query: data.query || currentResult.query,
         synthesis: data.synthesis || "",
         confidence: data.confidence || 0,
