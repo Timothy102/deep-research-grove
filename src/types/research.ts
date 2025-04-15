@@ -1,4 +1,3 @@
-
 export type Finding = {
   title?: string;
   summary?: string;
@@ -7,6 +6,14 @@ export type Finding = {
   timestamp?: string;
   node_type?: string;
   depth?: number;
+  source?: string;
+  content?: string;
+  node_id?: string;
+  finding?: {
+    title?: string;
+    summary?: string;
+    confidence_score?: number;
+  };
 };
 
 export type ReportSynthesis = {

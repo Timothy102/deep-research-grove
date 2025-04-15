@@ -11,20 +11,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { getLatestSessionState } from "@/services/researchStateService";
 import LiveReportView from "./LiveReportView";
-import type { Finding, ReportSynthesis as ApiReportSynthesis, FinalReport as ApiFinalReport } from "@/types/research";
+import type { Finding, ReportSynthesis, FinalReport } from "@/types/research";
 
-type FindingCompat = {
-  content?: string;
-  source: string;
-  finding?: {
-    title?: string;
-    summary?: string;
-    confidence_score?: number;
-  };
-  node_id?: string;
-};
-
-export type ResearchResult = {
+type ResearchResult = {
   query: string;
   answer: string;
   sources: string[];
@@ -32,30 +21,32 @@ export type ResearchResult = {
   confidence: number;
   session_id?: string;
   research_id?: string;
-  findings?: FindingCompat[];
+  findings?: Finding[];
   syntheses?: Record<string, any>;
 };
 
-const SourcesList = ({ sources, findings }: { sources: string[]; findings?: FindingCompat[] }) => {
+const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Finding[] }) => {
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
   
-  const findingsBySource = (findings || []).reduce((acc: Record<string, FindingCompat[]>, finding) => {
-    if (!finding.source) return acc;
+  const findingsBySource = (findings || []).reduce((acc: Record<string, Finding[]>, finding) => {
+    const source = finding.url || finding.source || "";
+    if (!source) return acc;
     
-    if (!acc[finding.source]) {
-      acc[finding.source] = [];
+    if (!acc[source]) {
+      acc[source] = [];
     }
     
-    if (!acc[finding.source].some(f => 
-      f.finding?.title === finding.finding?.title && 
-      f.finding?.summary === finding.finding?.summary
+    const findingData = finding.finding || finding;
+    if (!acc[source].some(f => 
+      f.title === findingData.title && 
+      f.summary === findingData.summary
     )) {
-      acc[finding.source].push(finding);
+      acc[source].push(finding);
     }
     
     return acc;
   }, {});
-  
+
   const toggleSourceExpanded = (source: string) => {
     setExpandedSources(prev => ({
       ...prev,
@@ -305,8 +296,8 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  const [reportSyntheses, setReportSyntheses] = useState<ApiReportSynthesis[]>([]);
-  const [finalReport, setFinalReport] = useState<ApiFinalReport | null>(null);
+  const [reportSyntheses, setReportSyntheses] = useState<ReportSynthesis[]>([]);
+  const [finalReport, setFinalReport] = useState<FinalReport | null>(null);
   const [isReportComplete, setIsReportComplete] = useState(false);
   
   useEffect(() => {
@@ -498,7 +489,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       
       console.log(`[${new Date().toISOString()}] 📊 Received report update:`, data);
       
-      const newSynthesis: ApiReportSynthesis = {
+      const newSynthesis: ReportSynthesis = {
         synthesis: data.synthesis || "",
         confidence: data.confidence || 0,
         timestamp: data.timestamp || new Date().toISOString(),
@@ -524,7 +515,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         depth: finding.depth || 0
       }));
       
-      const report: ApiFinalReport = {
+      const report: FinalReport = {
         query: data.query || currentResult.query,
         synthesis: data.synthesis || "",
         confidence: data.confidence || 0,

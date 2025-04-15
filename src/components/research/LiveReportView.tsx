@@ -96,13 +96,14 @@ const LiveReportView = ({
               </div>
             </Card>
             
-            {/* Sources and findings */}
             {finalReport.sources.length > 0 && (
               <div>
                 <h3 className="text-sm font-medium mb-2 text-muted-foreground">Sources & Findings</h3>
                 <div className="space-y-3">
                   {finalReport.sources.map((source, sourceIndex) => {
-                    const sourceFindings = finalReport.findings.filter(f => f.url === source);
+                    const sourceFindings = finalReport.findings.filter(f => 
+                      f.url === source || f.source === source
+                    );
                     
                     return (
                       <Card 
@@ -128,18 +129,20 @@ const LiveReportView = ({
                                 key={`finding-${findingIndex}`} 
                                 className="text-sm p-2 rounded-sm bg-muted/30"
                               >
-                                {finding.title && (
-                                  <h4 className="font-medium mb-1">{finding.title}</h4>
+                                {(finding.title || finding.finding?.title) && (
+                                  <h4 className="font-medium mb-1">
+                                    {finding.title || finding.finding?.title}
+                                  </h4>
                                 )}
                                 <p className="text-muted-foreground">
-                                  {finding.summary || "No content available"}
+                                  {finding.summary || finding.finding?.summary || finding.content || "No content available"}
                                 </p>
-                                {finding.confidence_score && (
+                                {(finding.confidence_score || finding.finding?.confidence_score) && (
                                   <Badge 
                                     variant="outline" 
                                     className="mt-2 text-xs bg-green-50 text-green-700"
                                   >
-                                    Confidence: {Math.round(finding.confidence_score * 100)}%
+                                    Confidence: {Math.round((finding.confidence_score || finding.finding?.confidence_score || 0) * 100)}%
                                   </Badge>
                                 )}
                               </div>
