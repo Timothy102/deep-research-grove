@@ -7,6 +7,7 @@ export type Finding = {
   timestamp?: string;
   node_type?: string;
   depth?: number;
+  source?: string; // Added required source property
 };
 
 export type ReportSynthesis = {

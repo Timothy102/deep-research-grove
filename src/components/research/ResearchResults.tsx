@@ -356,9 +356,9 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
           
           setCurrentSessionId(sessionId);
           
-          const processedFindings: Finding[] = Array.isArray(latestState.findings) 
+          const processedFindings: FindingCompat[] = Array.isArray(latestState.findings) 
             ? latestState.findings.map(finding => ({
-                source: finding.source,
+                source: finding.source || '',
                 content: finding.content || "",
                 finding: finding.finding,
                 node_id: finding.node_id,
