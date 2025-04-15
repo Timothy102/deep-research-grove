@@ -11,8 +11,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { getLatestSessionState } from "@/services/researchStateService";
 import LiveReportView from "./LiveReportView";
+import type { Finding, FinalReport, ReportSynthesis } from "@/types/research";
 
-export type Finding = {
+type FindingCompat = {
   content?: string;
   source: string;
   finding?: {
@@ -31,7 +32,7 @@ export type ResearchResult = {
   confidence: number;
   session_id?: string;
   research_id?: string;
-  findings?: Finding[];
+  findings?: FindingCompat[];
   syntheses?: Record<string, any>;
 };
 
@@ -513,12 +514,22 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       const data = payload.data;
       console.log(`[${new Date().toISOString()}] 📊 Received final report:`, data);
       
+      const typedFindings: Finding[] = (data.findings || []).map((finding: any) => ({
+        title: finding.title || "",
+        summary: finding.summary || "",
+        confidence_score: finding.confidence_score || 0,
+        url: finding.url || "",
+        timestamp: finding.timestamp || new Date().toISOString(),
+        node_type: finding.node_type || "",
+        depth: finding.depth || 0
+      }));
+      
       const report: FinalReport = {
         query: data.query || currentResult.query,
         synthesis: data.synthesis || "",
         confidence: data.confidence || 0,
         reasoning_path: data.reasoning_path || [],
-        findings: data.findings || [],
+        findings: typedFindings,
         sources: data.sources || [],
         timestamp: data.timestamp || new Date().toISOString()
       };
