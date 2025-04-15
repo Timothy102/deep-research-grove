@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { ExternalLink, Copy, CheckCircle2, MessageSquare, Lightbulb, FileText } from "lucide-react";
+import { ExternalLink, Copy, CheckCircle2, MessageSquare, Lightbulb, FileText, Search } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import { LOCAL_STORAGE_KEYS, getSessionStorageKey, saveSessionData } from "@/lib/constants";
@@ -26,7 +26,6 @@ type ResearchResult = {
 };
 
 const SourcesList = ({ sources, findings }: { sources: string[]; findings?: Finding[] }) => {
-  // ... keep existing code (SourcesList component)
   const [expandedSources, setExpandedSources] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
