@@ -5,35 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { ExternalLink, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-export type ReportSynthesis = {
-  synthesis: string;
-  confidence: number;
-  timestamp: string;
-  node_id: string;
-  query: string;
-};
-
-export type SourceFinding = {
-  source: string;
-  content?: string;
-  finding?: {
-    title?: string;
-    summary?: string;
-    confidence_score?: number;
-  };
-  node_id?: string;
-};
-
-export type FinalReport = {
-  query: string;
-  synthesis: string;
-  confidence: number;
-  reasoning_path: string[];
-  findings: SourceFinding[];
-  sources: string[];
-  timestamp: string;
-};
+import type { ReportSynthesis, Finding, FinalReport } from "@/types/research";
 
 type LiveReportViewProps = {
   syntheses: ReportSynthesis[];
@@ -130,7 +102,7 @@ const LiveReportView = ({
                 <h3 className="text-sm font-medium mb-2 text-muted-foreground">Sources & Findings</h3>
                 <div className="space-y-3">
                   {finalReport.sources.map((source, sourceIndex) => {
-                    const sourceFindings = finalReport.findings.filter(f => f.source === source);
+                    const sourceFindings = finalReport.findings.filter(f => f.url === source);
                     
                     return (
                       <Card 
@@ -156,18 +128,18 @@ const LiveReportView = ({
                                 key={`finding-${findingIndex}`} 
                                 className="text-sm p-2 rounded-sm bg-muted/30"
                               >
-                                {finding.finding?.title && (
-                                  <h4 className="font-medium mb-1">{finding.finding.title}</h4>
+                                {finding.title && (
+                                  <h4 className="font-medium mb-1">{finding.title}</h4>
                                 )}
                                 <p className="text-muted-foreground">
-                                  {finding.finding?.summary || finding.content || "No content available"}
+                                  {finding.summary || "No content available"}
                                 </p>
-                                {finding.finding?.confidence_score && (
+                                {finding.confidence_score && (
                                   <Badge 
                                     variant="outline" 
                                     className="mt-2 text-xs bg-green-50 text-green-700"
                                   >
-                                    Confidence: {Math.round(finding.finding.confidence_score * 100)}%
+                                    Confidence: {Math.round(finding.confidence_score * 100)}%
                                   </Badge>
                                 )}
                               </div>

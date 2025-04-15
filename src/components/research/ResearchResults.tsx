@@ -491,7 +491,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
     const payload = event.detail?.payload;
     if (!payload) return;
     
-    if (payload.eventType === "report_update" || payload.event_type === "report_update") {
+    if (payload.event === "report_update" || payload.event_type === "report_update") {
       const data = payload.data || payload.new?.data;
       if (!data) return;
       
@@ -509,7 +509,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       return;
     }
     
-    if ((payload.eventType === "final_report" || payload.event === "final_report" || payload.event_type === "final_report") && payload.data) {
+    if ((payload.event === "final_report" || payload.event_type === "final_report") && payload.data) {
       const data = payload.data;
       console.log(`[${new Date().toISOString()}] 📊 Received final report:`, data);
       
@@ -608,7 +608,7 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
       }
     }
   }, [currentResult]);
-  
+
   useEffect(() => {
     window.addEventListener('research_state_update', handleRealtimeUpdate as EventListener);
     
@@ -751,7 +751,6 @@ const ResearchResults = ({ result }: { result: ResearchResult | null }) => {
         </div>
       </div>
       
-      {/* Live Report View */}
       <div className="md:col-span-1 border-l pl-6 h-[calc(100vh-200px)]">
         <LiveReportView 
           syntheses={reportSyntheses}

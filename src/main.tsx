@@ -1,4 +1,3 @@
-
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
@@ -59,30 +58,30 @@ supabase.channel('research_states_changes')
         }
         
         // Special handling for report update events
-        if (payload.new && typeof payload.new === 'object' && 'data' in payload.new && payload.new.data) {
-          // Check for report_update event  
-          const hasEventType = 'event_type' in payload.new && typeof payload.new.event_type === 'string';
-          const hasEvent = 'event' in payload.new && typeof payload.new.event === 'string';
-          
-          const isReportUpdate = 
-            (hasEventType && payload.new.event_type === "report_update") || 
-            (hasEvent && payload.new.event === "final_report");
-          
-          if (isReportUpdate) {
-            console.log(`[${new Date().toISOString()}] 📝 Report event detected:`, 
-              hasEventType ? payload.new.event_type : 
-              hasEvent ? payload.new.event : 'unknown');
-            
-            // Dispatch a dedicated event for report updates
-            window.dispatchEvent(new CustomEvent('research_report_update', { 
-              detail: { 
-                payload: payload.new,
-                timestamp: new Date().toISOString(),
-                sessionId: payloadSessionId
-              },
-              bubbles: true,
-              composed: true
-            }));
+        if (payload.new && typeof payload.new === 'object') {
+          const newPayload = payload.new as Record<string, any>;
+          if ('data' in newPayload && typeof newPayload.data === 'object') {
+            // Check for report_update or final_report events
+            if (
+              ('event_type' in newPayload && newPayload.event_type === "report_update") ||
+              ('event' in newPayload && newPayload.event === "final_report")
+            ) {
+              console.log(`[${new Date().toISOString()}] 📝 Report event detected:`, 
+                'event_type' in newPayload ? newPayload.event_type : 
+                'event' in newPayload ? newPayload.event : 'unknown'
+              );
+              
+              // Dispatch a dedicated event for report updates
+              window.dispatchEvent(new CustomEvent('research_report_update', { 
+                detail: { 
+                  payload: newPayload,
+                  timestamp: new Date().toISOString(),
+                  sessionId: payloadSessionId
+                },
+                bubbles: true,
+                composed: true
+              }));
+            }
           }
         }
         
